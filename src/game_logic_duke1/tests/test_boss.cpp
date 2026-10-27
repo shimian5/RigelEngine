@@ -2,7 +2,9 @@
 
 #include <stdexcept>
 
-namespace duke1
+using namespace rigel;
+
+namespace rigel::duke1
 {
 struct PlayWorldTestAccess
 {
@@ -63,7 +65,7 @@ struct PlayWorldTestAccess
     }
   }
 };
-} // namespace duke1
+} // namespace rigel::duke1
 int main(int argc, char** argv)
 {
   if (argc != 2)

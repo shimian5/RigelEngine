@@ -3,7 +3,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-using namespace duke1;
+using namespace rigel::duke1;
 namespace
 {
 void snapshot(const Sandbox& s)

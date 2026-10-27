@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <string>
 #include <vector>
-namespace duke1::test
+namespace rigel::duke1::test
 {
 inline void
   put(std::vector<std::uint8_t>& image, std::size_t at, unsigned value)
@@ -109,4 +109,4 @@ inline std::vector<std::uint8_t> textImage(bool shareware, int episode = 0)
   }
   return image;
 }
-} // namespace duke1::test
+} // namespace rigel::duke1::test

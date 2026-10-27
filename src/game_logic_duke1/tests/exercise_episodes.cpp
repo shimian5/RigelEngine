@@ -7,6 +7,8 @@
 #include <map>
 #include <stdexcept>
 
+using namespace rigel;
+
 namespace
 {
 void check(bool ok)

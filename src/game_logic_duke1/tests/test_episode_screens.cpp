@@ -2,6 +2,8 @@
 
 #include <stdexcept>
 
+using namespace rigel;
+
 int main(int argc, char** argv)
 {
   if (argc != 3)

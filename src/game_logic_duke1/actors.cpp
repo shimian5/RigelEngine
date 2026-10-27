@@ -8,7 +8,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-namespace duke1
+namespace rigel::duke1
 {
 
 bool PlayWorld::wallAt(int x8, int yw) const
@@ -2506,4 +2506,4 @@ void PlayWorld::drawPorted(
   mShiftX = mShiftY = 0;
 }
 
-} // namespace duke1
+} // namespace rigel::duke1

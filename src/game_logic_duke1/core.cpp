@@ -1,7 +1,7 @@
 #include "core.hpp"
 #include <algorithm>
 #include <stdexcept>
-namespace duke1
+namespace rigel::duke1
 {
 namespace
 {
@@ -452,4 +452,4 @@ bool TickGate::callbacks(std::uint64_t count)
   mPending += count;
   return false;
 }
-} // namespace duke1
+} // namespace rigel::duke1

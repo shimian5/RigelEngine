@@ -9,6 +9,8 @@
 #include <cstring>
 #include <string>
 
+using namespace rigel;
+
 int main(int argc, char** argv)
 {
   if (argc < 4)

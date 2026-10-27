@@ -6,6 +6,8 @@
 #include <set>
 #include <stdexcept>
 
+using namespace rigel;
+
 int main(int argc, char** argv)
 {
   try

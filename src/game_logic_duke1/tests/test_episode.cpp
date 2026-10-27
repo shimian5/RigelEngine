@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+using namespace rigel;
+
 namespace
 {
 using duke1::test::fixture;

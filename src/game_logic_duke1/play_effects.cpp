@@ -7,7 +7,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-namespace duke1
+namespace rigel::duke1
 {
 
 void PlayWorld::drawPiece(
@@ -411,4 +411,4 @@ void PlayWorld::drawPools(
   mShiftX = 0;
 }
 
-} // namespace duke1
+} // namespace rigel::duke1

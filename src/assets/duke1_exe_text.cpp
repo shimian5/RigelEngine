@@ -24,7 +24,7 @@
 #include <iterator>
 #include <stdexcept>
 
-namespace duke1
+namespace rigel::duke1
 {
 
 namespace
@@ -544,4 +544,4 @@ std::vector<std::string> ExeText::tipMessage(const int index) const
   return lines;
 }
 
-} // namespace duke1
+} // namespace rigel::duke1

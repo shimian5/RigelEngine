@@ -6,7 +6,7 @@
 #include <functional>
 #include <string>
 #include <vector>
-namespace duke1
+namespace rigel::duke1
 {
 struct Input
 {
@@ -105,4 +105,4 @@ private:
   int mSpeed;
   std::uint64_t mPending = 0;
 };
-} // namespace duke1
+} // namespace rigel::duke1

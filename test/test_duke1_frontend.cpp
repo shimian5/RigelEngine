@@ -65,6 +65,7 @@ struct Duke1ModeTestAccess
 
 namespace
 {
+using namespace rigel;
 using Access = rigel::Duke1ModeTestAccess;
 using rigel::test::Duke1Fixture;
 const duke1::PlayWorld::Carry CARRY{54321, 7, 1, 1, 3};

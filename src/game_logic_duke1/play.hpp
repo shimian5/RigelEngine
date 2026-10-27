@@ -11,7 +11,7 @@
 #include <utility>
 #include <vector>
 
-namespace duke1
+namespace rigel::duke1
 {
 
 constexpr int SCREEN_W = 320;
@@ -369,4 +369,4 @@ private:
   std::vector<std::string> mWarnings;
 };
 
-} // namespace duke1
+} // namespace rigel::duke1

@@ -5,7 +5,7 @@
 #include <cmath>
 #include <stdexcept>
 
-namespace duke1
+namespace rigel::duke1
 {
 
 namespace
@@ -1008,9 +1008,9 @@ void PlayWorld::renderWorld(
   }
 }
 
-} // namespace duke1
+} // namespace rigel::duke1
 
-namespace duke1
+namespace rigel::duke1
 {
 
 std::vector<std::uint8_t> PlayWorld::standingPortrait() const
@@ -1066,4 +1066,4 @@ PlayWorld::BonusReport PlayWorld::bonusReport() const
   return r;
 }
 
-} // namespace duke1
+} // namespace rigel::duke1

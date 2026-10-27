@@ -4,7 +4,7 @@
 #include <cctype>
 #include <fstream>
 #include <iostream>
-using namespace duke1;
+using namespace rigel::duke1;
 static void
   writebytes(const std::filesystem::path& p, const std::vector<uint8_t>& b)
 {

@@ -4,7 +4,7 @@
 #include <cctype>
 #include <fstream>
 #include <stdexcept>
-namespace duke1
+namespace rigel::duke1
 {
 static void need(bool b, const char* m)
 {
@@ -410,4 +410,4 @@ Scene render_scene(
   }
   return result;
 }
-} // namespace duke1
+} // namespace rigel::duke1

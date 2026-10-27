@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-namespace duke1
+namespace rigel::duke1
 {
 
 // The story, dialogue and hint texts of Duke Nukem 1 live inside the
@@ -102,4 +102,4 @@ private:
 std::optional<std::vector<std::uint8_t>>
   unpackLzexe91(const std::vector<std::uint8_t>& exe);
 
-} // namespace duke1
+} // namespace rigel::duke1

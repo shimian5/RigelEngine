@@ -6,7 +6,7 @@
 #include <optional>
 #include <string>
 #include <vector>
-namespace duke1
+namespace rigel::duke1
 {
 struct Tile
 {
@@ -76,4 +76,4 @@ Scene render_scene(
 Level parse_level(const std::vector<uint8_t>&);
 Screen parse_screen(const std::vector<uint8_t>&);
 SoundBank parse_sounds(const std::vector<uint8_t>&);
-} // namespace duke1
+} // namespace rigel::duke1
