@@ -56,6 +56,18 @@ docker run --rm -it -v $(pwd):/workdir -w /workdir rigel-build ./tools/format-st
 docker run --rm -it -v $(pwd):/workdir -w /workdir rigel-build ./tools/format-all.sh
 ```
 
+## Commit identity
+
+Commits in this fork are authored and committed as `shimian5 <matt.alias@mattbaran.com>`.
+That address is verified on the shimian5 GitHub account. Set it before committing:
+
+```
+git config user.name shimian5
+git config user.email matt.alias@mattbaran.com
+```
+
+Commits are not signed, and there is no tool or co-author attribution in commit messages.
+
 ## Authenticity
 
 RigelEngine aims to provide a very authentic experience by default, meaning gameplay should be largely identical to the original Duke Nukem II. Modern enhancements that alter the gameplay are welcome, but should be disabled by default, requiring the user to opt in via the options menu. If you are planning to contribute a feature that might alter gameplay, please add a corresponding option to toggle it on/off.
