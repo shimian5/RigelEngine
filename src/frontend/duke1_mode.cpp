@@ -67,6 +67,19 @@ const std::string& Duke1Mode::lastLookupProblem()
 }
 
 
+std::optional<std::filesystem::path>
+  Duke1Mode::findDataDirIn(const std::filesystem::path& gamePath)
+{
+  const auto previous = gGamePath;
+  const auto previousProblem = gLookupProblem;
+  gGamePath = gamePath;
+  const auto result = findDataDir();
+  gGamePath = previous;
+  gLookupProblem = previousProblem;
+  return result;
+}
+
+
 std::optional<std::filesystem::path> Duke1Mode::findDataDir()
 {
   if (gGamePath.empty())
@@ -418,6 +431,71 @@ void Duke1Mode::handleEvent(const SDL_Event& event)
 }
 
 
+ui::HudArt Duke1Mode::duke1HudArt() const
+{
+  // In the game Duke's hand covers the rear half of his gun. The barrel is cut
+  // out of his standing sprite; the receiver, end cap and grip that his hand
+  // hides are drawn in the same style and palette.
+  constexpr int BARREL_X = 22;
+  constexpr int BARREL_Y = 13;
+  constexpr int BARREL_W = 10;
+  constexpr int BARREL_H = 6;
+
+  // clang-format off
+  static const char* const REAR[] = {
+    "..............",
+    ".AAAAAAAAAAAAA",
+    ".ADDAGGGGGGGGG",
+    ".ADDAFFFFFFFFF",
+    ".AFFAFFFEEFFFF",
+    ".AFFAFFFEEFFFF",
+    ".AAAADDDDDDDDD",
+    ".....AFFFFA...",
+    ".....ADDDDA...",
+    ".....AAAAAA..."};
+  // clang-format on
+  constexpr int REAR_W = 14;
+  constexpr int GRID_W = REAR_W + BARREL_W;
+  constexpr int GRID_H = 10;
+
+  const auto colorFor = [](const char c) {
+    switch (c)
+    {
+      case 'A': return base::Color{0, 0, 0, 255};
+      case 'D': return base::Color{85, 85, 85, 255};
+      case 'F': return base::Color{170, 170, 170, 255};
+      case 'G': return base::Color{255, 255, 255, 255};
+      case 'E': return base::Color{170, 0, 170, 255};
+      default: return base::Color{0, 0, 0, 0};
+    }
+  };
+
+  const auto portrait = mpWorld->standingPortrait();
+  data::PixelBuffer pixels(std::size_t(GRID_W) * GRID_H, base::Color{0, 0, 0, 0});
+  for (int y = 0; y < GRID_H; ++y)
+  {
+    for (int x = 0; x < REAR_W; ++x)
+    {
+      pixels[std::size_t(y) * GRID_W + std::size_t(x)] = colorFor(REAR[y][x]);
+    }
+  }
+  for (int y = 0; y < BARREL_H; ++y)
+  {
+    for (int x = 0; x < BARREL_W; ++x)
+    {
+      const auto k =
+        (std::size_t(BARREL_Y + y) * 32 + std::size_t(BARREL_X + x)) * 4;
+      pixels[std::size_t(1 + y) * GRID_W + std::size_t(REAR_W + x)] =
+        base::Color{portrait[k], portrait[k + 1], portrait[k + 2], portrait[k + 3]};
+    }
+  }
+
+  ui::HudArt art;
+  art.mGun = data::Image{std::move(pixels), GRID_W, GRID_H};
+  return art;
+}
+
+
 void Duke1Mode::submitOverlayHud()
 {
   const auto tier =
@@ -429,7 +507,7 @@ void Duke1Mode::submitOverlayHud()
     if (!mHudSkin && !mGeneratedHudSkin)
     {
       mGeneratedHudSkin = ui::HudSkin::generateDefault(
-        mContext.mpRenderer, ui::HudArt{});
+        mContext.mpRenderer, duke1HudArt());
     }
     mHudSkinTierTried = tier;
   }

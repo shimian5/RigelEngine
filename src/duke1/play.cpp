@@ -1013,6 +1013,27 @@ void PlayWorld::renderWorld(
 namespace duke1
 {
 
+std::vector<std::uint8_t> PlayWorld::standingPortrait() const
+{
+  std::vector<std::uint8_t> out(32 * 32 * 4, 0);
+  const int offs[4][2] = {{0, 0}, {16, 0}, {0, 16}, {16, 16}};
+  for (int i = 0; i < 4; ++i)
+  {
+    const auto idx = static_cast<std::size_t>(4 + i);
+    if (idx >= man_[1].tiles.size())
+      continue;
+    const auto rgba = man_[1].tiles[idx].rgba();
+    for (int y = 0; y < 16; ++y)
+      for (int x = 0; x < 16; ++x)
+        for (int c = 0; c < 4; ++c)
+          out[(static_cast<std::size_t>(offs[i][1] + y) * 32 +
+               static_cast<std::size_t>(offs[i][0] + x)) * 4 + c] =
+            rgba[(static_cast<std::size_t>(y) * 16 + static_cast<std::size_t>(x)) * 4 + c];
+  }
+  return out;
+}
+
+
 PlayWorld::BonusReport PlayWorld::bonusReport() const
 {
   BonusReport r;

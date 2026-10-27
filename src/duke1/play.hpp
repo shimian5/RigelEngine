@@ -159,6 +159,8 @@ public:
                      [static_cast<std::size_t>(kPiece[i - 4] % 50)];
     return sprites_[8][static_cast<std::size_t>(24 + i)];
   }
+  // 32x32 RGBA picture of Duke standing and facing right
+  std::vector<std::uint8_t> standingPortrait() const;
   // Draws the collected keys into the given area of an RGBA frame (inventory)
   void drawInventory(std::vector<std::uint8_t>& out, int w, int h, int x, int y)
     const;

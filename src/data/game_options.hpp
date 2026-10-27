@@ -128,11 +128,7 @@ struct GameOptions
   bool mEnableVsync = ENABLE_VSYNC_DEFAULT;
   bool mEnableFpsLimit = true; // Only relevant when mEnableVsync == false
   int mMaxFps = 60; // Only relevant when mEnableFpsLimit == true
-#ifdef __ANDROID__
-  bool mShowFpsCounter = true; // dev builds only
-#else
   bool mShowFpsCounter = false;
-#endif
   bool mEnableScreenFlashes = true;
   UpscalingFilter mUpscalingFilter = UpscalingFilter::None;
   bool mAspectRatioCorrectionEnabled = true;

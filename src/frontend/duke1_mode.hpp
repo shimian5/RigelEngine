@@ -27,6 +27,7 @@
 #include "ui/console_menu.hpp"
 #include "ui/console_results.hpp"
 #include "ui/hud_skin.hpp"
+#include "ui/hud_skin_generator.hpp"
 #include "ui/menu_navigation.hpp"
 
 #include <array>
@@ -64,6 +65,10 @@ public:
   /** Where the DOS data lives relative to the game path, if present */
   static std::optional<std::filesystem::path> findDataDir();
 
+  /** Like findDataDir(), for a folder that is not (yet) the game path */
+  static std::optional<std::filesystem::path>
+    findDataDirIn(const std::filesystem::path& gamePath);
+
   /** Human readable reason for the most recent findDataDir() failure */
   static const std::string& lastLookupProblem();
   static std::vector<int>
@@ -74,6 +79,7 @@ private:
 
   void handleEvent(const SDL_Event& event);
   void submitOverlayHud();
+  ui::HudArt duke1HudArt() const;
 
   Context mContext;
   std::filesystem::path mDataDir;

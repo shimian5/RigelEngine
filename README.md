@@ -20,11 +20,11 @@ and usability improvements, including:
 
 <img src="docs/screenshots/duke-nukem-1-overlay.png" alt="Duke Nukem I in this fork with the modern overlay HUD" width="700"/>
 
-*Duke Nukem I with the modern overlay HUD.*
+*Duke Nukem I with the modern overlay HUD (Retroid Pocket G2).*
 
 <img src="docs/screenshots/duke-nukem-2-overlay.png" alt="Duke Nukem II in this fork with the modern overlay HUD" width="700"/>
 
-*Duke Nukem II with the modern overlay HUD.*
+*Duke Nukem II with the modern overlay HUD (Retroid Pocket G2).*
 
 The original games did not have publicly released source code. Their behaviour is studied
 through reverse engineering of the DOS executables and comparison with the original games.
@@ -84,15 +84,17 @@ For work specific to this fork, see the [pull requests](https://github.com/shimi
 Supply your own original DOS game files. Duke Nukem I supports shareware episode 1 and
 all three registered episodes; Duke Nukem II supports shareware and registered data.
 
-For **Duke Nukem I**, place its episode EXEs and matching data files together in a directory
-named `DN1`. For **Duke Nukem II**, use the directory containing `NUKEM2.CMP`.
+You only need the files for the game or games you want to play. Duke Nukem I does not
+need any Duke Nukem II data, and Duke Nukem II does not need Duke Nukem I's. If a game's
+files are missing, its entry in the launcher is greyed out.
 
-**Temporary setup limitation:** playing Duke Nukem I currently also requires selecting
-a Duke Nukem II data directory at startup. Place `DN1` inside or beside that directory.
-The launcher also recognizes `DN1-full/pc` in either location, or DN1 files stored directly
-in the selected directory. Removing this dependency is being handled separately.
+For **Duke Nukem I**, place its episode EXEs and matching data files together in a directory.
+For **Duke Nukem II**, use the directory containing `NUKEM2.CMP`. At first launch (or via
+Options > Choose game data folder) select the folder that holds the games. The launcher
+looks for Duke Nukem I files in a `DN1` folder inside it or beside it, in `DN1-full/pc` in
+either location, or directly in the selected folder.
 
-For example:
+For example, with both games installed:
 
 ```text
 Games/
@@ -111,11 +113,12 @@ Games/
     NUKEM2.F1       (optional intro movies, through .F5)
 ```
 
-In this example, choose the `Duke2` folder containing `NUKEM2.CMP` in the first-launch
-file browser; the launcher finds `DN1` beside it. These are example paths, not required
-folder names apart from the DN1 discovery locations described above. The selected path
-is saved in your user profile. Desktop builds also accept it on the command line.
-On Android, store the files in a location accessible to the app.
+Choose `Games/Duke2` (or `Games`) in the file browser; the launcher finds `DN1` beside it.
+To play only Duke Nukem I, choose the folder that contains `DN1`, or the `DN1` folder
+itself. Without Duke Nukem II's data there is no Duke Nukem II menu music, since Duke
+Nukem I's level songs are borrowed from it; Duke Nukem I's own sound effects are unaffected.
+The selected path is saved in your user profile. Desktop builds also accept it on the
+command line. On Android, store the files in a location accessible to the app.
 
 ### Acquiring the game data
 

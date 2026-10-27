@@ -31,6 +31,7 @@
 #include "renderer/upscaling.hpp"
 #include "sdl_utils/key_code.hpp"
 #include "sdl_utils/platform.hpp"
+#include "frontend/duke1_mode.hpp"
 #include "ui/credits.hpp"
 #include "ui/hud_renderer.hpp"
 #include "ui/menu_navigation.hpp"
@@ -243,7 +244,7 @@ OptionsMenu::OptionsMenu(
   , mType(type)
   , mIsRunningInDesktopEnvironment(sdl_utils::isRunningInDesktopEnvironment())
 {
-  mGamePathBrowser.SetTitle("Choose Duke Nukem II installation");
+  mGamePathBrowser.SetTitle("Choose game data folder");
 }
 
 
@@ -956,7 +957,9 @@ void OptionsMenu::updateAndRender(engine::TimeDelta dt)
     if (mGamePathBrowser.HasSelected())
     {
       const auto newGamePath = mGamePathBrowser.GetSelected();
-      if (fs::exists(newGamePath / "NUKEM2.CMP"))
+      if (
+        fs::exists(newGamePath / "NUKEM2.CMP") ||
+        Duke1Mode::findDataDirIn(newGamePath))
       {
         mGamePathBrowser.Close();
         mpServiceProvider->switchGamePath(newGamePath);
@@ -975,7 +978,7 @@ void OptionsMenu::updateAndRender(engine::TimeDelta dt)
     if (ImGui::BeginPopupModal("Error", &mShowErrorBox, flags))
     {
       ImGui::TextUnformatted(
-        "No game data (file NUKEM2.CMP) found at chosen path!");
+        "No game data (NUKEM2.CMP or Duke Nukem 1 files) found at chosen path!");
       if (ImGui::Button("Ok"))
       {
         mShowErrorBox = false;
@@ -1087,7 +1090,7 @@ void OptionsMenu::drawGamePathChooser(const ImVec2& sizeToUse)
   }
 
   ImGui::NewLine();
-  if (ImGui::Button("Choose Duke Nukem II installation"))
+  if (ImGui::Button("Choose game data folder"))
   {
     if (mpUserProfile->mGamePath)
     {

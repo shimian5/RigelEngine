@@ -81,8 +81,7 @@ bool isValidGamePath(const std::filesystem::path& path)
   }
 
   // Duke Nukem 1 can be played on its own
-  Duke1Mode::setGamePath(path);
-  return Duke1Mode::findDataDir().has_value();
+  return Duke1Mode::findDataDirIn(path).has_value();
 }
 
 

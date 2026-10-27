@@ -700,6 +700,22 @@ GeneratedHudAtlas generateDefaultHudAtlas(const HudArt& art)
       for (auto i = 0; i <= WeaponLast - WeaponFirst; ++i)
       {
         const auto& r = R(WeaponFirst + i);
+        if (art.mGun)
+        {
+          constexpr auto gunScale = 4;
+          const auto w = int(art.mGun->width());
+          const auto h = int(art.mGun->height());
+          c.blitCropScaled(
+            *art.mGun,
+            0,
+            0,
+            w,
+            h,
+            r.x + (r.w - w * gunScale) / 2,
+            r.y + (r.h - h * gunScale) / 2,
+            gunScale);
+          continue;
+        }
         constexpr auto gridW = 29;
         constexpr auto gridH = 10;
         constexpr auto scale = 4;

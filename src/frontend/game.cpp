@@ -482,6 +482,7 @@ bool Game::handleEvent(const SDL_Event& event)
       if (event.key.keysym.sym == SDLK_F6)
       {
         options.mShowFpsCounter = !options.mShowFpsCounter;
+        mpUserProfile->saveToDisk();
       }
       else if (event.key.keysym.sym == SDLK_F12)
       {

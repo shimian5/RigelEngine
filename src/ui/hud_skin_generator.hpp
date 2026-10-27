@@ -53,6 +53,10 @@ struct HudArt
   /** First frame of the player facing right, for the gun in the weapon slot */
   std::optional<data::Image> mPlayerSprite;
 
+  /** A ready-made picture of the gun, used instead of building one from the
+   * player sprite */
+  std::optional<data::Image> mGun;
+
   /** The 32x16 projectile icons of the four weapons */
   std::array<std::optional<data::Image>, 4> mProjectiles;
 
