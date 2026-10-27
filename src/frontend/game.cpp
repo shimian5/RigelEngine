@@ -493,6 +493,9 @@ void Game::updateAndRender(const entityx::TimeDelta elapsed)
   {
     fadeOutScreen();
 
+    // A pending overlay can refer to data owned by the mode being replaced
+    mNativeOverlay = nullptr;
+
     setPerElementUpscalingEnabled(pMaybeNextMode->needsPerElementUpscaling());
     mpCurrentGameMode = std::move(pMaybeNextMode);
 

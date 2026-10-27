@@ -149,8 +149,8 @@ NLOHMANN_JSON_SERIALIZE_ENUM(
 namespace
 {
 
-constexpr auto PREF_PATH_ORG_NAME = "lethal-guitar";
-constexpr auto PREF_PATH_APP_NAME = "Rigel Engine";
+constexpr auto PREF_PATH_ORG_NAME = "";
+constexpr auto PREF_PATH_APP_NAME = "Rigel Engine Proton";
 constexpr auto USER_PROFILE_FILENAME_V1 = "UserProfile.rigel";
 constexpr auto OPTIONS_FILENAME = "Options.json";
 constexpr auto MOD_LIBRARY_FILENAME = "ModLibrary.json";
