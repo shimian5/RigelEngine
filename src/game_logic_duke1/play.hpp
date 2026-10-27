@@ -224,6 +224,27 @@ private:
   void updatePortedPart3(ActorInstance& a);
   void updatePortedPart4(ActorInstance& a);
   void updatePortedPart5(ActorInstance& a);
+  void drawPortedPart1(
+    std::vector<std::uint8_t>& out,
+    int w,
+    int h,
+    int left,
+    int top,
+    const ActorInstance& a) const;
+  void drawPortedPart2(
+    std::vector<std::uint8_t>& out,
+    int w,
+    int h,
+    int left,
+    int top,
+    const ActorInstance& a) const;
+  void drawPortedPart3(
+    std::vector<std::uint8_t>& out,
+    int w,
+    int h,
+    int left,
+    int top,
+    const ActorInstance& a) const;
   void interact(); // bullets and touch against the actors
 
   // Actors whose behaviour has been ported from the original code (actors.cpp)

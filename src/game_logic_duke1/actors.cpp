@@ -2112,6 +2112,460 @@ void PlayWorld::updatePorted()
   mTargetsCleared = !any;
 }
 
+// Drawing of actor types 0x3000 - 0x3052 (13 types), part 1 of 3.
+void PlayWorld::drawPortedPart1(
+  std::vector<std::uint8_t>& out,
+  int w,
+  int h,
+  int left,
+  int top,
+  const ActorInstance& a) const
+{
+  const auto& p0 = mSandbox.player;
+  switch (a.id)
+  {
+    case 0x3010:
+      if (a.state == 0)
+        break;
+      if (a.state < 3)
+        drawPiece(out, w, h, left, top, 80 + mFamAnim3010 / 0xa0, a.x8, a.yw);
+      else
+        drawPiece(out, w, h, left, top, 83 + (a.state - 3), a.x8, a.yw);
+      break;
+    case 0x3000:
+      drawObjectPiece(out, w, h, left, top, 0, a.x8, a.yw);
+      break;
+    case 0x302A:
+      {
+        // Idle or fully fallen: plain sign; shaking in between
+        const int wiggle = a.state >= 2 && a.state < 0xf ? a.state % 2 : 0;
+        mShiftY += wiggle;
+        drawObjectPiece(out, w, h, left, top, 83, a.x8, a.yw);
+        drawObjectPiece(out, w, h, left, top, 84, a.x8 + 2, a.yw);
+        break;
+      }
+    case 0x3007:
+      {
+        drawObjectPiece(out, w, h, left, top, 11, a.x8, a.yw - 0x180);
+        drawObjectPiece(out, w, h, left, top, 12, a.x8, a.yw - 0x100);
+        drawObjectPiece(out, w, h, left, top, 12, a.x8, a.yw - 0x80);
+        drawObjectPiece(out, w, h, left, top, 13, a.x8, a.yw);
+        drawObjectPiece(out, w, h, left, top, 14, a.x8 - 2, a.yw);
+        drawObjectPiece(out, w, h, left, top, 15, a.x8 + 2, a.yw);
+        if (a.state > 1 && a.state < 10 && (a.state & 1))
+          drawObjectPiece(out, w, h, left, top, 17, a.x8, a.yw + 0x80);
+        if (a.state == 10 && a.yw % 0x100 != 0)
+        {
+          drawObjectPiece(out, w, h, left, top, 16, a.x8, a.yw + 0x80);
+          drawObjectPiece(out, w, h, left, top, 17, a.x8, a.yw + 0x100);
+        }
+        break;
+      }
+    case 0x3042:
+    case 0x3043:
+      {
+        const bool faceLeft = p0.x8 + p0.cameraX8 - 2 < a.x8;
+        const int frame =
+          a.state == 2 ? (faceLeft ? 0 : 2) : mBoss.anim + (faceLeft ? 0 : 2);
+        static const int kBottom[4][2] = {
+          {272, 273}, {274, 275}, {278, 279}, {280, 281}};
+        drawPiece(
+          out, w, h, left, top, frame < 2 ? 270 : 276, a.x8, a.yw - 0x80);
+        drawPiece(
+          out, w, h, left, top, frame < 2 ? 271 : 277, a.x8 + 2, a.yw - 0x80);
+        drawPiece(out, w, h, left, top, kBottom[frame][0], a.x8, a.yw);
+        drawPiece(out, w, h, left, top, kBottom[frame][1], a.x8 + 2, a.yw);
+        break;
+      }
+    case 0x3034:
+      drawObjectPiece(
+        out,
+        w,
+        h,
+        left,
+        top,
+        a.state == 1 ? 105 + mPhase % 8 : 113,
+        a.x8,
+        a.yw);
+      break;
+    case 0x3035:
+      drawObjectPiece(out, w, h, left, top, 116, a.x8 - 2, a.yw);
+      drawObjectPiece(out, w, h, left, top, 117, a.x8 + 2, a.yw);
+      drawObjectPiece(
+        out,
+        w,
+        h,
+        left,
+        top,
+        (a.v0 == 0 && mPhase % 4 == 0) ? 114 : 115,
+        a.x8,
+        a.yw);
+      break;
+    case 0x302B:
+      {
+        for (int i = 0; i < 3; ++i)
+        {
+          const int y = a.yw - 0x80 * i;
+          if (a.v0 == 0 && a.v1)
+          {
+            drawPiece(out, w, h, left, top, 255, a.x8, y); // flash when hit
+          }
+          else if (a.v0 == 0)
+          {
+            drawObjectPiece(out, w, h, left, top, 90 + mPhase % 5, a.x8, y);
+          }
+          else
+          {
+            drawObjectPiece(out, w, h, left, top, 90, a.x8, y);
+          }
+        }
+        break;
+      }
+    case 0x302F:
+    case 0x3030:
+      {
+        // Pad: three rows of pieces; while teleporting the middle row shows
+        // the beam
+        const bool beam = a.v0 > 1;
+        drawPiece(out, w, h, left, top, 212, a.x8, a.yw - 0x100);
+        drawPiece(out, w, h, left, top, 214, a.x8 + 4, a.yw - 0x100);
+        drawPiece(out, w, h, left, top, 215, a.x8, a.yw - 0x80);
+        drawPiece(
+          out,
+          w,
+          h,
+          left,
+          top,
+          beam ? 224 + mPhase % 2 : 216,
+          a.x8 + 2,
+          a.yw - 0x80);
+        drawPiece(
+          out,
+          w,
+          h,
+          left,
+          top,
+          beam ? 226 + mPhase % 2 : 217,
+          a.x8 + 4,
+          a.yw - 0x80);
+        drawPiece(out, w, h, left, top, 218, a.x8, a.yw);
+        drawPiece(out, w, h, left, top, 219, a.x8 + 2, a.yw);
+        drawPiece(out, w, h, left, top, 220, a.x8 + 4, a.yw);
+        break;
+      }
+    case 0x3015:
+    case 0x3052:
+      {
+        const int f = (mPhase / 4) % 4;
+        if (a.state == 1)
+          drawObjectPiece(out, w, h, left, top, 101, a.x8, a.yw);
+        else if (a.state == 2)
+          drawPiece(out, w, h, left, top, 128 + f, a.x8, a.yw);
+        else if (a.state > 2)
+          drawPiece(out, w, h, left, top, 132 + f, a.x8, a.yw);
+        break;
+      }
+    default:
+      break;
+  }
+}
+
+// Drawing of actor types 0x3001 - 0x3059 (25 types), part 2 of 3.
+void PlayWorld::drawPortedPart2(
+  std::vector<std::uint8_t>& out,
+  int w,
+  int h,
+  int left,
+  int top,
+  const ActorInstance& a) const
+{
+  const auto& p0 = mSandbox.player;
+  switch (a.id)
+  {
+    case 0x3018:
+    case 0x3051:
+      drawObjectPiece(
+        out,
+        w,
+        h,
+        left,
+        top,
+        a.state == 1 ? 101 : (a.state == 2 ? 44 : 45),
+        a.x8,
+        a.yw);
+      break;
+    case 0x3022:
+      {
+        if (a.v0 == 0)
+          break; // asleep until first on screen: not drawn by the original
+                 // either
+        const int hover = mPhase % 2;
+        const int rotor =
+          a.state == 1 ? hover + 2 : (a.state == 2 ? hover : hover + 4);
+        const int body = a.state == 1 ? 1 : (a.state == 2 ? 0 : 2);
+        for (int i = 0; i < 4; ++i)
+        {
+          drawPiece(
+            out,
+            w,
+            h,
+            left,
+            top,
+            176 + 4 * rotor + i,
+            a.x8 + 2 * i,
+            a.yw - 0x80);
+          drawPiece(
+            out, w, h, left, top, 164 + 4 * body + i, a.x8 + 2 * i, a.yw);
+        }
+        break;
+      }
+    case 0x303B:
+      {
+        if (a.v1 < 0)
+          break;
+        const int base = a.v1 < 3 ? 114 + 2 * a.v1 : 228 + 2 * (a.v1 - 3);
+        drawPiece(out, w, h, left, top, base, a.x8, a.yw - 0x80);
+        drawPiece(out, w, h, left, top, base + 1, a.x8, a.yw);
+        break;
+      }
+    case 0x3023:
+      if (a.state == 1)
+      {
+        drawObjectPiece(out, w, h, left, top, 100, a.x8, a.yw);
+      }
+      else if (a.state == 2)
+      {
+        drawObjectPiece(
+          out, w, h, left, top, 69, a.x8, a.yw - 0x80); // the balloon
+        drawObjectPiece(
+          out, w, h, left, top, 70 + a.v0, a.x8, a.yw); // its wiggling string
+      }
+      break;
+    case 0x3024:
+      {
+        const int playerX = p0.x8 + p0.cameraX8;
+        const int piece =
+          playerX < a.x8 - 2 ? 200 : (a.x8 + 2 < playerX ? 202 : 201);
+        drawPiece(out, w, h, left, top, piece, a.x8, a.yw);
+        break;
+      }
+    case 0x3058:
+    case 0x3059:
+      drawObjectPiece(
+        out, w, h, left, top, a.id == 0x3058 ? 148 : 149, a.x8, a.yw);
+      break;
+    case 0x3029:
+      if (a.v0 == 0)
+        drawObjectPiece(out, w, h, left, top, 0, a.x8, a.yw);
+      else
+        drawObjectPiece(out, w, h, left, top, 73 + mPhase % 9, a.x8, a.yw);
+      break;
+    case 0x3037:
+    case 0x3038:
+    case 0x3039:
+    case 0x303A:
+      drawObjectPiece(
+        out,
+        w,
+        h,
+        left,
+        top,
+        a.v0 == 0 ? 0 : 118 + (a.id - 0x3037),
+        a.x8,
+        a.yw);
+      break;
+    case 0x3031:
+    case 0x3057:
+      drawPiece(out, w, h, left, top, 223, a.x8, a.yw);
+      break;
+    case 0x3001:
+      drawObjectPiece(out, w, h, left, top, 5, a.x8, a.yw);
+      break;
+    case 0x3011:
+      {
+        const int frame = a.v0 == 0 ? 0 : std::min(a.v0 - 1, 3);
+        drawPiece(out, w, h, left, top, 96 + 4 * frame, a.x8, a.yw - 0x80);
+        drawPiece(out, w, h, left, top, 97 + 4 * frame, a.x8 + 2, a.yw - 0x80);
+        drawPiece(out, w, h, left, top, 98 + 4 * frame, a.x8, a.yw);
+        drawPiece(out, w, h, left, top, 99 + 4 * frame, a.x8 + 2, a.yw);
+        break;
+      }
+    case 0x3044:
+    case 0x3045:
+    case 0x3046:
+    case 0x3047:
+      drawObjectPiece(out, w, h, left, top, 124 + (a.id - 0x3044), a.x8, a.yw);
+      break;
+    case 0x3048:
+    case 0x3049:
+    case 0x304A:
+    case 0x304B:
+      {
+        const int piece =
+          137 + (a.id - 0x3048); // control, one picture per key colour
+        drawObjectPiece(
+          out,
+          w,
+          h,
+          left,
+          top,
+          (a.v0 || (mPhase / 4) % 2 == 0) ? piece : 136,
+          a.x8,
+          a.yw);
+        break;
+      }
+    default:
+      break;
+  }
+}
+
+// Drawing of actor types 0x3009 - 0x304F (17 types), part 3 of 3.
+void PlayWorld::drawPortedPart3(
+  std::vector<std::uint8_t>& out,
+  int w,
+  int h,
+  int left,
+  int top,
+  const ActorInstance& a) const
+{
+  const auto& p0 = mSandbox.player;
+  switch (a.id)
+  {
+    case 0x304C:
+    case 0x304D:
+    case 0x304E:
+    case 0x304F:
+      drawObjectPiece(
+        out, w, h, left, top, a.v0 == 0 ? 128 : 127 + a.v0, a.x8, a.yw);
+      break;
+    case 0x300C:
+      {
+        // 2x3 piece layout per frame from the original table (-1 = no piece)
+        static const int kPieces[6][6] = {
+          {-1, -1, 10, 11, 12, 13},
+          {-1, -1, 10, 11, 14, 15},
+          {16, 17, 18, 19, 20, 21},
+          {-1, -1, 22, 23, 24, 25},
+          {-1, -1, 22, 23, 26, 27},
+          {28, 29, 30, 31, 32, 33}};
+        if (a.v1 < 0)
+          break;
+        const auto& t = kPieces[a.v1];
+        const int rowYw[3] = {a.yw - 0x100, a.yw - 0x80, a.yw};
+        for (int r = 0; r < 3; ++r)
+          for (int c = 0; c < 2; ++c)
+            if (t[r * 2 + c] >= 0)
+              drawPiece(
+                out, w, h, left, top, t[r * 2 + c], a.x8 + 2 * c, rowYw[r]);
+        break;
+      }
+    case 0x300E:
+      if (a.v1 < 0)
+        break;
+      drawPiece(out, w, h, left, top, 48 + 4 * a.v1, a.x8, a.yw - 0x80);
+      drawPiece(out, w, h, left, top, 49 + 4 * a.v1, a.x8 + 2, a.yw - 0x80);
+      drawPiece(out, w, h, left, top, 50 + 4 * a.v1, a.x8, a.yw);
+      drawPiece(out, w, h, left, top, 51 + 4 * a.v1, a.x8 + 2, a.yw);
+      break;
+    case 0x300D:
+      if (a.v1 < 0)
+        break;
+      drawPiece(out, w, h, left, top, 34 + 2 * a.v1, a.x8, a.yw);
+      drawPiece(out, w, h, left, top, 35 + 2 * a.v1, a.x8 + 2, a.yw);
+      break;
+    case 0x301A:
+      drawObjectPiece(
+        out, w, h, left, top, (a.v0 ? 54 : 50) + mPhase % 4, a.x8, a.yw);
+      break;
+    case 0x3021:
+      drawObjectPiece(out, w, h, left, top, 65 + mPhase % 4, a.x8, a.yw);
+      break;
+    case 0x302C:
+      drawObjectPiece(out, w, h, left, top, a.v0 ? 96 : 95, a.x8, a.yw);
+      break;
+    case 0x3009:
+    case 0x300A:
+      {
+        const int dir = a.id == 0x3009 ? 1 : -1;
+        const bool right = a.id == 0x3009;
+        if (a.state >= 0xf && a.state < 0x19 && a.state % 2 != 0)
+        {
+          drawObjectPiece(out, w, h, left, top, right ? 24 : 29, a.x8, a.yw);
+        }
+        else if (a.state >= 0x19 && a.state < 0x2d)
+        {
+          const int par = a.state % 2;
+          drawObjectPiece(
+            out, w, h, left, top, (right ? 25 : 30) + par, a.x8, a.yw);
+          drawObjectPiece(
+            out,
+            w,
+            h,
+            left,
+            top,
+            (right ? 25 : 30) + par,
+            a.x8 + 2 * dir,
+            a.yw);
+          drawObjectPiece(
+            out,
+            w,
+            h,
+            left,
+            top,
+            (right ? 27 : 32) + par,
+            a.x8 + 4 * dir,
+            a.yw);
+        }
+        break;
+      }
+    case 0x303C:
+      {
+        const int frame = (a.state == 1 ? 0 : 3) + (mPhase / 2) % 3;
+        drawPiece(out, w, h, left, top, 240 + 2 * frame, a.x8, a.yw - 0x80);
+        drawPiece(out, w, h, left, top, 241 + 2 * frame, a.x8, a.yw);
+        break;
+      }
+    case 0x3012:
+      if (a.state == 0)
+        break;
+      if (a.v0 == 0)
+      {
+        drawObjectPiece(out, w, h, left, top, 0, a.x8, a.yw);
+      }
+      else if (a.state < 0xc)
+      {
+        drawPiece(out, w, h, left, top, 112, a.x8, a.yw);
+        if (a.state % 2 != 0)
+          drawPiece(out, w, h, left, top, 113, a.x8, a.yw);
+      }
+      break;
+    case 0x300B:
+      {
+        // Body piece (state 1-6 or the two knocked-out poses) above a
+        // four-frame propeller piece
+        const int bodyPiece =
+          a.state >= 0xfe ? (a.state == 0xfe ? 0 : 5) : a.state - 1;
+        const int propeller = a.state >= 0xfe ? 6 : 6 + mHoverAnim;
+        drawPiece(out, w, h, left, top, bodyPiece, a.x8, a.yw - 0x80);
+        drawPiece(out, w, h, left, top, propeller, a.x8, a.yw);
+        break;
+      }
+    case 0x3016:
+    case 0x3017:
+      {
+        // Pieces 136-139 (states 1/2) and 140-143 (states 3/4); two animation
+        // counters run in opposite directions
+        const int base = a.state <= 2 ? 136 : 140;
+        const int frame = (a.state == 1 || a.state == 3) ? mFamAnimUp / 0xa0
+                                                         : mFamAnimDown / 0xa0;
+        drawPiece(out, w, h, left, top, base + frame, a.x8, a.yw);
+        break;
+      }
+    default:
+      break;
+  }
+}
+
 void PlayWorld::drawPorted(
   std::vector<std::uint8_t>& out,
   int w,
@@ -2140,417 +2594,9 @@ void PlayWorld::drawPorted(
       static_cast<int>(std::lround((a.yw - a.prevYw) / 8.0 * (mBlend - 1.0)));
     if (std::abs(a.x8 - a.prevX8) > 8 || std::abs(a.yw - a.prevYw) > 0x200)
       mShiftX = mShiftY = 0;
-    switch (a.id)
-    {
-      case 0x3010:
-        if (a.state == 0)
-          break;
-        if (a.state < 3)
-          drawPiece(out, w, h, left, top, 80 + mFamAnim3010 / 0xa0, a.x8, a.yw);
-        else
-          drawPiece(out, w, h, left, top, 83 + (a.state - 3), a.x8, a.yw);
-        break;
-      case 0x3000:
-        drawObjectPiece(out, w, h, left, top, 0, a.x8, a.yw);
-        break;
-      case 0x302A:
-        {
-          // Idle or fully fallen: plain sign; shaking in between
-          const int wiggle = a.state >= 2 && a.state < 0xf ? a.state % 2 : 0;
-          mShiftY += wiggle;
-          drawObjectPiece(out, w, h, left, top, 83, a.x8, a.yw);
-          drawObjectPiece(out, w, h, left, top, 84, a.x8 + 2, a.yw);
-          break;
-        }
-      case 0x3007:
-        {
-          drawObjectPiece(out, w, h, left, top, 11, a.x8, a.yw - 0x180);
-          drawObjectPiece(out, w, h, left, top, 12, a.x8, a.yw - 0x100);
-          drawObjectPiece(out, w, h, left, top, 12, a.x8, a.yw - 0x80);
-          drawObjectPiece(out, w, h, left, top, 13, a.x8, a.yw);
-          drawObjectPiece(out, w, h, left, top, 14, a.x8 - 2, a.yw);
-          drawObjectPiece(out, w, h, left, top, 15, a.x8 + 2, a.yw);
-          if (a.state > 1 && a.state < 10 && (a.state & 1))
-            drawObjectPiece(out, w, h, left, top, 17, a.x8, a.yw + 0x80);
-          if (a.state == 10 && a.yw % 0x100 != 0)
-          {
-            drawObjectPiece(out, w, h, left, top, 16, a.x8, a.yw + 0x80);
-            drawObjectPiece(out, w, h, left, top, 17, a.x8, a.yw + 0x100);
-          }
-          break;
-        }
-      case 0x3042:
-      case 0x3043:
-        {
-          const bool faceLeft = p0.x8 + p0.cameraX8 - 2 < a.x8;
-          const int frame =
-            a.state == 2 ? (faceLeft ? 0 : 2) : mBoss.anim + (faceLeft ? 0 : 2);
-          static const int kBottom[4][2] = {
-            {272, 273}, {274, 275}, {278, 279}, {280, 281}};
-          drawPiece(
-            out, w, h, left, top, frame < 2 ? 270 : 276, a.x8, a.yw - 0x80);
-          drawPiece(
-            out, w, h, left, top, frame < 2 ? 271 : 277, a.x8 + 2, a.yw - 0x80);
-          drawPiece(out, w, h, left, top, kBottom[frame][0], a.x8, a.yw);
-          drawPiece(out, w, h, left, top, kBottom[frame][1], a.x8 + 2, a.yw);
-          break;
-        }
-      case 0x3034:
-        drawObjectPiece(
-          out,
-          w,
-          h,
-          left,
-          top,
-          a.state == 1 ? 105 + mPhase % 8 : 113,
-          a.x8,
-          a.yw);
-        break;
-      case 0x3035:
-        drawObjectPiece(out, w, h, left, top, 116, a.x8 - 2, a.yw);
-        drawObjectPiece(out, w, h, left, top, 117, a.x8 + 2, a.yw);
-        drawObjectPiece(
-          out,
-          w,
-          h,
-          left,
-          top,
-          (a.v0 == 0 && mPhase % 4 == 0) ? 114 : 115,
-          a.x8,
-          a.yw);
-        break;
-      case 0x302B:
-        {
-          for (int i = 0; i < 3; ++i)
-          {
-            const int y = a.yw - 0x80 * i;
-            if (a.v0 == 0 && a.v1)
-            {
-              drawPiece(out, w, h, left, top, 255, a.x8, y); // flash when hit
-            }
-            else if (a.v0 == 0)
-            {
-              drawObjectPiece(out, w, h, left, top, 90 + mPhase % 5, a.x8, y);
-            }
-            else
-            {
-              drawObjectPiece(out, w, h, left, top, 90, a.x8, y);
-            }
-          }
-          break;
-        }
-      case 0x302F:
-      case 0x3030:
-        {
-          // Pad: three rows of pieces; while teleporting the middle row shows
-          // the beam
-          const bool beam = a.v0 > 1;
-          drawPiece(out, w, h, left, top, 212, a.x8, a.yw - 0x100);
-          drawPiece(out, w, h, left, top, 214, a.x8 + 4, a.yw - 0x100);
-          drawPiece(out, w, h, left, top, 215, a.x8, a.yw - 0x80);
-          drawPiece(
-            out,
-            w,
-            h,
-            left,
-            top,
-            beam ? 224 + mPhase % 2 : 216,
-            a.x8 + 2,
-            a.yw - 0x80);
-          drawPiece(
-            out,
-            w,
-            h,
-            left,
-            top,
-            beam ? 226 + mPhase % 2 : 217,
-            a.x8 + 4,
-            a.yw - 0x80);
-          drawPiece(out, w, h, left, top, 218, a.x8, a.yw);
-          drawPiece(out, w, h, left, top, 219, a.x8 + 2, a.yw);
-          drawPiece(out, w, h, left, top, 220, a.x8 + 4, a.yw);
-          break;
-        }
-      case 0x3015:
-      case 0x3052:
-        {
-          const int f = (mPhase / 4) % 4;
-          if (a.state == 1)
-            drawObjectPiece(out, w, h, left, top, 101, a.x8, a.yw);
-          else if (a.state == 2)
-            drawPiece(out, w, h, left, top, 128 + f, a.x8, a.yw);
-          else if (a.state > 2)
-            drawPiece(out, w, h, left, top, 132 + f, a.x8, a.yw);
-          break;
-        }
-      case 0x3018:
-      case 0x3051:
-        drawObjectPiece(
-          out,
-          w,
-          h,
-          left,
-          top,
-          a.state == 1 ? 101 : (a.state == 2 ? 44 : 45),
-          a.x8,
-          a.yw);
-        break;
-      case 0x3022:
-        {
-          if (a.v0 == 0)
-            break; // asleep until first on screen: not drawn by the original
-                   // either
-          const int hover = mPhase % 2;
-          const int rotor =
-            a.state == 1 ? hover + 2 : (a.state == 2 ? hover : hover + 4);
-          const int body = a.state == 1 ? 1 : (a.state == 2 ? 0 : 2);
-          for (int i = 0; i < 4; ++i)
-          {
-            drawPiece(
-              out,
-              w,
-              h,
-              left,
-              top,
-              176 + 4 * rotor + i,
-              a.x8 + 2 * i,
-              a.yw - 0x80);
-            drawPiece(
-              out, w, h, left, top, 164 + 4 * body + i, a.x8 + 2 * i, a.yw);
-          }
-          break;
-        }
-      case 0x303B:
-        {
-          if (a.v1 < 0)
-            break;
-          const int base = a.v1 < 3 ? 114 + 2 * a.v1 : 228 + 2 * (a.v1 - 3);
-          drawPiece(out, w, h, left, top, base, a.x8, a.yw - 0x80);
-          drawPiece(out, w, h, left, top, base + 1, a.x8, a.yw);
-          break;
-        }
-      case 0x3023:
-        if (a.state == 1)
-        {
-          drawObjectPiece(out, w, h, left, top, 100, a.x8, a.yw);
-        }
-        else if (a.state == 2)
-        {
-          drawObjectPiece(
-            out, w, h, left, top, 69, a.x8, a.yw - 0x80); // the balloon
-          drawObjectPiece(
-            out, w, h, left, top, 70 + a.v0, a.x8, a.yw); // its wiggling string
-        }
-        break;
-      case 0x3024:
-        {
-          const int playerX = p0.x8 + p0.cameraX8;
-          const int piece =
-            playerX < a.x8 - 2 ? 200 : (a.x8 + 2 < playerX ? 202 : 201);
-          drawPiece(out, w, h, left, top, piece, a.x8, a.yw);
-          break;
-        }
-      case 0x3058:
-      case 0x3059:
-        drawObjectPiece(
-          out, w, h, left, top, a.id == 0x3058 ? 148 : 149, a.x8, a.yw);
-        break;
-      case 0x3029:
-        if (a.v0 == 0)
-          drawObjectPiece(out, w, h, left, top, 0, a.x8, a.yw);
-        else
-          drawObjectPiece(out, w, h, left, top, 73 + mPhase % 9, a.x8, a.yw);
-        break;
-      case 0x3037:
-      case 0x3038:
-      case 0x3039:
-      case 0x303A:
-        drawObjectPiece(
-          out,
-          w,
-          h,
-          left,
-          top,
-          a.v0 == 0 ? 0 : 118 + (a.id - 0x3037),
-          a.x8,
-          a.yw);
-        break;
-      case 0x3031:
-      case 0x3057:
-        drawPiece(out, w, h, left, top, 223, a.x8, a.yw);
-        break;
-      case 0x3001:
-        drawObjectPiece(out, w, h, left, top, 5, a.x8, a.yw);
-        break;
-      case 0x3011:
-        {
-          const int frame = a.v0 == 0 ? 0 : std::min(a.v0 - 1, 3);
-          drawPiece(out, w, h, left, top, 96 + 4 * frame, a.x8, a.yw - 0x80);
-          drawPiece(
-            out, w, h, left, top, 97 + 4 * frame, a.x8 + 2, a.yw - 0x80);
-          drawPiece(out, w, h, left, top, 98 + 4 * frame, a.x8, a.yw);
-          drawPiece(out, w, h, left, top, 99 + 4 * frame, a.x8 + 2, a.yw);
-          break;
-        }
-      case 0x3044:
-      case 0x3045:
-      case 0x3046:
-      case 0x3047:
-        drawObjectPiece(
-          out, w, h, left, top, 124 + (a.id - 0x3044), a.x8, a.yw);
-        break;
-      case 0x3048:
-      case 0x3049:
-      case 0x304A:
-      case 0x304B:
-        {
-          const int piece =
-            137 + (a.id - 0x3048); // control, one picture per key colour
-          drawObjectPiece(
-            out,
-            w,
-            h,
-            left,
-            top,
-            (a.v0 || (mPhase / 4) % 2 == 0) ? piece : 136,
-            a.x8,
-            a.yw);
-          break;
-        }
-      case 0x304C:
-      case 0x304D:
-      case 0x304E:
-      case 0x304F:
-        drawObjectPiece(
-          out, w, h, left, top, a.v0 == 0 ? 128 : 127 + a.v0, a.x8, a.yw);
-        break;
-      case 0x300C:
-        {
-          // 2x3 piece layout per frame from the original table (-1 = no piece)
-          static const int kPieces[6][6] = {
-            {-1, -1, 10, 11, 12, 13},
-            {-1, -1, 10, 11, 14, 15},
-            {16, 17, 18, 19, 20, 21},
-            {-1, -1, 22, 23, 24, 25},
-            {-1, -1, 22, 23, 26, 27},
-            {28, 29, 30, 31, 32, 33}};
-          if (a.v1 < 0)
-            break;
-          const auto& t = kPieces[a.v1];
-          const int rowYw[3] = {a.yw - 0x100, a.yw - 0x80, a.yw};
-          for (int r = 0; r < 3; ++r)
-            for (int c = 0; c < 2; ++c)
-              if (t[r * 2 + c] >= 0)
-                drawPiece(
-                  out, w, h, left, top, t[r * 2 + c], a.x8 + 2 * c, rowYw[r]);
-          break;
-        }
-      case 0x300E:
-        if (a.v1 < 0)
-          break;
-        drawPiece(out, w, h, left, top, 48 + 4 * a.v1, a.x8, a.yw - 0x80);
-        drawPiece(out, w, h, left, top, 49 + 4 * a.v1, a.x8 + 2, a.yw - 0x80);
-        drawPiece(out, w, h, left, top, 50 + 4 * a.v1, a.x8, a.yw);
-        drawPiece(out, w, h, left, top, 51 + 4 * a.v1, a.x8 + 2, a.yw);
-        break;
-      case 0x300D:
-        if (a.v1 < 0)
-          break;
-        drawPiece(out, w, h, left, top, 34 + 2 * a.v1, a.x8, a.yw);
-        drawPiece(out, w, h, left, top, 35 + 2 * a.v1, a.x8 + 2, a.yw);
-        break;
-      case 0x301A:
-        drawObjectPiece(
-          out, w, h, left, top, (a.v0 ? 54 : 50) + mPhase % 4, a.x8, a.yw);
-        break;
-      case 0x3021:
-        drawObjectPiece(out, w, h, left, top, 65 + mPhase % 4, a.x8, a.yw);
-        break;
-      case 0x302C:
-        drawObjectPiece(out, w, h, left, top, a.v0 ? 96 : 95, a.x8, a.yw);
-        break;
-      case 0x3009:
-      case 0x300A:
-        {
-          const int dir = a.id == 0x3009 ? 1 : -1;
-          const bool right = a.id == 0x3009;
-          if (a.state >= 0xf && a.state < 0x19 && a.state % 2 != 0)
-          {
-            drawObjectPiece(out, w, h, left, top, right ? 24 : 29, a.x8, a.yw);
-          }
-          else if (a.state >= 0x19 && a.state < 0x2d)
-          {
-            const int par = a.state % 2;
-            drawObjectPiece(
-              out, w, h, left, top, (right ? 25 : 30) + par, a.x8, a.yw);
-            drawObjectPiece(
-              out,
-              w,
-              h,
-              left,
-              top,
-              (right ? 25 : 30) + par,
-              a.x8 + 2 * dir,
-              a.yw);
-            drawObjectPiece(
-              out,
-              w,
-              h,
-              left,
-              top,
-              (right ? 27 : 32) + par,
-              a.x8 + 4 * dir,
-              a.yw);
-          }
-          break;
-        }
-      case 0x303C:
-        {
-          const int frame = (a.state == 1 ? 0 : 3) + (mPhase / 2) % 3;
-          drawPiece(out, w, h, left, top, 240 + 2 * frame, a.x8, a.yw - 0x80);
-          drawPiece(out, w, h, left, top, 241 + 2 * frame, a.x8, a.yw);
-          break;
-        }
-      case 0x3012:
-        if (a.state == 0)
-          break;
-        if (a.v0 == 0)
-        {
-          drawObjectPiece(out, w, h, left, top, 0, a.x8, a.yw);
-        }
-        else if (a.state < 0xc)
-        {
-          drawPiece(out, w, h, left, top, 112, a.x8, a.yw);
-          if (a.state % 2 != 0)
-            drawPiece(out, w, h, left, top, 113, a.x8, a.yw);
-        }
-        break;
-      case 0x300B:
-        {
-          // Body piece (state 1-6 or the two knocked-out poses) above a
-          // four-frame propeller piece
-          const int bodyPiece =
-            a.state >= 0xfe ? (a.state == 0xfe ? 0 : 5) : a.state - 1;
-          const int propeller = a.state >= 0xfe ? 6 : 6 + mHoverAnim;
-          drawPiece(out, w, h, left, top, bodyPiece, a.x8, a.yw - 0x80);
-          drawPiece(out, w, h, left, top, propeller, a.x8, a.yw);
-          break;
-        }
-      case 0x3016:
-      case 0x3017:
-        {
-          // Pieces 136-139 (states 1/2) and 140-143 (states 3/4); two animation
-          // counters run in opposite directions
-          const int base = a.state <= 2 ? 136 : 140;
-          const int frame = (a.state == 1 || a.state == 3)
-            ? mFamAnimUp / 0xa0
-            : mFamAnimDown / 0xa0;
-          drawPiece(out, w, h, left, top, base + frame, a.x8, a.yw);
-          break;
-        }
-      default:
-        break;
-    }
+    drawPortedPart1(out, w, h, left, top, a);
+    drawPortedPart2(out, w, h, left, top, a);
+    drawPortedPart3(out, w, h, left, top, a);
   }
   mShiftX = mShiftY = 0;
 }
