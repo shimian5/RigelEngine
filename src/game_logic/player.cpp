@@ -1095,7 +1095,7 @@ void Player::updateMovement(
       // clang-format on
       {
         position.y -= 1;
-        jumpFromLadder(movementVector);
+        jumpFromPipe(movementVector);
         return;
       }
 
@@ -1883,10 +1883,9 @@ void Player::jump()
 
 void Player::jumpFromLadder(const base::Vec2& movementVector)
 {
-  // Jumping off a ladder with a direction held first turns Duke that way (if
-  // needed) and then moves him one tile in that direction right away, without
-  // checking for obstacles. The jump arc is then entered at its second step,
-  // in the same update, rather than at its start.
+  // DOS starts a ladder jump at its first non-zero jump-arc step. Rigel's arc
+  // omits the zero-offset entry used by ordinary DOS jumps, so this update
+  // must process index zero.
   if (movementVector.x != 0)
   {
     if (movementVector.x != engine::orientation::toMovement(orientation()))
@@ -1898,8 +1897,19 @@ void Player::jumpFromLadder(const base::Vec2& movementVector)
   }
 
   auto newState = Jumping{Jumping::FromLadder{}};
-  newState.mFramesElapsed = 1;
   updateJumpMovement(newState, base::Vec2{0, movementVector.y}, true);
+
+  mState = newState;
+  setVisualState(VisualState::Jumping);
+  mpServiceProvider->playSound(data::SoundId::DukeJumping);
+  mJumpRequested = false;
+}
+
+
+void Player::jumpFromPipe(const base::Vec2& movementVector)
+{
+  auto newState = Jumping{Jumping::FromLadder{}};
+  updateJumpMovement(newState, movementVector, true);
 
   mState = newState;
   setVisualState(VisualState::Jumping);

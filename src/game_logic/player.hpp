@@ -380,6 +380,7 @@ private:
   void setVisualState(VisualState visualState);
   void jump();
   void jumpFromLadder(const base::Vec2& movementVector);
+  void jumpFromPipe(const base::Vec2& movementVector);
   void startFalling();
   void startFallingDelayed();
   void landOnGround(bool needRecoveryFrame);
