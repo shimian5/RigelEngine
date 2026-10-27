@@ -269,8 +269,8 @@ void ConsoleLauncherMode::enter(const Screen screen)
             }
           }
         }
-        for (const auto& slot : duke2Available() ? dn2SlotNames()
-                                                 : std::vector<std::string>{})
+        for (const auto& slot :
+             duke2Available() ? dn2SlotNames() : std::vector<std::string>{})
         {
           const auto text = describeDn2Save(slot);
           if (!text.empty())

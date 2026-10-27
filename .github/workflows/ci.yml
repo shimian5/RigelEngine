@@ -102,27 +102,6 @@ jobs:
     - name: Test
       run: ctest --test-dir build --build-config Debug --output-on-failure
 
-  build_osx:
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    - name: Install dependencies
-      run: brew install sdl2 sdl2_mixer
-    - name: Run CMake (debug)
-      run: cmake -S . -Bbuild_dbg -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=Debug -DWARNINGS_AS_ERRORS=ON -DBUILD_TESTS=ON
-    - name: Run CMake (release)
-      run: cmake -S . -Bbuild -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=Release -DWARNINGS_AS_ERRORS=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON
-    - name: Build (debug)
-      run: cd build_dbg && make -j2
-    - name: Build (release)
-      run: cd build && make -j2
-    - name: Test (debug)
-      run: ctest --test-dir build_dbg --output-on-failure
-    - name: Test (release)
-      run: ctest --test-dir build --output-on-failure
-
   build_android:
     name: Android ARM64 APK
     runs-on: ubuntu-24.04

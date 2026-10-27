@@ -261,9 +261,8 @@ std::optional<HudSkin> HudSkin::tryLoad(
 }
 
 
-HudSkin HudSkin::generateDefault(
-  renderer::Renderer* pRenderer,
-  const HudArt& art)
+HudSkin
+  HudSkin::generateDefault(renderer::Renderer* pRenderer, const HudArt& art)
 {
   LOG_F(INFO, "HUD skin: using generated default artwork");
 

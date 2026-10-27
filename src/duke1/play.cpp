@@ -1026,9 +1026,15 @@ std::vector<std::uint8_t> PlayWorld::standingPortrait() const
     for (int y = 0; y < 16; ++y)
       for (int x = 0; x < 16; ++x)
         for (int c = 0; c < 4; ++c)
-          out[(static_cast<std::size_t>(offs[i][1] + y) * 32 +
-               static_cast<std::size_t>(offs[i][0] + x)) * 4 + c] =
-            rgba[(static_cast<std::size_t>(y) * 16 + static_cast<std::size_t>(x)) * 4 + c];
+          out
+            [(static_cast<std::size_t>(offs[i][1] + y) * 32 +
+              static_cast<std::size_t>(offs[i][0] + x)) *
+               4 +
+             c] = rgba
+              [(static_cast<std::size_t>(y) * 16 +
+                static_cast<std::size_t>(x)) *
+                 4 +
+               c];
   }
   return out;
 }

@@ -778,7 +778,10 @@ GeneratedHudAtlas generateDefaultHudAtlas(const HudArt& art)
   // here (small slot) and 2x in the weapon slot above.
   {
     const Color projectileColors[] = {
-      {255, 153, 0, 255}, {90, 170, 255, 255}, {235, 60, 50, 255}, {255, 225, 70, 255}};
+      {255, 153, 0, 255},
+      {90, 170, 255, 255},
+      {235, 60, 50, 255},
+      {255, 225, 70, 255}};
     for (auto i = 0; i < 4; ++i)
     {
       const auto& r = R(ProjectileNormal + i);

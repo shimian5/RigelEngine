@@ -25,8 +25,8 @@
 #include "frontend/user_profile.hpp"
 #include "renderer/texture.hpp"
 #include "renderer/upscaling.hpp"
-#include "ui/hud_skin_generator.hpp"
 #include "ui/console_menu.hpp"
+#include "ui/hud_skin_generator.hpp"
 #include "ui/overlay_hud.hpp"
 
 #include <imgui.h>
@@ -463,17 +463,24 @@ ui::HudArt Duke1Mode::duke1HudArt() const
   const auto colorFor = [](const char c) {
     switch (c)
     {
-      case 'A': return base::Color{0, 0, 0, 255};
-      case 'D': return base::Color{85, 85, 85, 255};
-      case 'F': return base::Color{170, 170, 170, 255};
-      case 'G': return base::Color{255, 255, 255, 255};
-      case 'E': return base::Color{170, 0, 170, 255};
-      default: return base::Color{0, 0, 0, 0};
+      case 'A':
+        return base::Color{0, 0, 0, 255};
+      case 'D':
+        return base::Color{85, 85, 85, 255};
+      case 'F':
+        return base::Color{170, 170, 170, 255};
+      case 'G':
+        return base::Color{255, 255, 255, 255};
+      case 'E':
+        return base::Color{170, 0, 170, 255};
+      default:
+        return base::Color{0, 0, 0, 0};
     }
   };
 
   const auto portrait = mpWorld->standingPortrait();
-  data::PixelBuffer pixels(std::size_t(GRID_W) * GRID_H, base::Color{0, 0, 0, 0});
+  data::PixelBuffer pixels(
+    std::size_t(GRID_W) * GRID_H, base::Color{0, 0, 0, 0});
   for (int y = 0; y < GRID_H; ++y)
   {
     for (int x = 0; x < REAR_W; ++x)
@@ -488,7 +495,8 @@ ui::HudArt Duke1Mode::duke1HudArt() const
       const auto k =
         (std::size_t(BARREL_Y + y) * 32 + std::size_t(BARREL_X + x)) * 4;
       pixels[std::size_t(1 + y) * GRID_W + std::size_t(REAR_W + x)] =
-        base::Color{portrait[k], portrait[k + 1], portrait[k + 2], portrait[k + 3]};
+        base::Color{
+          portrait[k], portrait[k + 1], portrait[k + 2], portrait[k + 3]};
     }
   }
 
@@ -540,12 +548,11 @@ void Duke1Mode::submitOverlayHud()
     ui::hudTierForWindowHeight(mContext.mpRenderer->windowSize().height);
   if (!mHudSkinTierTried || *mHudSkinTierTried != tier)
   {
-    mHudSkin = ui::HudSkin::tryLoad(
-      mContext.mpRenderer, gGamePath, tier);
+    mHudSkin = ui::HudSkin::tryLoad(mContext.mpRenderer, gGamePath, tier);
     if (!mHudSkin && !mGeneratedHudSkin)
     {
-      mGeneratedHudSkin = ui::HudSkin::generateDefault(
-        mContext.mpRenderer, duke1HudArt());
+      mGeneratedHudSkin =
+        ui::HudSkin::generateDefault(mContext.mpRenderer, duke1HudArt());
     }
     mHudSkinTierTried = tier;
   }

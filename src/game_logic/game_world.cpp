@@ -895,9 +895,8 @@ bool GameWorld::submitOverlayHud(const std::vector<base::Vec2>& radarDots)
       // Only generate once, the artwork is the same for all window sizes
       if (!mGeneratedHudSkin)
       {
-        mGeneratedHudSkin =
-          ui::HudSkin::generateDefault(
-            mpRenderer, ui::HudArt::fromDuke2(*mpResources));
+        mGeneratedHudSkin = ui::HudSkin::generateDefault(
+          mpRenderer, ui::HudArt::fromDuke2(*mpResources));
       }
     }
     mHudSkinTierTried = tier;

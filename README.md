@@ -46,7 +46,9 @@ registered data. This fork adds a new launcher, menus and persistent saves aroun
 
 ### Supported platforms
 
-RigelEngine supports Windows, Linux, macOS and **Android ARM64**.
+RigelEngine supports Windows, Linux and **Android ARM64**.
+macOS is not supported by this fork: upstream's macOS support predates Apple silicon, it is
+not built or tested here, and the new Duke Nukem I code has never been run on it.
 The Android build targets Android 8.0 / API 26 or newer and uses OpenGL ES.
 A controller is recommended for Android handhelds; a complete touch-control interface
 is not currently provided.
@@ -180,7 +182,7 @@ additions; they provide desktop builds of the upstream Duke Nukem II engine.
 
 ## Building from source
 
-Clone this fork with its submodules. On Linux or macOS, use a separate build directory:
+Clone this fork with its submodules. On Linux, use a separate build directory:
 
 ```sh
 git clone --recursive --branch dn1-snapshot-2026-10-26 https://github.com/shimian5/RigelEngine.git
@@ -203,11 +205,10 @@ Pushes, pull requests and manual runs of the [CI workflow](.github/workflows/ci.
 
 * Linux x86-64 and ARM64 builds and tests in Debug and Release
 * Windows/MSVC x64 builds and tests in Debug
-* macOS builds and tests in Debug and Release
 * source formatting with clang-format 11
 * Android ARM64 APK compilation, signing and package verification
 
-Linux and macOS builds treat compiler warnings as errors. The native test suites include
+Linux builds treat compiler warnings as errors. The native test suites include
 Duke Nukem I core and frontend regressions alongside Duke Nukem II tests, using generated
 fixtures without original game files. Additional standalone Duke Nukem I checks can be
 configured with `cmake -S src/duke1 -B build-host-dn1 -DBUILD_TESTING=ON`; some optional

@@ -226,11 +226,7 @@ Game::Duke2Resources::Duke2Resources(
       gamePath,
       profile.mOptions.mEnableTopLevelMods,
       profile.mModLibrary.enabledModPaths())
-  , mScriptRunner(
-      &mResources,
-      pRenderer,
-      &profile.mSaveSlots,
-      pServiceProvider)
+  , mScriptRunner(&mResources, pRenderer, &profile.mSaveSlots, pServiceProvider)
   , mAllScripts(loadScripts(mResources))
   , mUiSpriteSheet(
       // Explicitly specify the palette here to avoid loading any replacement
@@ -259,7 +255,8 @@ Game::Game(
     std::error_code ec;
     if (!std::filesystem::exists(gamePath / "NUKEM2.CMP", ec) || ec)
     {
-      LOG_F(INFO, "No Duke Nukem II data found, only Duke Nukem 1 is available");
+      LOG_F(
+        INFO, "No Duke Nukem II data found, only Duke Nukem 1 is available");
       return nullptr;
     }
     return std::make_unique<Duke2Resources>(
