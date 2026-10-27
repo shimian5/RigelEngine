@@ -16,8 +16,10 @@ jobs:
         include:
         - os: ubuntu-24.04
           arch: x64
+          renderers: gl
         - os: ubuntu-24.04-arm
           arch: arm64
+          renderers: gl gles
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
@@ -28,10 +30,11 @@ jobs:
     - name: Build and package
       env:
         ARCH: ${{ matrix.arch }}
+        RENDERERS: ${{ matrix.renderers }}
       run: |
         version=$(python3 tools/release_version.py | head -1)
         mkdir -p dist-packages
-        for renderer in gl gles; do
+        for renderer in $RENDERERS; do
           extra=()
           if [[ "$renderer" == gles ]]; then extra=(-DUSE_GL_ES=ON); fi
           cmake -S . -B "build-$renderer" -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 "${extra[@]}"

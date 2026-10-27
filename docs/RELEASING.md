@@ -5,7 +5,7 @@
    Run python3 tools/release_version.py. Tags must match the full version string.
 2. Commit and push master. Wait for both CI and Bundling on that exact commit.
    CI tests Linux x64/ARM64 and Windows x64 Debug/Release and builds Android.
-   Bundling produces Linux x64/ARM64 OpenGL and GLES deb/tar packages; CI produces
+   Bundling produces Linux x64 OpenGL and ARM64 OpenGL/GLES deb/tar packages; CI produces
    the Windows Release ZIP. No game data is packaged.
 3. Download and test the artifacts: Windows and Linux desktop smoke tests, Linux
    ARM64 on a Pi, and a locally release-signed Android APK on a handheld.

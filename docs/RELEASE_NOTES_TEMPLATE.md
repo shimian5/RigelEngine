@@ -5,7 +5,8 @@ Downloads:
 - Android ARM64 APK (Android 8.0+, permanent project signature).
 - Windows x64 ZIP (extract it; install the Microsoft VC++ 2015–2022 x64 runtime if needed).
 - Linux x64/ARM64 deb and tar.gz packages, built on Ubuntu 24.04; compatible system
-  SDL2/SDL2_mixer libraries are required. Choose gl for OpenGL or gles for OpenGL ES.
+  SDL2/SDL2_mixer libraries are required. The x64 packages use OpenGL; on ARM64
+  choose gl for OpenGL or gles for OpenGL ES (Raspberry Pi and similar boards).
 
 **Supply your own DOS game files.** No game data is included. On Android select a
 normal folder using Choose game folder. Files may be mixed together or inside DN1/
