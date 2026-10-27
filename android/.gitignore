@@ -1,0 +1,5 @@
+*.apk
+*.idsig
+*.keystore
+*.jks
+local.properties

@@ -119,3 +119,37 @@ jobs:
       run: ctest --test-dir build_dbg --output-on-failure
     - name: Test (release)
       run: ctest --test-dir build --output-on-failure
+
+  build_android:
+    name: Android ARM64 APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
+    - uses: android-actions/setup-android@v3
+    - name: Install pinned Android toolchain
+      run: sdkmanager "platforms;android-33" "build-tools;35.0.0" "ndk;27.2.12479018"
+    - name: Cache verified SDL downloads
+      uses: actions/cache@v4
+      with:
+        path: build-android/downloads
+        key: android-sdl-2.30.9-mixer-2.8.0
+    - name: Build and verify APK without game data
+      env:
+        RIGEL_ANDROID_JOBS: '2'
+      run: |
+        export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"
+        bash tools/build_android.sh
+    - name: Upload Android APKs
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-arm64-apks
+        path: build-android/output/
+        if-no-files-found: error
+        retention-days: 14

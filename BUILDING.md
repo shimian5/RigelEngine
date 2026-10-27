@@ -389,3 +389,10 @@ python3 -m http.server
 
 This will host the game at `localhost:8000/src/RigelEngine.html`.
 
+
+
+## Android ARM64
+
+See [android/README.md](android/README.md) for the reproducible SDK/NDK build,
+GitHub Actions APK artifacts, and signing limitations. The Android CI job builds
+without game data. Device gameplay validation remains separate.
