@@ -24,11 +24,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
-    - uses: DoozyX/clang-format-lint-action@v0.12
-      with:
-        source: 'benchmark src test'
-        extensions: 'hpp,cpp,ipp'
-        clangFormatVersion: 11
+    - name: Install pinned clang-format
+      run: |
+        python3 -m venv .ci-format
+        .ci-format/bin/python -m pip install clang-format==11.1.0.2
+    - name: Check formatting
+      run: |
+        find benchmark src test -type f \( -name '*.hpp' -o -name '*.cpp' -o -name '*.ipp' \) -print0 |
+          xargs -0 .ci-format/bin/clang-format --dry-run --Werror
   build_wasm:
     if: github.event_name == 'workflow_dispatch' && inputs.build_web
     runs-on: ubuntu-24.04
@@ -133,6 +136,9 @@ jobs:
         distribution: temurin
         java-version: '17'
     - uses: android-actions/setup-android@v3
+      with:
+        packages: platform-tools
+        log-accepted-android-sdk-licenses: false
     - name: Install pinned Android toolchain
       run: sdkmanager "platforms;android-33" "build-tools;35.0.0" "ndk;27.2.12479018"
     - name: Cache verified SDL downloads
