@@ -468,6 +468,9 @@ void PlayWorld::update(const Input& input)
     else if (e.kind == Event::Sound)
       sound(e.value);
   mSandbox.events.clear();
+  for (const auto& [x8, yWords] : mSandbox.impacts)
+    spawnSparks(yWords, x8, true);
+  mSandbox.impacts.clear();
   for (auto& pop : mPopups)
     ++pop.age;
   mPopups.erase(
@@ -899,9 +902,10 @@ void PlayWorld::renderWorld(
     if (b.kind == 0)
       continue;
     const auto& bank = mSprites[6];
-    const std::size_t frame = b.newFlag
-      ? 46
-      : 6 + mPhase % 2; // muzzle flash on the first frame, then two frames
+    // The first frame shows a red muzzle flash where the shot was fired, then
+    // the wave takes over in two frames
+    const bool muzzle = b.newFlag || b.age <= 1;
+    const std::size_t frame = muzzle ? 46 : 6 + mPhase % 2;
     if (frame >= bank.size())
       continue;
     // Shots travel 16 px per update; draw them where they were that far back
@@ -911,9 +915,11 @@ void PlayWorld::renderWorld(
       ? 0
       : static_cast<int>(std::lround(16 * (1.0 - mBlend))) *
         (b.kind == 1 ? 1 : -1);
+    // The flash is at the muzzle: the position the shot was fired from
+    const int fired = muzzle && b.age >= 1 ? (b.kind == 1 ? 2 : -2) * 8 : 0;
     blit(
       out,
-      b.x8 * 8 - left + shotShift,
+      b.x8 * 8 - left + shotShift + fired,
       b.yWords / 8 + 3 - top,
       bank[frame].data(),
       16,

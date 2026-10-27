@@ -362,6 +362,7 @@ void Sandbox::moveBullets(bool checkWorld, bool cull)
       const auto cell = world.at(index);
       if (cell >= 0x1800 && cell < 0x8000)
       {
+        impacts.push_back({b.x8, b.yWords});
         b.kind = 0;
         continue;
       }

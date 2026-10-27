@@ -283,7 +283,7 @@ private:
   }; // four gems thrown out of a smashed object (313e)
   std::vector<Spark> mSparks;
   int mSparkVariant = 0;
-  void spawnSparks(int yw, int x8);
+  void spawnSparks(int yw, int x8, bool silent = false);
   struct Debris
   {
     int frame, x8, yw;

@@ -149,7 +149,7 @@ void PlayWorld::spawnDebris(int yw, int x8)
   mDebris.push_back({1, x8, yw});
 }
 
-void PlayWorld::spawnSparks(int yw, int x8)
+void PlayWorld::spawnSparks(int yw, int x8, bool silent)
 {
   static const int kVariants[4][4] = {
     {1, 2, 3, 4}, {4, 1, 2, 3}, {2, 4, 3, 1}, {3, 4, 2, 1}};
@@ -167,7 +167,8 @@ void PlayWorld::spawnSparks(int yw, int x8)
     s.py[i] = s.y[i];
   }
   mSparks.push_back(s);
-  sound(10);
+  if (!silent)
+    sound(10);
 }
 void PlayWorld::spawnEnemyShot(int yw, int x8, int dir)
 {

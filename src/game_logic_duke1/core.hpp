@@ -65,6 +65,9 @@ public:
   Input input;
   std::array<Bullet, 4> bullets{};
   std::vector<Event> events;
+  // Where shots hit a wall during the last updates (x8, map word); presentation
+  // only
+  std::vector<std::pair<int, int>> impacts;
   // Optional controlled query provider for matching the original substituted
   // probes.
   std::function<bool(Sensor)> query;
