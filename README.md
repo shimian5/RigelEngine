@@ -142,3 +142,18 @@ for a list of other Linux packages/builds provided by distros and other projects
 ## Building from source
 
 See [BUILDING.md](BUILDING.md) for detailed instructions for each platform.
+
+
+### CI in this fork
+
+Normal pushes and pull requests build/test Linux x86-64 and arm64 in Debug and Release, plus
+Windows/MSVC Debug and macOS Debug/Release. Compiler warnings remain errors in the Linux/macOS
+jobs. Formatting uses the repository's clang-format 11 rules.
+
+The experimental WebAssembly job is manual-only: select Build the experimental web target
+without game data when dispatching CI. It downloads no game archives and packages no game data.
+An empty WEBASSEMBLY_GAME_PATH produces a compile-check build; a local playable build can still
+provide that path explicitly with the owner's own files. CI does not publish a playable web game.
+
+Hosted platform results are only established when GitHub actually runs these jobs. Local
+Linux validation does not certify Windows, macOS, arm64 or WebAssembly compatibility.

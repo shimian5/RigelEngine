@@ -46,11 +46,13 @@ if("${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
     set(WEBASSEMBLY_GAME_PATH "" CACHE PATH "Path to folder containing Duke Nukem II files")
     set(USE_GL_ES ON)
 
-    if (NOT WEBASSEMBLY_GAME_PATH)
-        message(FATAL_ERROR
-            "WEBASSEMBLY_GAME_PATH not defined. This is required for a Webassembly build. Point it to a folder containing Duke Nukem II data files. Remove any trailing '/' from the path.")
+    if(WEBASSEMBLY_GAME_PATH)
+        if(NOT IS_DIRECTORY "${WEBASSEMBLY_GAME_PATH}")
+            message(FATAL_ERROR "WEBASSEMBLY_GAME_PATH is not a directory")
+        endif()
+        message(STATUS "Bundling user-supplied game data from: ${WEBASSEMBLY_GAME_PATH}")
     else()
-        message(STATUS "Bundling game data from path: ${WEBASSEMBLY_GAME_PATH}")
+        message(STATUS "Building WebAssembly without game data (compile check only)")
     endif()
 
     if("${CMAKE_BUILD_TYPE}" STREQUAL "Release" OR "${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")
