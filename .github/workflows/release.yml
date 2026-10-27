@@ -48,7 +48,7 @@ jobs:
         GH_TOKEN: ${{ github.token }}
       run: |
         cp build-android/output/rigelengine-proton-arm64-debug.apk "rigelengine-proton-${TAG}-arm64-debug.apk"
-        (cd build-android/output && cat SHA256SUMS) > SHA256SUMS
-        gh release create "$TAG" --prerelease --title "$TAG (test build)" \
+        sha256sum "rigelengine-proton-${TAG}-arm64-debug.apk" > SHA256SUMS
+        gh release create "$TAG" --prerelease --title "RigelEngine: Proton $TAG (test build)" \
           --notes-file docs/RELEASE_NOTES_TEMPLATE.md \
           "rigelengine-proton-${TAG}-arm64-debug.apk" SHA256SUMS
