@@ -80,6 +80,7 @@ private:
 
   void handleEvent(const SDL_Event& event);
   void submitOverlayHud();
+  void renderFrame(double dt, bool paused);
   ui::HudArt duke1HudArt() const;
 
   Context mContext;

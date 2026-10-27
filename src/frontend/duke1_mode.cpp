@@ -507,6 +507,137 @@ void Duke1Mode::drawPicture(const std::vector<std::uint8_t>& rgba)
 }
 
 
+void Duke1Mode::renderFrame(const double dt, const bool paused)
+{
+  // The game logic runs at about 16 updates per second; interpolate Duke's
+  // drawn position in between so scrolling and movement look smooth.
+  const auto blendFactor = std::clamp(mSinceUpdate / mUpdateInterval, 0.0, 1.0);
+  const auto drawX = static_cast<int>(std::lround(
+    mpWorld->prevWorldX() +
+    (mpWorld->worldX() - mpWorld->prevWorldX()) * blendFactor));
+  const auto drawY = static_cast<int>(std::lround(
+    mpWorld->prevWorldY() +
+    (mpWorld->worldY() - mpWorld->prevWorldY()) * blendFactor));
+
+  mpWorld->setRenderBlend(blendFactor);
+  std::vector<std::uint8_t> rgba;
+  int frameWidth = duke1::SCREEN_W;
+  int frameHeight = duke1::SCREEN_H;
+  int bufferWidth = duke1::SCREEN_W;
+  int bufferHeight = duke1::SCREEN_H;
+
+  const auto& options = mContext.mpUserProfile->mOptions;
+  const auto wide = options.widescreenModeActive() &&
+    renderer::canUseWidescreenMode(mContext.mpRenderer);
+
+  if (wide)
+  {
+    // Modern presentation like the console release: no frame, a wide view
+    // that follows Duke smoothly, and the overlay HUD. The simulation keeps
+    // running on the original 13x10 tile camera rules, only what is drawn
+    // changes.
+    mContext.mpServiceProvider->markCurrentFrameAsWidescreen();
+    const auto target = mContext.mpRenderer->currentRenderTargetSize();
+    bufferWidth = target.width;
+    bufferHeight = target.height;
+
+    // One game pixel per buffer pixel: the engine's upscaler then scales
+    // everything uniformly, so squares stay square. This shows 12.5 tile
+    // rows; a taller view would need a non-integer resample first.
+    frameHeight = WIDE_VIEW_HEIGHT;
+    frameWidth = static_cast<int>(
+      std::ceil(double(bufferWidth) * WIDE_VIEW_HEIGHT / bufferHeight));
+
+    // The camera follows the simulated position and takes one smoothing step
+    // per game update; between updates it is blended linearly, like Duke.
+    const auto targetX = std::clamp(
+      static_cast<double>(mpWorld->worldX()) - frameWidth / 2.0,
+      0.0,
+      2048.0 - frameWidth);
+    const auto targetY = std::clamp(
+      static_cast<double>(mpWorld->worldY()) - 132.0,
+      0.0,
+      1440.0 - frameHeight);
+    if (!mCamInitialized)
+    {
+      mCamX = mPrevCamX = targetX;
+      mCamY = mPrevCamY = targetY;
+      mCamInitialized = true;
+      mCamStepPending = false;
+    }
+    else if (mCamStepPending)
+    {
+      const auto step = 1.0 - std::exp(-mUpdateInterval * 9.0);
+      mCamX += (targetX - mCamX) * step;
+      mCamY += (targetY - mCamY) * step;
+      mCamStepPending = false;
+    }
+    const auto camX = static_cast<int>(
+      std::lround(mPrevCamX + (mCamX - mPrevCamX) * blendFactor));
+    const auto camY = static_cast<int>(
+      std::lround(mPrevCamY + (mCamY - mPrevCamY) * blendFactor));
+
+    mpWorld->renderWorld(
+      rgba, frameWidth, frameHeight, camX, camY, drawX, drawY);
+
+    submitOverlayHud();
+  }
+  else
+  {
+    mpWorld->render(rgba);
+  }
+
+  data::PixelBuffer pixels;
+  pixels.reserve(rgba.size() / 4);
+  for (std::size_t i = 0; i < rgba.size(); i += 4)
+  {
+    pixels.emplace_back(rgba[i], rgba[i + 1], rgba[i + 2], rgba[i + 3]);
+  }
+  const renderer::Texture frame{
+    mContext.mpRenderer,
+    data::Image{
+      std::move(pixels), std::size_t(frameWidth), std::size_t(frameHeight)}};
+  if (wide)
+  {
+    const auto saved = renderer::saveState(mContext.mpRenderer);
+    mContext.mpRenderer->setClipRect({});
+    frame.render(
+      base::Rect<int>{{0, 0}, {frameWidth, frameHeight}},
+      base::Rect<int>{{0, 0}, {bufferWidth, bufferHeight}});
+  }
+  else
+  {
+    frame.render(0, 0);
+  }
+
+  if (mPause == PauseScreen::Stats && mpResults)
+  {
+    mpResults->update(dt);
+  }
+  if (paused)
+  {
+    drawPauseMenu();
+  }
+  if (mToastSeconds > 0.0)
+  {
+    mToastSeconds -= dt;
+    const auto display = ImGui::GetIO().DisplaySize;
+    ImGui::GetForegroundDrawList()->AddText(
+      nullptr,
+      display.y / 24.0f,
+      {display.x / 2.0f - mToast.size() * display.y / 96.0f, display.y * 0.1f},
+      IM_COL32(255, 153, 0, 255),
+      mToast.c_str());
+  }
+
+  if (mFadeInPending)
+  {
+    mFadeInPending = false;
+    mContext.mpServiceProvider->fadeInScreen();
+  }
+}
+
+
 std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
   const engine::TimeDelta dt,
   const std::vector<SDL_Event>& events)
@@ -763,132 +894,7 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
     mCamStepPending = true;
   }
 
-  // The game logic runs at about 16 updates per second; interpolate Duke's
-  // drawn position in between so scrolling and movement look smooth.
-  const auto blendFactor = std::clamp(mSinceUpdate / mUpdateInterval, 0.0, 1.0);
-  const auto drawX = static_cast<int>(std::lround(
-    mpWorld->prevWorldX() +
-    (mpWorld->worldX() - mpWorld->prevWorldX()) * blendFactor));
-  const auto drawY = static_cast<int>(std::lround(
-    mpWorld->prevWorldY() +
-    (mpWorld->worldY() - mpWorld->prevWorldY()) * blendFactor));
-
-  mpWorld->setRenderBlend(blendFactor);
-  std::vector<std::uint8_t> rgba;
-  int frameWidth = duke1::SCREEN_W;
-  int frameHeight = duke1::SCREEN_H;
-  int bufferWidth = duke1::SCREEN_W;
-  int bufferHeight = duke1::SCREEN_H;
-
-  const auto& options = mContext.mpUserProfile->mOptions;
-  const auto wide = options.widescreenModeActive() &&
-    renderer::canUseWidescreenMode(mContext.mpRenderer);
-
-  if (wide)
-  {
-    // Modern presentation like the console release: no frame, a wide view
-    // that follows Duke smoothly, and the overlay HUD. The simulation keeps
-    // running on the original 13x10 tile camera rules, only what is drawn
-    // changes.
-    mContext.mpServiceProvider->markCurrentFrameAsWidescreen();
-    const auto target = mContext.mpRenderer->currentRenderTargetSize();
-    bufferWidth = target.width;
-    bufferHeight = target.height;
-
-    // One game pixel per buffer pixel: the engine's upscaler then scales
-    // everything uniformly, so squares stay square. This shows 12.5 tile
-    // rows; a taller view would need a non-integer resample first.
-    frameHeight = WIDE_VIEW_HEIGHT;
-    frameWidth = static_cast<int>(
-      std::ceil(double(bufferWidth) * WIDE_VIEW_HEIGHT / bufferHeight));
-
-    // The camera follows the simulated position and takes one smoothing step
-    // per game update; between updates it is blended linearly, like Duke.
-    const auto targetX = std::clamp(
-      static_cast<double>(mpWorld->worldX()) - frameWidth / 2.0,
-      0.0,
-      2048.0 - frameWidth);
-    const auto targetY = std::clamp(
-      static_cast<double>(mpWorld->worldY()) - 132.0,
-      0.0,
-      1440.0 - frameHeight);
-    if (!mCamInitialized)
-    {
-      mCamX = mPrevCamX = targetX;
-      mCamY = mPrevCamY = targetY;
-      mCamInitialized = true;
-      mCamStepPending = false;
-    }
-    else if (mCamStepPending)
-    {
-      const auto step = 1.0 - std::exp(-mUpdateInterval * 9.0);
-      mCamX += (targetX - mCamX) * step;
-      mCamY += (targetY - mCamY) * step;
-      mCamStepPending = false;
-    }
-    const auto camX = static_cast<int>(
-      std::lround(mPrevCamX + (mCamX - mPrevCamX) * blendFactor));
-    const auto camY = static_cast<int>(
-      std::lround(mPrevCamY + (mCamY - mPrevCamY) * blendFactor));
-
-    mpWorld->renderWorld(
-      rgba, frameWidth, frameHeight, camX, camY, drawX, drawY);
-
-    submitOverlayHud();
-  }
-  else
-  {
-    mpWorld->render(rgba);
-  }
-
-  data::PixelBuffer pixels;
-  pixels.reserve(rgba.size() / 4);
-  for (std::size_t i = 0; i < rgba.size(); i += 4)
-  {
-    pixels.emplace_back(rgba[i], rgba[i + 1], rgba[i + 2], rgba[i + 3]);
-  }
-  const renderer::Texture frame{
-    mContext.mpRenderer,
-    data::Image{
-      std::move(pixels), std::size_t(frameWidth), std::size_t(frameHeight)}};
-  if (wide)
-  {
-    const auto saved = renderer::saveState(mContext.mpRenderer);
-    mContext.mpRenderer->setClipRect({});
-    frame.render(
-      base::Rect<int>{{0, 0}, {frameWidth, frameHeight}},
-      base::Rect<int>{{0, 0}, {bufferWidth, bufferHeight}});
-  }
-  else
-  {
-    frame.render(0, 0);
-  }
-
-  if (mPause == PauseScreen::Stats && mpResults)
-  {
-    mpResults->update(dt);
-  }
-  if (paused)
-  {
-    drawPauseMenu();
-  }
-  if (mToastSeconds > 0.0)
-  {
-    mToastSeconds -= dt;
-    const auto display = ImGui::GetIO().DisplaySize;
-    ImGui::GetForegroundDrawList()->AddText(
-      nullptr,
-      display.y / 24.0f,
-      {display.x / 2.0f - mToast.size() * display.y / 96.0f, display.y * 0.1f},
-      IM_COL32(255, 153, 0, 255),
-      mToast.c_str());
-  }
-
-  if (mFadeInPending)
-  {
-    mFadeInPending = false;
-    mContext.mpServiceProvider->fadeInScreen();
-  }
+  renderFrame(dt, paused);
 
   return nullptr;
 }
