@@ -142,9 +142,12 @@ ViewportInfo determineViewport(const Renderer* pRenderer)
 
 bool canUseWidescreenMode(const Renderer* pRenderer)
 {
-  const auto windowWidth = float(pRenderer->windowSize().width);
-  const auto windowHeight = float(pRenderer->windowSize().height);
-  return windowWidth / windowHeight > data::GameTraits::aspectRatio;
+  // The widescreen layout (no DOS frame, overlay HUD) also works in windows
+  // that are 4:3 or narrower. There the playfield is simply as wide as the
+  // original one and sits centered between black bars, see
+  // UpscalingBuffer::present().
+  return pRenderer->windowSize().width > 0 &&
+    pRenderer->windowSize().height > 0;
 }
 
 
@@ -327,7 +330,13 @@ void UpscalingBuffer::present(
     {
       const auto offset =
         renderer::determineWidescreenViewport(mpRenderer).mLeftPaddingPx;
-      mpRenderer->setGlobalTranslation({offset, 0});
+
+      // Windows wider than 4:3 are filled from top to bottom. Narrower ones
+      // leave black bars above and below, center the picture between them.
+      const auto isNarrowerThan4by3 =
+        windowWidth / windowHeight <= data::GameTraits::aspectRatio;
+      mpRenderer->setGlobalTranslation(
+        {offset, isNarrowerThan4by3 ? info.mOffset.y : 0});
     }
     else
     {
