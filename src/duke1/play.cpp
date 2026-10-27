@@ -451,15 +451,7 @@ void PlayWorld::update(const Input& input)
   const int immunityBefore = sandbox_.player.immunity;
   sandbox_.player.phase = (phase_ % 4) *
     32; // the shared animation step the original's player code looks at
-  const auto bulletsBefore = sandbox_.bullets;
   sandbox_.tick();
-  for (std::size_t i = 0; i < sandbox_.bullets.size(); ++i)
-  {
-    auto& shot = shotPresentation_[i];
-    shot.born = sandbox_.bullets[i].kind && !bulletsBefore[i].kind;
-    if (shot.born)
-      shot.y = worldY() - 29;
-  }
   pullUpDrawn_ = pullUpBefore > 0 || sandbox_.player.pullUp > 0;
   if (sandbox_.player.immunity > immunityBefore)
     damageTaken_ = true;
@@ -491,8 +483,6 @@ void PlayWorld::update(const Input& input)
   interact();
   if (discontinuity_)
   {
-    for (auto& shot : shotPresentation_)
-      shot.born = false;
     prevX_ = worldX();
     prevY_ = worldY();
     for (auto& actor : actors_)
@@ -904,9 +894,8 @@ void PlayWorld::renderWorld(
 
   // Shots: the wave piece (OBJECT0 pieces 6..9) cycles while the bullet
   // travels.
-  for (std::size_t slot = 0; slot < sandbox_.bullets.size(); ++slot)
+  for (const auto& b : sandbox_.bullets)
   {
-    const auto& b = sandbox_.bullets[slot];
     if (b.kind == 0)
       continue;
     const auto& bank = sprites_[6];
@@ -924,10 +913,7 @@ void PlayWorld::renderWorld(
     blit(
       out,
       b.x8 * 8 - left + shotShift,
-      // Follow Duke's interpolated muzzle during birth, then fly level.
-      // The original row remains authoritative for all hit tests.
-      shotPresentation_[slot].y +
-        (shotPresentation_[slot].born ? playerY - worldY() : 0) - top,
+      b.yWords / 8 + 3 - top,
       bank[frame].data(),
       16,
       0,

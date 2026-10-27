@@ -313,14 +313,6 @@ private:
               shiftY_ =
                 0; // pixel offset applied while drawing an interpolated actor
   double blend_ = 1.0;
-  // Presentation only: collision retains the DOS shot's 16-pixel row.
-  struct ShotPresentation
-  {
-    int y = 0;
-    bool born = false;
-  };
-  std::array<ShotPresentation, 4> shotPresentation_{};
-
   void
     drawPools(std::vector<std::uint8_t>& out, int w, int h, int left, int top)
       const;

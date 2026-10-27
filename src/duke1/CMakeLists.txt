@@ -69,10 +69,3 @@ if(BUILD_TESTING)
  add_executable(dn1_episode_exercise tests/exercise_episodes.cpp)
  target_link_libraries(dn1_episode_exercise PRIVATE dn1_play)
 endif()
-
-
-if(BUILD_TESTING AND DN1_DATA_DIR)
- add_executable(dn1_shot_presentation_tests tests/test_shot_presentation.cpp)
- target_link_libraries(dn1_shot_presentation_tests PRIVATE dn1_play)
- add_test(NAME duke1_shot_presentation COMMAND dn1_shot_presentation_tests "${DN1_DATA_DIR}")
-endif()
