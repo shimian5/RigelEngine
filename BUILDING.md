@@ -16,7 +16,7 @@
 * [Windows builds](#windows-build-instructions)
     * [64-bit builds](#windows-build-instructions-64)
     * [32-bit builds](#windows-build-instructions-32)
-* [Webassembly (Emscripten) builds](#wasm-build-instructions)
+* [Android ARM64](#android-arm64)
 
 ### <a name="get-the-sources">Cloning & initializing submodules</a>
 
@@ -24,7 +24,7 @@ RigelEngine uses Git submodules, which means you need to either use `git clone -
 or run one additional command after cloning to initialize submodules:
 
 ```bash
-git clone git@github.com:lethal-guitar/RigelEngine.git
+git clone --branch dn1-snapshot-2026-10-26 https://github.com/shimian5/RigelEngine.git
 cd RigelEngine
 git submodule update --init --recursive
 ```
@@ -315,7 +315,7 @@ for the `Windows win64-x64 Installer` variant.
 
 For getting the dependencies, I strongly recommend using
 [vcpkg](https://github.com/microsoft/vcpkg#quick-start-windows).
-You then need to pass `CMAKE_TOOLCHAIN_FILE=C:/path/to/your/vcpkgdir/scripts/buildystems/vcpkg.cmake` when invoking CMake.
+You then need to pass `CMAKE_TOOLCHAIN_FILE=C:/path/to/your/vcpkgdir/scripts/buildsystems/vcpkg.cmake` when invoking CMake.
 
 :exclamation: Make sure to specify the toolchain file as _absolute path_. If the toolchain file path is incorrect, CMake will just silently ignore it, resulting in "package not found" errors.
 So in case of errors, I'd recommend double checking the path first.
@@ -331,7 +331,7 @@ mkdir build
 cd build
 
 # Remember to replace <vcpkg_root> with the path to where you installed vcpkg!
-cmake .. -DCMAKE_TOOLCHAIN_FILE=<vckpkg_root>/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows -DCMAKE_GENERATOR_PLATFORM=x64
+cmake .. -DCMAKE_TOOLCHAIN_FILE=<vcpkg_root>/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows -DCMAKE_GENERATOR_PLATFORM=x64
 
 # This will open the generated Visual Studio solution
 start RigelEngine.sln
@@ -351,45 +351,11 @@ mkdir build
 cd build
 
 # Remember to replace <vcpkg_root> with the path to where you installed vcpkg!
-cmake .. -DCMAKE_TOOLCHAIN_FILE=<vckpkg_root>/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x86-windows -DCMAKE_GENERATOR_PLATFORM=Win32
+cmake .. -DCMAKE_TOOLCHAIN_FILE=<vcpkg_root>/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x86-windows -DCMAKE_GENERATOR_PLATFORM=Win32
 
 # This will open the generated Visual Studio solution
 start RigelEngine.sln
 ```
-
-### <a name="wasm-build-instructions">Webassembly (Emscripten) build </a>
-
-Rigel Engine can be built to run on a web browser using [Emscripten](https://emscripten.org/).
-Note that this is still work in progress, as there are some [issues](https://github.com/lethal-guitar/RigelEngine/milestone/16) to resolve.
-
-Refer to Emscripten's [README](https://github.com/emscripten-core/emsdk) for instructions on how to install and activate Emscripten.
-You can verify the installation by running the `emcc` command. If it executes without errors then everything is configured correctly.
-
-The instructions to build are the same as above, except for the CMake part:
-
-```bash
-emcmake cmake .. -DWEBASSEMBLY_GAME_PATH=<path-to-duke2-folder>
-make -j$(nproc)
-```
-
-This will produce a couple of files in the `<path-to-cmake-build-dir>/src` folder.
-To run the game, you need to run a web server to host the files in that folder,
-and then open `RigelEngine.html` in your browser.
-Just opening `RigelEngine.html` directly will not work, as the web page needs to load the wasm code and data, which most browsers don't allow when using the local `file:///` protocol.
-
-The easiest way to host the files is using Python. In the CMake build directory, run:
-
-```bash
-# Python 2
-python -m SimpleHTTPServer
-
-# Python 3
-python3 -m http.server
-```
-
-This will host the game at `localhost:8000/src/RigelEngine.html`.
-
-
 
 ## Android ARM64
 
