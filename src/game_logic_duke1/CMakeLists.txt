@@ -37,7 +37,7 @@ if(BUILD_TESTING AND DN1_RESEARCH_ROOT AND DN1_DATA_DIR)
  set_tests_properties(duke1_asset_pixel_parity PROPERTIES TIMEOUT 90)
 endif()
 
-add_library(dn1_play STATIC play.cpp actors.cpp)
+add_library(dn1_play STATIC play.cpp actors.cpp play_effects.cpp)
 target_link_libraries(dn1_play PUBLIC dn1_core dn1_assets)
 add_executable(dn1_play_shot play_shot_main.cpp)
 target_link_libraries(dn1_play_shot PRIVATE dn1_play)

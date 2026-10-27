@@ -61,6 +61,7 @@ public:
 
   /** The Duke II game path in effect (set once at startup) */
   static void setGamePath(const std::filesystem::path& gamePath);
+  static const std::filesystem::path& gamePath();
 
   /** Where the DOS data lives relative to the game path, if present */
   static std::optional<std::filesystem::path> findDataDir();

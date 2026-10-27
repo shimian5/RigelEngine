@@ -131,7 +131,10 @@ set(core_sources
     game_logic_duke1/core.cpp
     game_logic_duke1/play.cpp
     game_logic_duke1/actors.cpp
+    game_logic_duke1/play_effects.cpp
     frontend/duke1_mode.cpp
+    frontend/duke1_hud.cpp
+    frontend/duke1_pause_menu.cpp
     frontend/duke1_saves.cpp
     audio/duke1_speaker.cpp
     frontend/duke1_story.cpp
