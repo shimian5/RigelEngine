@@ -81,7 +81,7 @@ std::string describeDn1Save(const std::string& slot)
     return {};
   }
   return "DN1   " + slotLabel(slot) + "   E" +
-    std::to_string(oSave->mEpisode + 1) + " LEVEL " +
+    std::to_string(oSave->mEpisode + 1) + " L" +
     std::to_string(oSave->mLevelIndex + 1) + "   " +
     ui::formatScoreWithCommas(oSave->mCarry.score);
 }
@@ -219,10 +219,14 @@ void ConsoleLauncherMode::enter(const Screen screen)
           anySave = anySave || readDuke1Save(slot).has_value();
         }
         mList.setItems(
-          {{"NEW GAME", true},
-           {"CONTINUE", anySave},
+          {{"CONTINUE", anySave},
+           {"NEW GAME", true},
            {"LOAD GAME", anySave},
-           {"BACK", true}});
+           {"GAME SELECT", true}});
+        if (!mList.selectedIsEnabled())
+        {
+          mList.move(1);
+        }
         break;
       }
 
@@ -373,6 +377,12 @@ std::unique_ptr<GameMode> ConsoleLauncherMode::activateSelected()
     switch (selected)
     {
       case 0:
+        if (const auto name = newestDuke1Save())
+        {
+          return startSave({true, *name});
+        }
+        break;
+      case 1:
         if (dataDir)
         {
           mDn1Episodes = Duke1Mode::availableEpisodes(*dataDir);
@@ -385,12 +395,6 @@ std::unique_ptr<GameMode> ConsoleLauncherMode::activateSelected()
           {
             enter(Screen::Dn1Episodes);
           }
-        }
-        break;
-      case 1:
-        if (const auto name = newestDuke1Save())
-        {
-          return startSave({true, *name});
         }
         break;
       case 2:
@@ -545,7 +549,7 @@ void ConsoleLauncherMode::render()
   if (mScreen == Screen::Dn1Menu)
   {
     view.mTitle = "DUKE NUKEM";
-    view.mBackLabel = "BACK";
+    view.mBackLabel = "GAME SELECT";
   }
   else if (mScreen == Screen::Dn1Episodes)
   {
@@ -558,8 +562,6 @@ void ConsoleLauncherMode::render()
     view.mSubtitle = "EPISODE " + std::to_string(mDn1Episode + 1);
     view.mBackLabel = "BACK";
     view.mConfirmLabel = "START";
-    view.mInfoLines = {
-      {"NEW GAME", true}, {"START WITH DEFAULT EQUIPMENT", false}};
   }
   else if (mScreen == Screen::LoadAll)
   {

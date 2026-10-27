@@ -90,25 +90,29 @@ void ConsoleMenuMode::enter(const Screen screen)
   {
     case Screen::Main:
       mList.setItems(
-        {{"NEW GAME", true},
+        {{"CONTINUE", newestSaveSlotName().has_value()},
+         {"NEW GAME", true},
          {"EPISODE SELECT", true},
          {"LOAD GAME", true},
          {"STATS", true},
-         {"OPTIONS", true},
          {"GAME SELECT", true}});
+      if (!mList.selectedIsEnabled())
+      {
+        mList.move(1);
+      }
       break;
 
     case Screen::Episodes:
     case Screen::StatsEpisodes:
       {
+        // Episodes that need the registered version are not offered
         std::vector<ui::ConsoleMenuItem> items;
         for (auto i = 0; i < data::NUM_EPISODES; ++i)
         {
-          const auto locked = shareware && i > 0;
-          items.push_back(
-            {"EPISODE " + std::to_string(i + 1) +
-               (locked ? "  (FULL GAME)" : ""),
-             !locked});
+          if (!(shareware && i > 0))
+          {
+            items.push_back({"EPISODE " + std::to_string(i + 1), true});
+          }
         }
         mList.setItems(std::move(items));
         break;
@@ -166,14 +170,6 @@ void ConsoleMenuMode::enter(const Screen screen)
       mQuitMessage = ui::randomQuitMessage();
       mList.setItems({{"NO, KEEP PLAYING", true}, {"YES, QUIT", true}});
       break;
-
-    case Screen::Options:
-      mOptionsMenu.emplace(
-        mContext.mpUserProfile,
-        mContext.mpServiceProvider,
-        mContext.mpRenderer,
-        ui::OptionsMenu::Type::Main);
-      break;
   }
 }
 
@@ -203,20 +199,40 @@ std::unique_ptr<GameMode> ConsoleMenuMode::activateSelected()
       switch (selected)
       {
         case 0:
+          if (const auto oSlot = newestSaveSlotName())
+          {
+            return loadSlot(*oSlot);
+          }
+          break;
+        case 1:
           mChosenEpisode = 0;
           enter(Screen::Difficulty);
           break;
-        case 1:
-          enter(Screen::Episodes);
-          break;
         case 2:
-          enter(Screen::LoadGame);
+          // With a single available episode there is nothing to choose
+          if (mContext.mpServiceProvider->isSharewareVersion())
+          {
+            mChosenEpisode = 0;
+            enter(Screen::Difficulty);
+          }
+          else
+          {
+            enter(Screen::Episodes);
+          }
           break;
         case 3:
-          enter(Screen::StatsEpisodes);
+          enter(Screen::LoadGame);
           break;
         case 4:
-          enter(Screen::Options);
+          if (mContext.mpServiceProvider->isSharewareVersion())
+          {
+            mChosenEpisode = 0;
+            enter(Screen::Stats);
+          }
+          else
+          {
+            enter(Screen::StatsEpisodes);
+          }
           break;
         case 5:
           return std::make_unique<ConsoleLauncherMode>(mContext);
@@ -273,19 +289,7 @@ std::unique_ptr<GameMode> ConsoleMenuMode::activateSelected()
       }
 
     case Screen::LoadGame:
-      if (
-        const auto oSave =
-          readReplaySaveFile(mSlotNames[std::size_t(selected)]))
-      {
-        const auto locked = mContext.mpServiceProvider->isSharewareVersion() &&
-          oSave->mSessionId.needsRegisteredVersion();
-        if (!locked)
-        {
-          mContext.mpServiceProvider->fadeOutScreen();
-          return std::make_unique<GameSessionMode>(*oSave, mContext);
-        }
-      }
-      break;
+      return loadSlot(mSlotNames[std::size_t(selected)]);
 
     case Screen::StatsEpisodes:
       mChosenEpisode = selected;
@@ -293,9 +297,25 @@ std::unique_ptr<GameMode> ConsoleMenuMode::activateSelected()
       break;
 
     case Screen::Stats:
-    case Screen::Options:
     case Screen::Story:
       break;
+  }
+
+  return nullptr;
+}
+
+
+std::unique_ptr<GameMode> ConsoleMenuMode::loadSlot(const std::string& slotName)
+{
+  if (const auto oSave = readReplaySaveFile(slotName))
+  {
+    const auto locked = mContext.mpServiceProvider->isSharewareVersion() &&
+      oSave->mSessionId.needsRegisteredVersion();
+    if (!locked)
+    {
+      mContext.mpServiceProvider->fadeOutScreen();
+      return std::make_unique<GameSessionMode>(*oSave, mContext);
+    }
   }
 
   return nullptr;
@@ -314,7 +334,10 @@ std::unique_ptr<GameMode> ConsoleMenuMode::goBack()
       break;
 
     case Screen::Stats:
-      enter(Screen::StatsEpisodes);
+      enter(
+        mContext.mpServiceProvider->isSharewareVersion()
+          ? Screen::Main
+          : Screen::StatsEpisodes);
       break;
 
     default:
@@ -350,12 +373,6 @@ std::unique_ptr<GameMode> ConsoleMenuMode::handleEvent(const SDL_Event& event)
     }
 
     mContext.mpScriptRunner->handleEvent(event);
-    return nullptr;
-  }
-
-  if (mOptionsMenu)
-  {
-    mOptionsMenu->handleEvent(event);
     return nullptr;
   }
 
@@ -447,7 +464,6 @@ void ConsoleMenuMode::render()
       view.mBackLabel = "BACK";
       break;
 
-    case Screen::Options:
     case Screen::Story:
       return;
   }
@@ -485,17 +501,6 @@ std::unique_ptr<GameMode> ConsoleMenuMode::updateAndRender(
     {
       mContext.mpServiceProvider->fadeOutScreen();
       return std::make_unique<GameSessionMode>(*mPendingSession, mContext);
-    }
-    return nullptr;
-  }
-
-  if (mOptionsMenu)
-  {
-    mOptionsMenu->updateAndRender(dt);
-    if (mOptionsMenu->isFinished())
-    {
-      mOptionsMenu.reset();
-      enter(Screen::Main);
     }
     return nullptr;
   }

@@ -21,7 +21,6 @@
 #include "ui/console_menu.hpp"
 #include "ui/intro_movie.hpp"
 #include "ui/menu_navigation.hpp"
-#include "ui/options_menu.hpp"
 
 #include <memory>
 #include <optional>
@@ -49,7 +48,6 @@ private:
     LoadGame,
     StatsEpisodes,
     Stats,
-    Options,
     QuitConfirm,
     Story
   };
@@ -58,12 +56,12 @@ private:
   void startStory();
   std::unique_ptr<GameMode> activateSelected();
   std::unique_ptr<GameMode> goBack();
+  std::unique_ptr<GameMode> loadSlot(const std::string& slotName);
   std::unique_ptr<GameMode> handleEvent(const SDL_Event& event);
   void render();
 
   Context mContext;
   ui::MenuNavigationHelper mNavigationHelper;
-  std::optional<ui::OptionsMenu> mOptionsMenu;
 
   Screen mScreen = Screen::Main;
   ui::ConsoleList mList;
