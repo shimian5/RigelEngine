@@ -122,7 +122,15 @@ PlayWorld::PlayWorld(const std::filesystem::path& dir, const std::string& levelN
       if (!keepSolid) cells[i] = under;
       actors_.push_back({v, col, row, true, false, a.hits, under, i});
       initPorted(actors_.back());
-      const bool fallsOnScreen = v == 0x3015 || v == 0x3052 || v == 0x3018 || v == 0x3051 || v == 0x3000;
+      switch (v) {
+        case 0x3024: ++bonusTotals_[0]; break;
+        case 0x302A: ++bonusTotals_[1]; break;
+        case 0x3007: ++bonusTotals_[2]; break;
+        case 0x3013: ++bonusTotals_[3]; break;
+        case 0x303B: ++bonusTotals_[4]; break;
+        default: break;
+      }
+      const bool fallsOnScreen = v == 0x3015 || v == 0x3052 || v == 0x3018 || v == 0x3051 || v == 0x3000 || v == 0x3023;
       if (a.settle && actors_.back().ported && !fallsOnScreen) {
         // These start out resting; plain boxes, crates and food fall visibly once they come on screen
         int r = row;
@@ -228,6 +236,8 @@ void PlayWorld::update(const Input& input) {
   prevY_ = worldY();
   ++phase_;
   ++updates_;
+  if (wide_) setActiveView(worldX() - 240, worldY() - 140, 480, 220);
+  else sandbox_.wideCull = false;
   if (sandbox_.player.health <= 0) {
     // Duke is gone for a moment: a burst of sparks around him for about 30 updates, then the level restarts
     sandbox_.player.pendingHit = false;
@@ -253,9 +263,14 @@ void PlayWorld::update(const Input& input) {
     updatePools();
     return;
   }
+  if (!input.up) upConsumed_ = false;
   sandbox_.input = frozen_ ? Input{} : input;
+  const int pullUpBefore = sandbox_.player.pullUp;
   const int immunityBefore = sandbox_.player.immunity;
+  sandbox_.player.phase = (phase_ % 4) * 32;  // the shared animation step the original's player code looks at
   sandbox_.tick();
+  pullUpDrawn_ = pullUpBefore > 0 || sandbox_.player.pullUp > 0;
+  if (sandbox_.player.immunity > immunityBefore) damageTaken_ = true;
   if (sandbox_.player.immunity > immunityBefore) hitFlash_ = 1;  // just hit: the original shows the skeleton for a single update
   else if (hitFlash_ > 0) --hitFlash_;
   for (const auto& e : sandbox_.events)
@@ -269,6 +284,14 @@ void PlayWorld::update(const Input& input) {
   updatePorted();
   updatePools();
   interact();
+  if (discontinuity_) {
+    prevX_ = worldX();
+    prevY_ = worldY();
+    for (auto& actor : actors_) {
+      actor.prevX8 = actor.x8;
+      actor.prevYw = actor.yw;
+    }
+  }
 }
 
 void PlayWorld::render(std::vector<std::uint8_t>& out) const {
@@ -306,9 +329,10 @@ void PlayWorld::interact() {
     if (!actor.alive || actor.ported) continue;
     const auto* entry = entryFor(actor.id);
     if (!entry) continue;
+    actor.prevRow = actor.row;
     // Boxes and items fall a row per update while they are on screen and nothing solid is below them
-    // They start falling a little before they are in view (8 rows above it), so the end of a fall is seen
-    if (entry->settle && actor.row < 89 && !offscreen(actor.row * 128 + 8 * 128, actor.col * 2 + 2)) {
+    // Like the original: boxes only fall while they are in view (matches the console release)
+    if (entry->settle && actor.row < 89 && !offscreen(actor.row * 128, actor.col * 2 + 2)) {
       const auto below = sandbox_.world.cells[static_cast<std::size_t>((actor.row + 1) * 128 + actor.col)];
       if (below < 0x1800) ++actor.row;
     }
@@ -316,6 +340,7 @@ void PlayWorld::interact() {
     const int ayWords = actor.row * 128;
 
     // Shots (shared bullet predicate: horizontal distance < 2 units, vertical within one row)
+    const bool wasOpen = actor.open;  // contents are only collected if the box was already open at the start of the update
     const bool plainCrate = false;
     if (entry->shotScore > 0 || plainCrate || (entry->isContainer && !actor.open)) {
       for (auto& b : sandbox_.bullets) {
@@ -329,6 +354,8 @@ void PlayWorld::interact() {
           } else if (entry->isContainer) {
             actor.open = true;
             spawnSparks(actor.row * 128, actor.col * 2 + 2);
+            if (actor.row >= 89 || sandbox_.world.cells[static_cast<std::size_t>((actor.row + 1) * 128 + actor.col)] < 0x1800)
+              addScore(500, actor.col * 16, actor.row * 16);  // a box shot open in mid-air pays extra
           } else if (--actor.hits <= 0) {
             actor.alive = false;
             sandbox_.world.cells[actor.cellIndex] = actor.under;
@@ -341,11 +368,9 @@ void PlayWorld::interact() {
     }
 
     // Touch: items that are out in the open, or containers that have been shot open
-    const bool collectable = (entry->isPickup && entry->touchScore > 0) || (entry->isContainer && actor.open);
+    const bool collectable = (entry->isPickup && entry->touchScore > 0) || (entry->isContainer && wasOpen);
     if (collectable) {
-      const int dx = playerX8 - ax8;
-      const int dy = playerYWords - ayWords + 2;
-      if (dx > -2 && dx < 2 && dy > -128 && dy < 384) {
+      if (touchesPlayer(ax8, ayWords)) {
         actor.alive = false;
         sandbox_.world.cells[actor.cellIndex] = actor.under;
         int award = static_cast<int>(entry->isContainer ? entry->openScore : entry->touchScore);
@@ -431,12 +456,15 @@ void PlayWorld::renderWorld(std::vector<std::uint8_t>& out, int w, int h, int le
       if (upd.count == 0) upd = kActorUpdates[entry->firstUpdate];  // drawn once and then left in place
     }
     const int ax = actor.col * 16, ay = actor.row * 16;
+    // Falling boxes and items glide between rows instead of jumping a whole row per update
+    const int fallShift = actor.prevRow >= 0 && actor.prevRow != actor.row
+      ? static_cast<int>(std::lround((actor.row - actor.prevRow) * 16 * (blend_ - 1.0))) : 0;
     if (ax + 48 < left || ax - 48 > left + w || ay + 48 < top || ay - 48 > top + h) continue;
     for (int k = 0; k < upd.count; ++k) {
       const auto& dr = kActorDraws[upd.first + k];
       const auto& bank = sprites_[dr.bank];
       if (dr.frame >= bank.size()) continue;
-      blit(out, ax + dr.dx - left, ay + dr.dy - top, bank[dr.frame].data(), 16, 0, 0, 16, 16, 0, 0, w, h, w, h);
+      blit(out, ax + dr.dx - left, ay + dr.dy - top + fallShift, bank[dr.frame].data(), 16, 0, 0, 16, 16, 0, 0, w, h, w, h);
     }
   }
 
@@ -453,6 +481,7 @@ void PlayWorld::renderWorld(std::vector<std::uint8_t>& out, int w, int h, int le
       case 1000: base = 6; break;
       case 2000: base = 8; break;
       case 5000: base = 10; break;
+      case 10000: base = 12; break;
       default: break;
     }
     if (base < 0) continue;
@@ -480,7 +509,21 @@ void PlayWorld::renderWorld(std::vector<std::uint8_t>& out, int w, int h, int le
     const bool standing = p.grounded && p.walkFrame == 0;
     const Tileset* pSet = standing ? &man_[1] : &man_[0];
     int base = standing ? (leftFacing ? 0 : 4) : 4 * ((leftFacing ? 0 : 4) + p.walkFrame % 4);
-    if (!p.grounded && !p.cling) {
+    auto useFrame = [&](const int frame) {
+      pSet = &man_[static_cast<std::size_t>(frame / 12)];
+      base = 4 * (frame % 12);
+    };
+    if (pullUpDrawn_) {
+      // Hauling himself up from a ceiling bar: frames 0x28 - n (left) or 0x2b - n (right), n = what is left of the pull-up
+      useFrame((leftFacing ? 0x28 : 0x2b) - p.pullUp);
+    } else if (p.cling) {
+      // Hanging from a bar: hand-over-hand frames 0x1c-0x1f (left) / 0x20-0x23 (right); firing uses 0x24 / 0x25
+      if (sandbox_.input.fire) useFrame(leftFacing ? 0x24 : 0x25);
+      else useFrame((leftFacing ? 0x1c : 0x20) + p.walkFrame % 4);
+    } else if (p.jumpTravel) {
+      // Boots flip (the core decides when): frames 14-20 (left) or 21-27 (right) of the 4-piece player frames, two updates each
+      useFrame((p.jumpTravel == 1 ? 14 : 21) + std::min(p.jumpTravelAge, 13) / 2);
+    } else if (!p.grounded) {
       // Jump poses (identified from an original DOS capture): MAN0 groups 8/9 while rising, 10/11 while falling
       const bool rising = worldY() < prevY_ || (worldY() == prevY_ && airTicks_ <= 4);
       base = 4 * ((rising ? 8 : 10) + (leftFacing ? 0 : 1));
@@ -500,6 +543,34 @@ void PlayWorld::renderWorld(std::vector<std::uint8_t>& out, int w, int h, int le
       blit(out, px + offs[i][0], py + offs[i][1], rgba.data(), 16, 0, 0, 16, 16, 0, 0, w, h, w, h);
     }
   }
+}
+
+}  // namespace duke1
+
+namespace duke1 {
+
+PlayWorld::BonusReport PlayWorld::bonusReport() const {
+  BonusReport r;
+  auto allGone = [&](const std::uint16_t id) {
+    for (const auto& a : actors_)
+      if (a.id == id && a.alive) return false;
+    return true;
+  };
+  r.present[Cameras] = bonusTotals_[0] > 0;
+  r.earned[Cameras] = bonusTotals_[0] > 0 && allGone(0x3024);
+  r.present[AcmeSigns] = bonusTotals_[1] > 0;
+  r.earned[AcmeSigns] = bonusTotals_[1] > 0 && allGone(0x302A);
+  r.present[Rockets] = bonusTotals_[2] > 0;
+  r.earned[Rockets] = bonusTotals_[2] > 0 && allGone(0x3007);
+  r.present[SnakeBots] = bonusTotals_[3] > 0;
+  r.earned[SnakeBots] = bonusTotals_[3] > 0 && snakesDone_;
+  r.present[BunnyBots] = bonusTotals_[4] > 0;
+  r.earned[BunnyBots] = bonusTotals_[4] > 0 && allGone(0x303B);
+  r.present[NoDamage] = true;
+  r.earned[NoDamage] = !damageTaken_;
+  r.present[DukeLetters] = true;
+  r.earned[DukeLetters] = dukeBonus_;
+  return r;
 }
 
 }  // namespace duke1

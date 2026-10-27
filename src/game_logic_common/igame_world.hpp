@@ -50,6 +50,22 @@ struct IGameWorld
 
   virtual bool levelFinished() const = 0;
   virtual std::set<data::Bonus> achievedBonuses() const = 0;
+
+  /** The bonuses this level offers at all (those with something to find) */
+  virtual std::set<data::Bonus> availableBonuses() const
+  {
+    return {
+      data::Bonus::DestroyedAllCameras,
+      data::Bonus::NoDamageTaken,
+      data::Bonus::CollectedEveryWeapon,
+      data::Bonus::CollectedAllMerchandise,
+      data::Bonus::DestroyedAllSpinningLaserTurrets,
+      data::Bonus::DestroyedAllFireBombs,
+      data::Bonus::ShotAllBonusGlobes};
+  }
+
+  /** Time spent in the level; negative if not tracked */
+  virtual double levelSeconds() const { return -1.0; }
   virtual bool needsPerElementUpscaling() const = 0;
   virtual void updateGameLogic(const PlayerInput& input) = 0;
   virtual void render(float interpolationFactor = 0.0f) = 0;

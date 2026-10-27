@@ -125,12 +125,16 @@ set(core_sources
     frontend/game_mode.hpp
     frontend/console_menu_mode.cpp
     duke1/assets.cpp
+    duke1/exe_text.cpp
+    duke1/exe_text.hpp
     duke1/core.cpp
     duke1/play.cpp
     duke1/actors.cpp
     frontend/duke1_mode.cpp
     frontend/duke1_saves.cpp
     frontend/duke1_sound.cpp
+    frontend/duke1_story.cpp
+    frontend/duke1_story.hpp
     frontend/duke1_sound.hpp
     frontend/duke1_saves.hpp
     frontend/duke1_mode.hpp
@@ -364,7 +368,9 @@ set(core_sources
     ui/overlay_hud.cpp
     ui/overlay_hud.hpp
     ui/console_menu.cpp
+    ui/console_results.cpp
     ui/console_menu.hpp
+    ui/console_results.hpp
     ui/pause_menu.cpp
     ui/pause_menu.hpp
     ui/imgui_integration.cpp

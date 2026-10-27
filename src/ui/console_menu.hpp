@@ -79,6 +79,26 @@ struct ConsoleMenuView
 /** Draw a menu in the console style, at native resolution (uses Dear ImGui) */
 void drawConsoleMenu(const ConsoleMenuView& view);
 
+struct ConsoleResultRowView
+{
+  std::string mLabel;
+  std::string mValue; // empty while the row hasn't been revealed yet
+  bool mEarned = false;
+};
+
+struct ConsoleResultsView
+{
+  std::string mTitle;
+  std::string mScore;
+  std::string mTime;
+  std::vector<ConsoleResultRowView> mRows;
+  std::string mTotal; // empty until the tally has reached it
+  std::string mConfirmLabel = "CONTINUE";
+};
+
+/** The level results page shared by both games */
+void drawConsoleResults(const ConsoleResultsView& view);
+
 /** Full screen title with a prompt, e.g. "A START". timeSeconds animates it. */
 void drawConsoleTitleScreen(
   const std::string& title,

@@ -51,7 +51,7 @@ constexpr auto MAX_ADJUST_DOWN = 2;
 constexpr auto MAX_ADJUST_DOWN_ELEVATOR = 3;
 
 constexpr auto DEAD_ZONE_START_X = 10;
-constexpr auto IN_SHIP_DEAD_ZONE_START_X = 12;
+constexpr auto IN_SHIP_DEAD_ZONE_START_X = 11;
 constexpr auto DEAD_ZONE_END_X = 21;
 
 constexpr auto DEFAULT_VERTICAL_DEAD_ZONE = VerticalDeadZone{2, 19};

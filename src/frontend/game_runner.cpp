@@ -774,4 +774,16 @@ std::set<data::Bonus> GameRunner::achievedBonuses() const
   return mpWorld->achievedBonuses();
 }
 
+
+std::set<data::Bonus> GameRunner::availableBonuses() const
+{
+  return mpWorld->availableBonuses();
+}
+
+
+double GameRunner::levelSeconds() const
+{
+  return mpWorld->levelSeconds();
+}
+
 } // namespace rigel

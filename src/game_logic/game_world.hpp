@@ -78,6 +78,8 @@ public:
 
   bool levelFinished() const override;
   std::set<data::Bonus> achievedBonuses() const override;
+  std::set<data::Bonus> availableBonuses() const override;
+  double levelSeconds() const override { return double(mElapsedTicks) / 15.0; }
 
   void receive(const rigel::events::CheckPointActivated& event);
   void receive(const rigel::events::ExitReached& event);

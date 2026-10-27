@@ -35,6 +35,7 @@ namespace rigel
 struct Duke1Save
 {
   int mLevelIndex = 0;
+  bool mWide = false;
   duke1::PlayWorld::Carry mCarry;
   std::vector<std::uint8_t> mInputs; // one packed byte per game update
 };

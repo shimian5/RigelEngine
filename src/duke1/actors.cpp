@@ -137,7 +137,7 @@ void PlayWorld::updateOrbs() {
   }
   if (clear) {
     orbs_.on = false;
-    addScore(10000, (orbs_.x[9] - 2) * 8, orbs_.y[9] / 8);
+    snakesDone_ = true;  // the 10,000 for the whole chain is paid when the level is left
     return;
   }
   orbs_.px[9] = orbs_.x[9];
@@ -197,6 +197,11 @@ void PlayWorld::updatePools() {
   for (auto& s : enemyShots_) {
     if (s.dir == 0) continue;
     if (touchesPlayer(s.x8, s.yw)) {
+      if (!p.pendingHit && p.immunity == 0) {
+        // The shot also shoves Duke one unit in its direction when there is room
+        std::vector<Event> scratch;
+        if (sandbox_.world.clear(s.dir == 1 ? Sensor::Left : Sensor::Right, p, scratch)) p.x8 += s.dir == 1 ? -1 : 1;
+      }
       p.pendingHit = true;
       s.dir = 0;
       continue;
@@ -277,6 +282,12 @@ void PlayWorld::initPorted(ActorInstance& a) {
       a.yw = a.row * 128;
       break;
     case 0x302A:  // sign that drops on Duke when he walks under it
+      a.ported = true;
+      a.state = 1;
+      a.x8 = a.col * 2 + 2;
+      a.yw = a.row * 128;
+      break;
+    case 0x3007:  // rocket on a launch pad: shoot it and it flies up the shaft
       a.ported = true;
       a.state = 1;
       a.x8 = a.col * 2 + 2;
@@ -426,6 +437,7 @@ void PlayWorld::initPorted(ActorInstance& a) {
       a.x8 = a.col * 2 + 2;
       a.yw = a.row * 128;
       a.v0 = 0;
+      a.v1 = a.cellIndex >= 128 ? sandbox_.world.cells[a.cellIndex - 128] : 0;  // the tile it leaves behind
       break;
     case 0x3011:  // exit door
       a.ported = true;
@@ -554,7 +566,8 @@ void PlayWorld::updatePorted() {
 
   auto& p = sandbox_.player;
   for (auto& a : actors_) {
-    if (!a.alive || !a.ported || a.state == 0) continue;
+    // (the boss has a meaningful state 0: it is beaten and leaving)
+    if (!a.alive || !a.ported || (a.state == 0 && a.id != 0x3043)) continue;
     switch (a.id) {
       case 0x302A: {
         if (offscreen(a.yw, a.x8)) {
@@ -589,10 +602,44 @@ void PlayWorld::updatePorted() {
         }
         break;
       }
+      case 0x3007: {
+        // 1 waiting, 2-9 igniting, 10 flying up, 0 gone
+        if (a.state == 1 && bulletHit(a.yw, a.x8)) {
+          a.state = 2;
+          sound(30);
+          addScore(200, (a.x8 - 2) * 8, a.yw / 8);
+        }
+        if (a.state > 1 && a.state < 10) {
+          if (a.state == 9) {
+            auto& cells = sandbox_.world.cells;
+            const auto below = static_cast<std::size_t>((a.yw / 128 + 1) * 128 + a.col);
+            if (below + 128 < cells.size()) cells[below] = cells[below + 128];  // the launch pad is gone
+            spawnSparks(a.yw + 0x80, a.x8);
+          }
+          if (a.state == 3) spawnExplosion(a.yw + 0x80, a.x8, 3);
+          ++a.state;
+        }
+        if (a.state == 10) a.yw -= 0x80;
+        if (a.state == 10 && floorAt(a.x8, a.yw - 0x200)) {
+          spawnSparks(a.yw - 0x200, a.x8 - 3);
+          spawnSparks(a.yw - 0x180, a.x8 + 2);
+          spawnSparks(a.yw - 0x180, a.x8 + 1);
+          spawnSparks(a.yw - 0x100, a.x8 - 1);
+          spawnSparks(a.yw - 0x80, a.x8);
+          const auto hit = static_cast<std::size_t>((a.yw / 128 - 4) * 128 + a.col);
+          if (hit + 128 < sandbox_.world.cells.size()) sandbox_.world.cells[hit] = sandbox_.world.cells[hit + 128];
+          a.state = 0;
+          a.alive = false;
+        }
+        break;
+      }
       case 0x3043: {
         auto& b = boss_;
         if (b.deadCount != 0) {
-          if (++b.deadCount == 10) levelComplete_ = true;
+          if (++b.deadCount == 10 && !levelComplete_) {
+            levelComplete_ = true;
+            addScore(100000, (a.x8 - 2) * 8, a.yw / 8);  // the ending bonus
+          }
           break;
         }
         b.anim ^= 1;
@@ -612,7 +659,10 @@ void PlayWorld::updatePorted() {
             frozen_ = true;
             sound(40);
           }
-          if (b.freeze > 0x1e) levelComplete_ = true;
+          if (b.freeze > 0x1e && !levelComplete_) {
+            levelComplete_ = true;
+            addScore(100000, (a.x8 - 2) * 8, a.yw / 8);  // the ending bonus
+          }
           if (b.freeze != 0) ++b.freeze;
           if (b.freeze != 0 && a.yw > 0x100 && p.cameraYWords > 0x100) {
             a.yw -= 0x80;
@@ -761,30 +811,35 @@ void PlayWorld::updatePorted() {
         for (const auto& o : actors_)
           if (o.alive && o.id == (a.id == 0x302F ? 0x3030 : 0x302F)) { partner = &o; break; }
         if (!partner) break;
-        if (a.v0 == 0) {
-          if (!offscreen(a.yw, a.x8) && touchesPlayer(a.x8 + 2, a.yw) && in.up && !in.left && !in.right && !in.jump) { a.v0 = 8; sound(7); }
+        // Countdown as in the original: 8 on activation, the jump happens on the update that finds it at 1
+        if (a.v0 == 1) {
+          // Move Duke to the other pad, keeping the camera rules happy
+          const int targetX = partner->x8 + 2;
+          p.cameraX8 = std::clamp(targetX - p.x8, 0, 230);
+          p.x8 = targetX - p.cameraX8;
+          p.cameraYWords = std::max(0, partner->yw - 0x300);
+          p.y = std::max(0, (partner->yw - p.cameraYWords) / 8);
+          if (p.y > 150) { p.cameraYWords += (p.y - 150) * 8 / 128 * 128; p.y = std::max(0, (partner->yw - p.cameraYWords) / 8); }
+          p.verticalScroll = true;
+          a.v0 = 0;
+          upConsumed_ = true;       // the key press is used up: it has to be pressed again
+          discontinuity_ = true;    // nothing should be blended across the jump
         } else if (a.v0 > 1) {
           --a.v0;
-          if (a.v0 == 1) {
-            // Move Duke to the other pad, keeping the camera rules happy
-            const int targetX = partner->x8 + 2;
-            p.cameraX8 = std::clamp(targetX - p.x8, 0, 230);
-            p.x8 = targetX - p.cameraX8;
-            p.cameraYWords = std::max(0, partner->yw - 0x300);
-            p.y = std::max(0, (partner->yw - p.cameraYWords) / 8);
-            if (p.y > 150) { p.cameraYWords += (p.y - 150) * 8 / 128 * 128; p.y = std::max(0, (partner->yw - p.cameraYWords) / 8); }
-            p.verticalScroll = true;
-            a.v0 = 0;
-          }
+        }
+        if (a.v0 == 0 && !offscreen(a.yw, a.x8) && touchesPlayer(a.x8 + 2, a.yw) && in.up && !upConsumed_ &&
+            !in.left && !in.right && !in.jump) {
+          a.v0 = 8;
+          sound(7);
         }
         break;
       }
       case 0x3015: case 0x3052: case 0x3018: case 0x3051: {
         const bool soda = a.id == 0x3015 || a.id == 0x3052;
-        if (a.state > 2 && offscreen(a.yw, a.x8)) { a.state = 0; a.alive = false; sandbox_.world.cells[a.cellIndex] = a.under; break; }
+        if (soda && a.state > 2 && offscreen(a.yw, a.x8)) { a.state = 0; a.alive = false; sandbox_.world.cells[a.cellIndex] = a.under; break; }
         if (offscreen(a.yw, a.x8)) break;
-        if (!floorAt(a.x8, a.yw + 0x80) && a.state < 3) a.yw += 0x80;
-        if (a.state > 2) {  // a shot can sends the soda flying upwards
+        if (!floorAt(a.x8, a.yw + 0x80) && (a.state < 3 || !soda)) a.yw += 0x80;
+        if (soda && a.state > 2) {  // a shot can sends the soda flying upwards (food just keeps falling)
           if (phase_ % 4 != 0) a.yw -= 0x40;
           if (floorAt(a.x8, a.yw - 0x40)) {
             spawnExplosion(a.yw, a.x8, 1);
@@ -794,6 +849,7 @@ void PlayWorld::updatePorted() {
           }
           if (touchesPlayer(a.x8, a.yw)) {
             addScore(1000, (a.x8 - 2) * 8, a.yw / 8);
+            sound(16);
             a.state = 0; a.alive = false;
             sandbox_.world.cells[a.cellIndex] = a.under;
             break;
@@ -806,6 +862,7 @@ void PlayWorld::updatePorted() {
             if (!floorAt(a.x8, a.yw + 0x80)) addScore(500, (a.x8 - 2) * 8, a.yw / 8);
           } else if (a.state == 2) {
             a.state = 3;
+            if (soda) sound(2);  // the can is hit and sent flying
           }
         }
         if (a.state >= 2 && touchesPlayer(a.x8, a.yw) && (soda ? a.state == 2 : true)) {
@@ -991,15 +1048,18 @@ void PlayWorld::updatePorted() {
           if (a.id == 0x3029) {
             addScore(1000, (a.x8 - 2) * 8, a.yw / 8);
             p.health = 9;  // the sphere restores full health
+            sound(4);
           } else {
             static const int kLetter[4] = {'D', 'U', 'K', 'E'};
             const int letter = kLetter[a.id - 0x3037];
             if (letter == 'E' && letters_.size() == 3 && letters_[0] == 'D' && letters_[1] == 'U' && letters_[2] == 'K') {
-              addScore(10000, (a.x8 - 2) * 8, a.yw / 8);
+              dukeBonus_ = true;  // paid when the level is left
               letters_.push_back(letter);
+              sound(37);
             } else {
               letters_.push_back(letter);
               addScore(500, (a.x8 - 2) * 8, a.yw / 8);
+              sound(16);
             }
           }
           a.state = 0;
@@ -1049,12 +1109,23 @@ void PlayWorld::updatePorted() {
           const bool canMove = sandbox_.world.clear(a.v0 ? Sensor::Right : Sensor::Left, p, scratch);
           if (canMove) p.x8 += a.v0 ? 1 : -1;
         }
+        // Duke hanging from the ceiling below the belt is carried the opposite way
+        const int dyUnder = ((p.y >> 4) * 0x80 + p.cameraYWords) - (a.yw + 0x60) + 2;
+        if (p.cling && playerX > a.x8 - 2 && playerX < a.x8 + 2 * a.v1 + 2 && dyUnder > 0 && dyUnder < 0x180) {
+          std::vector<Event> scratch;
+          const bool canMove = sandbox_.world.clear(a.v0 ? Sensor::Left : Sensor::Right, p, scratch);
+          if (canMove) p.x8 += a.v0 ? -1 : 1;
+        }
         break;
       }
       case 0x3001: {
         // Elevator: a solid carrier tile that rises when Up is pressed while standing exactly on it
         if (offscreen(a.yw, a.x8)) {
-          if (a.v0 > 0) { --a.v0; sandbox_.world.cells[a.cellIndex - static_cast<std::size_t>(a.v0 + 1) * 128] = 0; }
+          if (a.v0 > 0) {  // out of view it simply settles back down
+            sandbox_.world.cells[a.cellIndex - static_cast<std::size_t>(a.v0) * 128] = static_cast<std::uint16_t>(a.v1);
+            --a.v0;
+            a.yw += 0x80;
+          }
           break;
         }
         const int playerX = p.x8 + p.cameraX8;
@@ -1062,18 +1133,18 @@ void PlayWorld::updatePorted() {
         const bool standing = playerX == a.x8 && dy > 0 && dy < 0x180;
         if (!standing) {
           if (a.v0 > 0) {  // lowers back down
-            const auto idx = a.cellIndex - static_cast<std::size_t>(a.v0) * 128;
-            sandbox_.world.cells[idx] = a.under;
+            sandbox_.world.cells[a.cellIndex - static_cast<std::size_t>(a.v0) * 128] = static_cast<std::uint16_t>(a.v1);
             --a.v0;
             a.yw += 0x80;
           }
-        } else if (sandbox_.input.up && !p.cling && p.y > 0x30) {
-          if (a.v0 == 0) sound(20);
+        } else if (sandbox_.input.up && !p.cling && sandbox_.world.clear(Sensor::Head, p, sandbox_.events)) {
+          sound(20);
           ++a.v0;
           a.yw -= 0x80;
           const auto idx = a.cellIndex - static_cast<std::size_t>(a.v0) * 128;
           sandbox_.world.cells[idx] = 0x1ae0;
           p.y -= 0x10;
+          if (p.y < 0x41) p.verticalScroll = true;
         }
         break;
       }
@@ -1112,7 +1183,7 @@ void PlayWorld::updatePorted() {
             }
           }
           keys_[color] = false;
-          sound(39);
+          sound(31);
           a.v0 = 1;
           addScore(1000, (a.x8 - 2) * 8, a.yw / 8);
         }
@@ -1564,6 +1635,20 @@ void PlayWorld::drawPorted(std::vector<std::uint8_t>& out, int w, int h, int lef
         shiftY_ += wiggle;
         drawObjectPiece(out, w, h, left, top, 83, a.x8, a.yw);
         drawObjectPiece(out, w, h, left, top, 84, a.x8 + 2, a.yw);
+        break;
+      }
+      case 0x3007: {
+        drawObjectPiece(out, w, h, left, top, 11, a.x8, a.yw - 0x180);
+        drawObjectPiece(out, w, h, left, top, 12, a.x8, a.yw - 0x100);
+        drawObjectPiece(out, w, h, left, top, 12, a.x8, a.yw - 0x80);
+        drawObjectPiece(out, w, h, left, top, 13, a.x8, a.yw);
+        drawObjectPiece(out, w, h, left, top, 14, a.x8 - 2, a.yw);
+        drawObjectPiece(out, w, h, left, top, 15, a.x8 + 2, a.yw);
+        if (a.state > 1 && a.state < 10 && (a.state & 1)) drawObjectPiece(out, w, h, left, top, 17, a.x8, a.yw + 0x80);
+        if (a.state == 10 && a.yw % 0x100 != 0) {
+          drawObjectPiece(out, w, h, left, top, 16, a.x8, a.yw + 0x80);
+          drawObjectPiece(out, w, h, left, top, 17, a.x8, a.yw + 0x100);
+        }
         break;
       }
       case 0x3043: {

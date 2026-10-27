@@ -1883,8 +1883,23 @@ void Player::jump()
 
 void Player::jumpFromLadder(const base::Vec2& movementVector)
 {
+  // Jumping off a ladder with a direction held first turns Duke that way (if
+  // needed) and then moves him one tile in that direction right away, without
+  // checking for obstacles. The jump arc is then entered at its second step,
+  // in the same update, rather than at its start.
+  if (movementVector.x != 0)
+  {
+    if (movementVector.x != engine::orientation::toMovement(orientation()))
+    {
+      switchOrientation();
+    }
+
+    mEntity.component<c::WorldPosition>()->x += movementVector.x;
+  }
+
   auto newState = Jumping{Jumping::FromLadder{}};
-  updateJumpMovement(newState, movementVector, true);
+  newState.mFramesElapsed = 1;
+  updateJumpMovement(newState, base::Vec2{0, movementVector.y}, true);
 
   mState = newState;
   setVisualState(VisualState::Jumping);

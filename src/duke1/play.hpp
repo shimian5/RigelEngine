@@ -27,7 +27,16 @@ class PlayWorld {
   Carry carry() const;
   void applyCarry(const Carry& c);
   bool targetsCleared() const { return targetsCleared_; }
+  // End-of-level secret bonuses (10,000 each, paid when the level is left)
+  enum Bonus { Cameras, AcmeSigns, Rockets, SnakeBots, BunnyBots, NoDamage, DukeLetters, NUM_BONUSES };
+  struct BonusReport {
+    bool present[NUM_BONUSES] = {};  // does this level have any of them at all
+    bool earned[NUM_BONUSES] = {};
+    int count() const { int n = 0; for (bool e : earned) n += e ? 1 : 0; return n; }
+  };
+  BonusReport bonusReport() const;
   bool levelComplete() const { return levelComplete_; }
+  void debugFinishLevel() { levelComplete_ = true; }
   const std::array<std::string, 2>& backdropPair() const { return pair_; }
   static std::array<std::string, 2> backdropPairFor(const std::string& levelName);
 
@@ -54,11 +63,18 @@ class PlayWorld {
   int prevWorldY() const { return prevY_; }
   // Wide presentation: let actors and shots stay active over the whole visible area (world pixels).
   void setActiveView(int left, int top, int w, int h);
+  // Modern presentation: actors stay active over a wider window around Duke. This is part of the
+  // simulation (it is derived from the simulated position only), so a replay must use the same value.
+  void setWide(bool wide) { wide_ = wide; }
+  bool wide() const { return wide_; }
   void debugDump() const;
   // 0..1: how far the drawing is between the previous and the current update (smooths actor movement)
   void setRenderBlend(double b) { blend_ = b; }
   bool dead() const { return dyingTick_ >= 30; }
   int updateCount() const { return updates_; }
+  int somersault() const { return sandbox_.player.jumpTravel; }  // 0 none, 1 left, 2 right (debug/tests)
+  // True once after something moved Duke instantly (transporter): the presentation must not blend across it
+  bool takeDiscontinuity() { return std::exchange(discontinuity_, false); }
   // Sound requests (original sound indices 0-47) raised since the last call
   std::vector<int> takeSounds() { return std::exchange(sounds_, {}); }
   // Debug: everything Duke can pick up
@@ -111,6 +127,7 @@ class PlayWorld {
     bool ported = false;
     int prevX8 = 0, prevYw = 0;  // position before the latest update, for smooth drawing
     int state = 0, x8 = 0, yw = 0, v0 = 0, v1 = 0;
+    int prevRow = -1;  // plain boxes and items: row before the latest update (for smooth falling)
   };
 
   void interact();  // bullets and touch against the actors
@@ -148,7 +165,15 @@ class PlayWorld {
   bool hasItem_ = false, hasCard_ = false, blast_ = false;
   int dyingTick_ = 0;
   int updates_ = 0;
+  bool wide_ = false;
+  int bonusTotals_[5] = {};   // cameras, signs, rockets, snake chains, bunny bots in the level
+  bool damageTaken_ = false;
+  bool dukeBonus_ = false;
+  bool snakesDone_ = false;
+  bool upConsumed_ = false;     // the Up key press was used by an action and must be released first
+  bool discontinuity_ = false;  // Duke or the camera jumped this update
   int hitFlash_ = 0;
+  bool pullUpDrawn_ = false;
   std::vector<int> sounds_;
   void sound(int index) { sounds_.push_back(index); }
   void updateOrbs();

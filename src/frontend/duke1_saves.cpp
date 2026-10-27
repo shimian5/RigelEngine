@@ -32,7 +32,7 @@ namespace
 {
 
 constexpr std::array<char, 4> MAGIC = {'D', 'N', '1', 'S'};
-constexpr std::uint8_t VERSION = 1;
+constexpr std::uint8_t VERSION = 2; // bump whenever the simulation changes in a way that alters replays
 
 void put32(std::vector<std::uint8_t>& out, std::int32_t v)
 {
@@ -98,6 +98,7 @@ bool writeDuke1Save(const std::string& slot, const Duke1Save& save)
   put32(bytes, save.mCarry.boost);
   put32(bytes, save.mCarry.claw);
   put32(bytes, save.mCarry.capacity);
+  put32(bytes, save.mWide ? 1 : 0);
   put32(bytes, static_cast<std::int32_t>(save.mInputs.size()));
   bytes.insert(bytes.end(), save.mInputs.begin(), save.mInputs.end());
 
@@ -138,7 +139,7 @@ std::optional<Duke1Save> readDuke1Save(const std::string& slot)
   const std::vector<std::uint8_t> bytes{
     std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
 
-  constexpr std::size_t HEADER = 5 + 7 * 4;
+  constexpr std::size_t HEADER = 5 + 8 * 4;
   if (bytes.size() < HEADER || !std::equal(MAGIC.begin(), MAGIC.end(), bytes.begin()) ||
       bytes[4] != VERSION)
   {
@@ -152,8 +153,17 @@ std::optional<Duke1Save> readDuke1Save(const std::string& slot)
   save.mCarry.boost = get32(bytes, 17);
   save.mCarry.claw = get32(bytes, 21);
   save.mCarry.capacity = get32(bytes, 25);
-  const auto count = static_cast<std::size_t>(get32(bytes, 29));
-  if (bytes.size() < HEADER + count)
+  save.mWide = get32(bytes, 29) != 0;
+  const auto rawCount = get32(bytes, 33);
+  if (rawCount < 0 || std::size_t(rawCount) > bytes.size() - HEADER)
+  {
+    return std::nullopt;
+  }
+  const auto count = std::size_t(rawCount);
+  const auto& carry = save.mCarry;
+  if (save.mLevelIndex < 0 || carry.score < 0 || carry.health < 0 || carry.health > 9 ||
+      carry.boost < 0 || carry.boost > 1 || carry.claw < 0 || carry.claw > 1 ||
+      carry.capacity < 1 || carry.capacity > 4)
   {
     return std::nullopt;
   }

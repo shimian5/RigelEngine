@@ -356,6 +356,20 @@ std::set<data::Bonus> GameWorld::achievedBonuses() const
 }
 
 
+std::set<data::Bonus> GameWorld::availableBonuses() const
+{
+  const auto& info = mpState->mBonusInfo;
+  std::set<data::Bonus> result{data::Bonus::NoDamageTaken};
+  if (info.mInitialCameraCount > 0) result.insert(data::Bonus::DestroyedAllCameras);
+  if (info.mInitialWeaponCount > 0) result.insert(data::Bonus::CollectedEveryWeapon);
+  if (info.mInitialMerchandiseCount > 0) result.insert(data::Bonus::CollectedAllMerchandise);
+  if (info.mInitialLaserTurretCount > 0) result.insert(data::Bonus::DestroyedAllSpinningLaserTurrets);
+  if (info.mInitialFireBombCount > 0) result.insert(data::Bonus::DestroyedAllFireBombs);
+  if (info.mInitialBonusGlobeCount > 0) result.insert(data::Bonus::ShotAllBonusGlobes);
+  return result;
+}
+
+
 void GameWorld::receive(const rigel::events::CheckPointActivated& event)
 {
   mpState->mActivatedCheckpoint =

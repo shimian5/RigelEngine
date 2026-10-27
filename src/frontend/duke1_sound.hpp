@@ -29,7 +29,9 @@ namespace rigel
  * The original game drives the PC speaker: each sound is a list of timer
  * divisors played back one per timer tick (about 144 per second). This reads
  * the two sound banks from the player's data files and renders every sound
- * into a buffer for SDL_mixer, using the original's priority rule.
+ * into a buffer for SDL_mixer. Like the console release there is no priority
+ * test: a few groups of effects share a channel (a newer one replaces the older
+ * one), everything else overlaps freely.
  */
 class Duke1Speaker
 {
@@ -43,6 +45,8 @@ public:
   /** Play sound request 0-47 (0-23 first bank, 24-47 second bank) */
   void play(int index);
   void stop();
+  /** 0..1, follows the game's sound volume option */
+  void setVolume(float volume);
 
 private:
   struct Sound
@@ -53,8 +57,8 @@ private:
   };
 
   std::vector<Sound> mSounds;
-  int mChannel = -1;
-  int mCurrent = -1;
+  int mFirstChannel = -1; // first of the channels reserved for these sounds
+  static constexpr int NUM_CHANNELS = 4 + 48;
 };
 
 } // namespace rigel

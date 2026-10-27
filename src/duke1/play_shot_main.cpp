@@ -27,6 +27,7 @@ int main(int argc, char** argv) {
     std::sscanf(tp, "%d,%d", &c, &r);
     world.teleportToCell(c, r);
   }
+  if (std::getenv("DN1_GRANT")) world.grantAll();
   const int n = argc > 4 ? std::atoi(argv[4]) : 0;
   duke1::Input in;
   bool phases = false;
@@ -42,7 +43,10 @@ int main(int argc, char** argv) {
       phases = true;
     }
   }
-  for (int i = 0; i < n; ++i) world.update(in);
+  for (int i = 0; i < n; ++i) {
+    world.update(in);
+    if (world.somersault() && std::getenv("DN1_TRACE")) std::printf("somersault %d at update %d\n", world.somersault(), i);
+  }
   if (phases) {
     for (int i = 5; i < argc; ++i) {
       std::string a = argv[i];
@@ -50,12 +54,13 @@ int main(int argc, char** argv) {
       if (colon == std::string::npos) continue;
       duke1::Input p;
       const auto key = a.substr(0, colon);
-      p.left = key == "left"; p.right = key == "right"; p.jump = key == "jump"; p.fire = key == "fire"; p.up = key == "up"; p.down = key == "down";
+      p.left = key.find("left") != std::string::npos; p.right = key.find("right") != std::string::npos; p.jump = key.find("jump") != std::string::npos; p.fire = key.find("fire") != std::string::npos; p.up = key.find("up") != std::string::npos; p.down = key.find("down") != std::string::npos;
       const int count = std::atoi(a.c_str() + colon + 1);
       for (int k = 0; k < count; ++k) {
         world.update(p);
+        if (world.somersault() && std::getenv("DN1_TRACE")) std::printf("somersault %d (%s step %d)\n", world.somersault(), key.c_str(), k);
         const auto& pl = world.player();
-        std::printf("  %s step %d: x8=%d facing=%d walk=%d\n", key.c_str(), k, pl.x8 + pl.cameraX8, pl.facing, pl.walkFrame);
+        std::printf("  %s step %d: x8=%d y=%d grounded=%d facing=%d walk=%d wy=%d travel=%d boost=%d claw=%d cap=%d item=%d card=%d\n", key.c_str(), k, pl.x8 + pl.cameraX8, pl.y, int(pl.grounded), pl.facing, pl.walkFrame, world.worldY(), pl.jumpTravel, pl.boost, pl.claw, pl.capacity, int(world.hasKey(6)), int(world.hasKey(7)));
       }
     }
   }

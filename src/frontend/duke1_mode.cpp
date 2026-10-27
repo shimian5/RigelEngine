@@ -56,6 +56,7 @@ bool hasLevelFile(const std::filesystem::path& dir)
   try
   {
     duke1::read_file(dir, "WORLDAL1.DN1");
+    duke1::read_file(dir, "DN1.EXE"); // the story and message texts come from the player's own copy
     return true;
   }
   catch (const std::exception& error)
@@ -117,11 +118,11 @@ namespace
 // shows a stats screen instead, so the hallway is skipped.
 const char* const LEVEL_ORDER[] = {
   "WORLDAL1", "WORLDAL3", "WORLDAL4", "WORLDAL5", "WORLDAL6", "WORLDAL7",
-  "WORLDAL8", "WORLDAL9", "WORLDALA", "WORLDALB", "WORLDALC"};
+  "WORLDAL8", "WORLDAL9", "WORLDALA", "WORLDALB"};
 // DN1 had no music; each level borrows a song from Duke Nukem II when that game's data is present
 const char* const LEVEL_MUSIC[] = {
   "RANGEA.IMF", "HESBACKA.IMF", "KICKBUTA.IMF", "BEGONEA.IMF", "SQUEAKA.IMF", "PROWLA.IMF",
-  "DUKINA.IMF", "UBDEADA.IMF", "FIGHTA.IMF", "KINGDUKA.IMF", "NEVRENDA.IMF"};
+  "DUKINA.IMF", "UBDEADA.IMF", "FIGHTA.IMF", "KINGDUKA.IMF"};
 
 
 struct DebugFeature
@@ -178,6 +179,7 @@ void Duke1Mode::startLevel(const std::size_t index, const duke1::PlayWorld::Carr
   {
     next->applyCarry(*pCarry);
   }
+  next->setWide(mWide);
   mpWorld = std::move(next);
   try
   {
@@ -207,10 +209,21 @@ Duke1Mode::Duke1Mode(
 {
   mContext.mpServiceProvider->stopMusic();
   mpSpeaker = std::make_unique<Duke1Speaker>(dataDir);
+  mWide = mContext.mpUserProfile->mOptions.widescreenModeActive() &&
+    renderer::canUseWidescreenMode(mContext.mpRenderer);
+  mText = duke1::ExeText::load(dataDir);
+  if (mText)
+  {
+    mpScreens = std::make_unique<Duke1Screens>(dataDir, *mText);
+  }
   if (!loadSlot || !loadFrom(*loadSlot))
   {
     startLevel(0, nullptr);
     mStartJinglePending = true;  // the "game start" jingle belongs to a new game only
+    if (mpScreens && mpScreens->valid())
+    {
+      showPages(mpScreens->introPages());
+    }
   }
 }
 
@@ -404,6 +417,7 @@ bool Duke1Mode::saveTo(const std::string& slot)
   save.mLevelIndex = static_cast<int>(mLevelIndex);
   save.mCarry = mLevelStartCarry;
   save.mInputs = mInputLog;
+  save.mWide = mWide;
   return writeDuke1Save(slot, save);
 }
 
@@ -417,6 +431,7 @@ bool Duke1Mode::loadFrom(const std::string& slot)
   }
 
   mAutosaveOnStart = false;
+  mWide = oSave->mWide;
   startLevel(std::size_t(oSave->mLevelIndex), &oSave->mCarry);
   mAutosaveOnStart = true;
 
@@ -455,7 +470,7 @@ void Duke1Mode::enterPauseScreen(const PauseScreen screen)
     case PauseScreen::Stats: items = {{"CONTINUE", true}}; break;
 
     case PauseScreen::Debug:
-      items = {{"SKIP TO LEVEL", true}, {"GO TO FEATURE", true}, {"GIVE ALL ITEMS", true}};
+      items = {{"SKIP TO LEVEL", true}, {"GO TO FEATURE", true}, {"GIVE ALL ITEMS", true}, {"FINISH LEVEL", true}};
       break;
 
     case PauseScreen::DebugLevels:
@@ -524,10 +539,23 @@ void Duke1Mode::activatePauseSelection()
 
     case PauseScreen::Stats:
     {
+      if (mpResults && !mpResults->confirm())
+      {
+        break;  // the first press only finishes the tally
+      }
+      mpResults.reset();
       mPause = PauseScreen::None;
       mContext.mpServiceProvider->fadeOutScreen();
+      const auto message = static_cast<int>(mLevelIndex) + 2; // Dr. Proton's message for this stretch of the game
       startLevel(mLevelIndex + 1, &mStatsCarry);
       mFadeInPending = true;
+      if (mpScreens && mpScreens->valid())
+      {
+        if (auto page = mpScreens->hallwayMessage(message); !page.empty())
+        {
+          showPages({std::move(page)});
+        }
+      }
       break;
     }
 
@@ -541,6 +569,10 @@ void Duke1Mode::activatePauseSelection()
           mDebugUsed = true;
           mToast = "ALL ITEMS";
           mToastSeconds = 1.5;
+          mPause = PauseScreen::None;
+          break;
+        case 3:
+          mpWorld->debugFinishLevel();
           mPause = PauseScreen::None;
           break;
         default: break;
@@ -616,18 +648,11 @@ void Duke1Mode::drawPauseMenu()
       view.mBackLabel = "BACK";
       break;
     case PauseScreen::Stats:
-    {
-      view.mTitle = levelLabel(mLevelIndex) + " COMPLETE";
-      view.mConfirmLabel = "CONTINUE";
-      view.mInfoLines = {
-        {"SCORE", true},
-        {ui::formatScoreWithCommas(mStatsCarry.score), false},
-        {"LEVEL SCORE", true},
-        {ui::formatScoreWithCommas(mStatsCarry.score - mLevelStartCarry.score), false},
-        {"TIME", true},
-        {mStatsTime, false}};
-      break;
-    }
+      if (mpResults)
+      {
+        mpResults->draw();
+      }
+      return;
     case PauseScreen::Debug:
       view.mTitle = "DEBUG";
       view.mBackLabel = "BACK";
@@ -647,10 +672,81 @@ void Duke1Mode::drawPauseMenu()
 }
 
 
+
+bool Duke1Mode::showPages(std::vector<std::vector<std::uint8_t>> pages)
+{
+  mPages = std::move(pages);
+  mPageIndex = 0;
+  return !mPages.empty();
+}
+
+
+void Duke1Mode::drawPicture(const std::vector<std::uint8_t>& rgba)
+{
+  data::PixelBuffer pixels;
+  pixels.reserve(rgba.size() / 4);
+  for (std::size_t i = 0; i < rgba.size(); i += 4)
+  {
+    pixels.emplace_back(rgba[i], rgba[i + 1], rgba[i + 2], rgba[i + 3]);
+  }
+  const renderer::Texture picture{
+    mContext.mpRenderer,
+    data::Image{std::move(pixels), std::size_t(DUKE1_SCREEN_W), std::size_t(DUKE1_SCREEN_H)}};
+  if (mWide)
+  {
+    // One picture pixel per buffer pixel, centered: the engine's upscaler then scales it like the game
+    mContext.mpServiceProvider->markCurrentFrameAsWidescreen();
+    const auto target = mContext.mpRenderer->currentRenderTargetSize();
+    const auto saved = renderer::saveState(mContext.mpRenderer);
+    mContext.mpRenderer->setClipRect({});
+    picture.render(
+      base::Rect<int>{{0, 0}, {DUKE1_SCREEN_W, DUKE1_SCREEN_H}},
+      base::Rect<int>{
+        {(target.width - DUKE1_SCREEN_W) / 2, (target.height - DUKE1_SCREEN_H) / 2},
+        {DUKE1_SCREEN_W, DUKE1_SCREEN_H}});
+  }
+  else
+  {
+    picture.render(0, 0);
+  }
+}
+
+
 std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
   const engine::TimeDelta dt,
   const std::vector<SDL_Event>& events)
 {
+  if (!mPages.empty())
+  {
+    // Story and message pages: A/Enter/Space turn the page, START/Esc skip them all
+    for (const auto& event : events)
+    {
+      const bool start = (event.type == SDL_CONTROLLERBUTTONDOWN &&
+                          event.cbutton.button == SDL_CONTROLLER_BUTTON_START) ||
+        (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE && !event.key.repeat);
+      const bool next = ui::isMenuConfirmButton(event) ||
+        (event.type == SDL_KEYDOWN && !event.key.repeat &&
+         (event.key.keysym.sym == SDLK_RETURN || event.key.keysym.sym == SDLK_SPACE));
+      if (start)
+      {
+        mPages.clear();
+      }
+      else if (next && ++mPageIndex >= mPages.size())
+      {
+        mPages.clear();
+      }
+      if (mPages.empty())
+      {
+        break;
+      }
+    }
+    if (!mPages.empty())
+    {
+      drawPicture(mPages[mPageIndex]);
+      return nullptr;
+    }
+  }
+
   for (const auto& event : events)
   {
     if (mPause == PauseScreen::None)
@@ -744,11 +840,15 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
   input.up = input.up || mDpad[2] || mStickY < -STICK_DEADZONE;
   input.down = input.down || mDpad[3] || mStickY > STICK_DEADZONE;
 
+  {
+    const auto& soundOptions = mContext.mpUserProfile->mOptions;
+    mpSpeaker->setVolume(soundOptions.mSoundOn ? soundOptions.mSoundVolume : 0.0f);
+  }
   if (mStartJinglePending)
   {
     // Played from the first frame on: mode changes stop all sounds
     mStartJinglePending = false;
-    mpSpeaker->play(25);
+    mpSpeaker->play(26);  // STARTGAME: four descending sweeps (index 25 is the cheat-mode beeps)
   }
 
   // Drive the original timer-callback gate from real time
@@ -768,6 +868,10 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
     for (const auto index : mpWorld->takeSounds())
     {
       mpSpeaker->play(index);
+    }
+    if (mpWorld->takeDiscontinuity())
+    {
+      mCamInitialized = false; // snap the camera instead of gliding across the level
     }
     mInputLog.push_back(packDuke1Input(input));
     if (mpWorld->dead())
@@ -789,9 +893,36 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
         return std::make_unique<ConsoleLauncherMode>(mContext);
       }
       mStatsCarry = carry;
-      const auto seconds = mpWorld->updateCount() / 16;
-      mStatsTime = std::to_string(seconds / 60) + ":" + (seconds % 60 < 10 ? "0" : "") +
-        std::to_string(seconds % 60);
+      {
+        // Secret bonuses are paid when the level is left: 10,000 for each one that was earned
+        static const char* const NAMES[] = {
+          "CAMERAS", "ACME SIGNS", "ROCKETS", "SNAKE BOTS", "BUNNY BOTS", "NO DAMAGE", "D-U-K-E"};
+        const auto report = mpWorld->bonusReport();
+        std::vector<ui::ConsoleResultsScreen::Row> rows;
+        for (int i = 0; i < duke1::PlayWorld::NUM_BONUSES; ++i)
+        {
+          if (report.present[i])
+          {
+            rows.push_back({NAMES[i], report.earned[i]});
+          }
+        }
+        const auto seconds = mpWorld->updateCount() / 16;
+        const auto time = std::to_string(seconds / 60) + ":" + (seconds % 60 < 10 ? "0" : "") +
+          std::to_string(seconds % 60);
+
+        ui::ConsoleResultsScreen::Sounds sounds;
+        sounds.mRowEarned = [this] { mpSpeaker->play(37); };  // GETDUKESND
+        sounds.mScoreTick = [this] { mpSpeaker->play(16); };  // GETBONUSOBJ
+        sounds.mTotal = [this] { mpSpeaker->play(19); };      // LEVELDONE
+        mpResults = std::make_unique<ui::ConsoleResultsScreen>(
+          levelLabel(mLevelIndex) + " COMPLETE",
+          time,
+          carry.score,
+          10000,
+          std::move(rows),
+          std::move(sounds));
+        mStatsCarry.score += mpResults->bonusTotal();
+      }
       mInput = {};
       mDpad[0] = mDpad[1] = mDpad[2] = mDpad[3] = false;
       mStickX = mStickY = 0.0f;
@@ -871,11 +1002,6 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
     const auto camY = static_cast<int>(std::lround(
       mPrevCamY + (mCamY - mPrevCamY) * blendFactor));
 
-    mpWorld->setActiveView(
-      camX,
-      camY,
-      frameWidth,
-      frameHeight);
     mpWorld->renderWorld(
       rgba,
       frameWidth,
@@ -914,6 +1040,10 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
     frame.render(0, 0);
   }
 
+  if (mPause == PauseScreen::Stats && mpResults)
+  {
+    mpResults->update(dt);
+  }
   if (paused)
   {
     drawPauseMenu();

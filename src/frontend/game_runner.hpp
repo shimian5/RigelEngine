@@ -72,6 +72,8 @@ public:
   ReplaySave makeReplaySave() const;
 
   std::set<data::Bonus> achievedBonuses() const;
+  double levelSeconds() const;
+  std::set<data::Bonus> availableBonuses() const;
 
 private:
   class FastForwardServiceProvider;

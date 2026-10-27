@@ -17,9 +17,11 @@
 
 #pragma once
 
+#include "ui/console_results.hpp"
 #include "duke1/core.hpp"
 #include "duke1/play.hpp"
 #include "frontend/duke1_sound.hpp"
+#include "frontend/duke1_story.hpp"
 #include "frontend/game_mode.hpp"
 #include "renderer/texture.hpp"
 #include "frontend/duke1_saves.hpp"
@@ -71,6 +73,12 @@ private:
   std::filesystem::path mDataDir;
   std::unique_ptr<duke1::PlayWorld> mpWorld;
   std::unique_ptr<Duke1Speaker> mpSpeaker;
+  std::optional<duke1::ExeText> mText;
+  std::unique_ptr<Duke1Screens> mpScreens;
+  std::vector<std::vector<std::uint8_t>> mPages; // story/message pictures being shown, 320x200 RGBA
+  std::size_t mPageIndex = 0;
+  bool showPages(std::vector<std::vector<std::uint8_t>> pages);
+  void drawPicture(const std::vector<std::uint8_t>& rgba);
   std::size_t mLevelIndex = 0;
   void startLevel(std::size_t index, const duke1::PlayWorld::Carry* carry);
   duke1::TickGate mGate;
@@ -105,9 +113,10 @@ private:
   duke1::PlayWorld::Carry mLevelStartCarry;
   bool mPauseRequested = false;
   bool mDebugUsed = false;
+  bool mWide = false; // simulation setting: wide active window (saved with the game)
   bool mStartJinglePending = false;
   duke1::PlayWorld::Carry mStatsCarry;
-  std::string mStatsTime;
+  std::unique_ptr<ui::ConsoleResultsScreen> mpResults;
   bool mAutosaveOnStart = true;
   bool mBackHeld = false;
   bool mQuickSaveRequested = false;

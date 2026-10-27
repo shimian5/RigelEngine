@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "ui/console_results.hpp"
 #include "data/player_model.hpp"
 #include "frontend/game_mode.hpp"
 #include "ui/bonus_screen.hpp"
@@ -73,9 +74,16 @@ private:
   {
   };
 
+  struct ConsoleBonusStage
+  {
+    ui::ConsoleResultsScreen mScreen;
+    bool mDone = false;
+  };
+
   using SessionStage = std::variant<
     std::unique_ptr<GameRunner>,
     ui::BonusScreen,
+    ConsoleBonusStage,
     ui::EpisodeEndSequence,
     HighScoreNameEntry,
     HighScoreListDisplay>;

@@ -373,6 +373,59 @@ void drawConsoleMenu(const ConsoleMenuView& view)
   c.buttonLegend("A", view.mConfirmLabel.c_str(), right, footerY, false);
 }
 
+void drawConsoleResults(const ConsoleResultsView& view)
+{
+  const auto display = ImGui::GetIO().DisplaySize;
+  Canvas c{
+    ImGui::GetForegroundDrawList(),
+    static_cast<ImFont*>(imgui_integration::hudFont()),
+    display.y / REF_HEIGHT,
+    display};
+  if (!c.mpFont)
+  {
+    return;
+  }
+
+  const auto offsetX = (display.x / c.mScale - 1920.0f) / 2.0f;
+  auto X = [&](const float v) { return v + offsetX; };
+
+  c.mpList->AddRectFilled({0, 0}, display, IM_COL32(18, 18, 24, 255));
+  c.text(view.mTitle.c_str(), X(960.0f), 95.0f, 92.0f, WHITE, true);
+
+  const auto left = X(520.0f);
+  const auto right = X(1400.0f);
+
+  c.text("SCORE", left, 245.0f, 62.0f, GREY);
+  c.text(view.mScore.c_str(), right, 245.0f, 62.0f, WHITE, false, true);
+  c.text("TIME", left, 320.0f, 62.0f, GREY);
+  c.text(view.mTime.c_str(), right, 320.0f, 62.0f, WHITE, false, true);
+
+  c.text("SECRET BONUSES", left, 425.0f, 50.0f, ORANGE);
+  auto y = 500.0f;
+  for (const auto& row : view.mRows)
+  {
+    const auto shown = !row.mValue.empty();
+    c.text(row.mLabel.c_str(), left, y, 56.0f, shown ? WHITE : DISABLED);
+    if (shown)
+    {
+      c.text(row.mValue.c_str(), right, y, 56.0f, row.mEarned ? ORANGE : DISABLED, false, true);
+    }
+    y += 68.0f;
+  }
+
+  if (!view.mTotal.empty())
+  {
+    const auto lineY = y - 20.0f;
+    c.mpList->AddRectFilled(
+      {c.s(left), c.s(lineY)}, {c.s(right), c.s(lineY + 3.0f)}, GREY);
+    c.text("BONUS TOTAL", left, y + 30.0f, 60.0f, WHITE);
+    c.text(view.mTotal.c_str(), right, y + 30.0f, 60.0f, ORANGE, false, true);
+  }
+
+  c.buttonLegend("A", view.mConfirmLabel.c_str(), X(1860.0f), 1000.0f, false);
+}
+
+
 void drawConsoleTitleScreen(
   const std::string& title,
   const std::string& prompt,
