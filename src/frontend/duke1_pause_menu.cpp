@@ -120,6 +120,9 @@ ui::SaveSlotSource Duke1Mode::saveSlotSource()
   source.mHasAnySave = [] {
     return newestDuke1Save().has_value();
   };
+  source.mSlotName = [](const int slot) {
+    return duke1SlotName(slot);
+  };
   return source;
 }
 

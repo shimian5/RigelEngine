@@ -134,6 +134,9 @@ private:
     mNativeOverlay = std::move(draw);
   }
 
+  void captureThumbnail() override { mThumbnailCapturePending = true; }
+  bool writeThumbnail(const std::filesystem::path& path) override;
+
   bool isSharewareVersion() const override { return mIsShareWareVersion; }
 
   const CommandLineOptions& commandLineOptions() const override
@@ -176,6 +179,9 @@ private:
   renderer::UpscalingBuffer mUpscalingBuffer;
   bool mCurrentFrameIsWidescreen = false;
   std::function<void(int)> mNativeOverlay;
+  bool mThumbnailCapturePending = false;
+  std::optional<data::Image> mThumbnail;
+  std::vector<std::filesystem::path> mPendingThumbnailWrites;
 
   std::unique_ptr<GameMode> mpCurrentGameMode;
 

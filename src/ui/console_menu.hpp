@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -64,6 +65,11 @@ struct ConsoleMenuView
 
   // Lines for the info panel on the right; (text, isLabel)
   std::vector<std::pair<std::string, bool>> mInfoLines;
+
+  // Optional picture (a GL texture) shown in the info panel, e.g. a save's
+  // screenshot
+  std::uint32_t mImageTexture = 0;
+  float mImageAspect = 16.0f / 9.0f;
 
   std::string mConfirmLabel = "SELECT";
   std::string mBackLabel; // shown as "B <label>" if not empty

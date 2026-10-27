@@ -142,6 +142,7 @@ private:
   bool mQuickLoadRequested = false;
   std::string mToast;
   double mToastSeconds = 0.0;
+  bool mHideToastOnce = false; // keeps the message out of a save's picture
 
   void enterPauseScreen(PauseScreen screen);
   void openPauseMenu();

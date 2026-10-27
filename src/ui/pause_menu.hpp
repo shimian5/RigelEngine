@@ -19,6 +19,7 @@
 #include "base/warnings.hpp"
 #include "engine/timing.hpp"
 #include "frontend/game_mode.hpp"
+#include "renderer/texture.hpp"
 #include "ui/console_menu.hpp"
 #include "ui/menu_navigation.hpp"
 #include "ui/options_menu.hpp"
@@ -52,6 +53,7 @@ struct SaveSlotSource
   int mNumSlots = 0;
   std::function<std::optional<SaveSlotInfo>(int slot)> mSummary;
   std::function<bool()> mHasAnySave;
+  std::function<std::string(int slot)> mSlotName;
 
   /** The Duke Nukem II console saves */
   static SaveSlotSource duke2();
@@ -125,6 +127,8 @@ private:
   bool mDebugEntry;
   MenuNavigationHelper mNavigationHelper;
   std::optional<OptionsMenu> mOptionsMenu;
+  std::optional<renderer::Texture> mThumbnail;
+  int mThumbnailSlot = -1;
 
   Screen mScreen = Screen::Main;
   ConsoleList mList;

@@ -122,6 +122,9 @@ public:
     mpInner->switchGamePath(newGamePath);
   }
 
+  void captureThumbnail() override { }
+  bool writeThumbnail(const std::filesystem::path&) override { return false; }
+
   void markCurrentFrameAsWidescreen() override
   {
     mpInner->markCurrentFrameAsWidescreen();
@@ -336,6 +339,7 @@ ReplaySave GameRunner::makeReplaySave() const
 void GameRunner::writeDiskSave(const char* slotName) const
 {
   writeReplaySaveFile(slotName, makeReplaySave());
+  saveThumbnail(mContext.mpServiceProvider, slotName);
 }
 
 
@@ -426,6 +430,7 @@ void GameRunner::executePauseMenuAction()
       if (!mpPlayerState->isDead())
       {
         writeReplaySaveFile(consoleSlotName(slot), makeReplaySave());
+        saveThumbnail(mContext.mpServiceProvider, consoleSlotName(slot));
       }
       break;
 

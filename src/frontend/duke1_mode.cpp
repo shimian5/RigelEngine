@@ -22,6 +22,7 @@
 #include "assets/resource_loader.hpp"
 #include "base/image.hpp"
 #include "frontend/game_service_provider.hpp"
+#include "frontend/replay_save.hpp"
 #include "frontend/user_profile.hpp"
 #include "renderer/texture.hpp"
 #include "renderer/upscaling.hpp"
@@ -433,7 +434,13 @@ bool Duke1Mode::saveTo(const std::string& slot)
   save.mCarry = mLevelStartCarry;
   save.mInputs = mInputLog;
   save.mWide = mWide;
-  return writeDuke1Save(slot, save);
+  const auto written = writeDuke1Save(slot, save);
+  if (written)
+  {
+    saveThumbnail(mContext.mpServiceProvider, slot);
+    mHideToastOnce = true;
+  }
+  return written;
 }
 
 
@@ -630,7 +637,11 @@ void Duke1Mode::renderFrame(const double dt, const bool paused)
   {
     drawPauseMenu();
   }
-  if (mToastSeconds > 0.0)
+  if (mHideToastOnce)
+  {
+    mHideToastOnce = false;
+  }
+  else if (mToastSeconds > 0.0)
   {
     mToastSeconds -= dt;
     const auto display = ImGui::GetIO().DisplaySize;

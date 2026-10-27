@@ -16,6 +16,8 @@
 
 #include "replay_save.hpp"
 
+#include "frontend/game_service_provider.hpp"
+
 #include "frontend/user_profile.hpp"
 
 #include <loguru.hpp>
@@ -434,6 +436,28 @@ std::optional<std::string> newestSaveSlotName()
   }
 
   return best;
+}
+
+
+std::optional<std::filesystem::path>
+  thumbnailFilePath(const std::string& slotName)
+{
+  auto oPath = saveFilePath(slotName);
+  if (oPath)
+  {
+    oPath->replace_extension(".png");
+  }
+  return oPath;
+}
+
+
+void saveThumbnail(IGameServiceProvider* pServices, const std::string& slotName)
+{
+  if (const auto oPath = thumbnailFilePath(slotName); oPath && pServices)
+  {
+    pServices->captureThumbnail();
+    pServices->writeThumbnail(*oPath);
+  }
 }
 
 

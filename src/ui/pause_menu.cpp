@@ -16,6 +16,7 @@
 
 #include "pause_menu.hpp"
 
+#include "assets/png_image.hpp"
 #include "frontend/game_service_provider.hpp"
 #include "frontend/replay_save.hpp"
 #include <cstdio>
@@ -42,6 +43,9 @@ SaveSlotSource SaveSlotSource::duke2()
   };
   source.mHasAnySave = [] {
     return newestSaveSlotName().has_value();
+  };
+  source.mSlotName = [](const int slot) {
+    return consoleSlotName(slot);
   };
   return source;
 }
@@ -124,6 +128,8 @@ PauseMenu::Action PauseMenu::takeAction(int* pSlotIndex)
 void PauseMenu::enterScreen(const Screen screen)
 {
   mScreen = screen;
+  mThumbnailSlot = -1;
+  mThumbnail.reset();
 
   switch (screen)
   {
@@ -409,6 +415,32 @@ void PauseMenu::updateAndRender(const engine::TimeDelta dt)
         view.mpList = &mList;
         view.mConfirmLabel = mScreen == Screen::SaveSlots ? "SAVE" : "LOAD";
         view.mBackLabel = "BACK";
+
+        // The screenshot stored with the highlighted slot
+        if (mList.selected() != mThumbnailSlot)
+        {
+          mThumbnailSlot = mList.selected();
+          mThumbnail.reset();
+          if (
+            const auto oPath =
+              thumbnailFilePath(mSlots.mSlotName(mThumbnailSlot)))
+          {
+            std::error_code ec;
+            if (std::filesystem::exists(*oPath, ec))
+            {
+              if (const auto oImage = assets::loadPng(*oPath))
+              {
+                mThumbnail.emplace(mContext.mpRenderer, *oImage);
+              }
+            }
+          }
+        }
+        if (mThumbnail)
+        {
+          view.mImageTexture = std::uint32_t(mThumbnail->data());
+          view.mImageAspect =
+            float(mThumbnail->width()) / float(mThumbnail->height());
+        }
         drawConsoleMenu(view);
         break;
       }

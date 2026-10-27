@@ -91,6 +91,43 @@ auto loadScripts(const assets::ResourceLoader& resources)
 }
 
 
+// Shrinks a screenshot to a picture of about 480 pixels width for saves
+data::Image makeThumbnail(const data::Image& shot)
+{
+  const auto factor =
+    std::max<std::size_t>(1, (shot.width() + 479) / 480); // box filter
+  const auto width = shot.width() / factor;
+  const auto height = shot.height() / factor;
+
+  data::PixelBuffer pixels;
+  pixels.reserve(width * height);
+  for (std::size_t y = 0; y < height; ++y)
+  {
+    for (std::size_t x = 0; x < width; ++x)
+    {
+      int r = 0, g = 0, b = 0;
+      for (std::size_t dy = 0; dy < factor; ++dy)
+      {
+        for (std::size_t dx = 0; dx < factor; ++dx)
+        {
+          // The framebuffer is read bottom to top
+          const auto row = shot.height() - 1 - (y * factor + dy);
+          const auto& px =
+            shot.pixelData()[row * shot.width() + x * factor + dx];
+          r += px.r;
+          g += px.g;
+          b += px.b;
+        }
+      }
+      const auto n = int(factor * factor);
+      pixels.emplace_back(
+        std::uint8_t(r / n), std::uint8_t(g / n), std::uint8_t(b / n), 255);
+    }
+  }
+  return data::Image{std::move(pixels), width, height};
+}
+
+
 std::unique_ptr<GameMode> createLauncherMode(GameMode::Context context)
 {
 #ifdef RIGEL_DEV_SCREENSHOT
@@ -385,6 +422,17 @@ auto Game::runOneFrame() -> std::optional<StopReason>
   {
     takeScreenshot();
     mScreenshotRequested = false;
+  }
+
+  if (mThumbnailCapturePending)
+  {
+    mThumbnailCapturePending = false;
+    mThumbnail = makeThumbnail(mRenderer.grabCurrentFramebuffer());
+    for (const auto& path : mPendingThumbnailWrites)
+    {
+      assets::savePng(path, *mThumbnail);
+    }
+    mPendingThumbnailWrites.clear();
   }
 
   swapBuffers();
@@ -786,6 +834,18 @@ void Game::enumerateGameControllers()
       addUnrecognized(i);
     }
   }
+}
+
+
+bool Game::writeThumbnail(const std::filesystem::path& path)
+{
+  if (mThumbnailCapturePending)
+  {
+    // The picture of this frame isn't taken yet
+    mPendingThumbnailWrites.push_back(path);
+    return true;
+  }
+  return mThumbnail && assets::savePng(path, *mThumbnail);
 }
 
 

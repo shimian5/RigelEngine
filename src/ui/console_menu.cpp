@@ -370,6 +370,23 @@ void drawConsoleMenu(const ConsoleMenuView& view)
     }
   }
 
+  if (view.mImageTexture != 0)
+  {
+    const auto x = X(1380.0f);
+    constexpr auto width = 480.0f;
+    const auto height = width / view.mImageAspect;
+    const ImVec2 topLeft{c.s(x), c.s(330.0f)};
+    const ImVec2 bottomRight{c.s(x + width), c.s(330.0f + height)};
+    c.mpList->AddRectFilled(
+      {topLeft.x - c.s(4.0f), topLeft.y - c.s(4.0f)},
+      {bottomRight.x + c.s(4.0f), bottomRight.y + c.s(4.0f)},
+      IM_COL32(0, 0, 0, 220));
+    c.mpList->AddImage(
+      reinterpret_cast<ImTextureID>(std::uintptr_t(view.mImageTexture)),
+      topLeft,
+      bottomRight);
+  }
+
   // Footer legend, right aligned
   auto right = X(1860.0f);
   constexpr auto footerY = 1000.0f;

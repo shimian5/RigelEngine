@@ -84,6 +84,13 @@ struct IGameServiceProvider
    * called every frame that should show the overlay.
    */
   virtual void setNativeOverlay(std::function<void(int alpha)> draw) = 0;
+  /** Remembers the frame being rendered now, as a small picture for saves.
+   * Call it on a frame that doesn't show a menu. */
+  virtual void captureThumbnail() = 0;
+
+  /** Writes the remembered picture as a PNG. Returns false if there is none. */
+  virtual bool writeThumbnail(const std::filesystem::path& path) = 0;
+
   virtual bool isSharewareVersion() const = 0;
   virtual const CommandLineOptions& commandLineOptions() const = 0;
   virtual const GameControllerInfo& gameControllerInfo() const = 0;

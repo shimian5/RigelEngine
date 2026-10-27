@@ -74,6 +74,19 @@ std::optional<ReplaySave>
 /** Where save files live, e.g. <prefs>/saves/duke2/quicksave.dn2 */
 std::optional<std::filesystem::path> saveFilePath(const std::string& slotName);
 
+/** The picture that goes with a save slot: the same name with a .png extension
+ */
+std::optional<std::filesystem::path>
+  thumbnailFilePath(const std::string& slotName);
+
+class IGameServiceProvider;
+
+/** Takes a picture of the frame being shown and stores it for the slot. Call it
+ * where the save is written, while no menu is on screen. */
+void saveThumbnail(
+  IGameServiceProvider* pServices,
+  const std::string& slotName);
+
 /** Writes the bytes of a save into the slot's file. The previous save survives
  * a crash while writing. Used by both games' saves. */
 bool writeSaveBytes(
