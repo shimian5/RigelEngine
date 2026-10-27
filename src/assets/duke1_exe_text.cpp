@@ -367,27 +367,27 @@ std::optional<ExeText>
     image[0x15] != 0xda)
     return std::nullopt;
   ExeText text;
-  text.image_ = std::move(image);
-  text.dataSegment_ = std::size_t(word(text.image_, 1)) * 16;
-  text.episode_ = episode;
-  if (text.dataSegment_ >= text.image_.size())
+  text.mImage = std::move(image);
+  text.mDataSegment = std::size_t(word(text.mImage, 1)) * 16;
+  text.mEpisode = episode;
+  if (text.mDataSegment >= text.mImage.size())
     return std::nullopt;
 
   const auto resourceAt =
     [&](const std::size_t table, const std::size_t index) {
-      const auto p = text.dataSegment_ + table + index * 4;
-      if (p + 4 > text.image_.size())
+      const auto p = text.mDataSegment + table + index * 4;
+      if (p + 4 > text.mImage.size())
         return std::string{};
       const auto address =
-        std::size_t(word(text.image_, p + 2)) * 16 + word(text.image_, p);
-      if (address >= text.image_.size())
+        std::size_t(word(text.mImage, p + 2)) * 16 + word(text.mImage, p);
+      if (address >= text.mImage.size())
         return std::string{};
       std::string name;
-      for (auto i = address; i < text.image_.size() && name.size() < 13; ++i)
+      for (auto i = address; i < text.mImage.size() && name.size() < 13; ++i)
       {
-        if (text.image_[i] == 0)
+        if (text.mImage[i] == 0)
           return upper(name);
-        name.push_back(static_cast<char>(text.image_[i]));
+        name.push_back(static_cast<char>(text.mImage[i]));
       }
       return std::string{};
     };
@@ -401,16 +401,16 @@ std::optional<ExeText>
       !((name[7] >= '1' && name[7] <= '9') ||
         (name[7] >= 'A' && name[7] <= 'C')))
       break;
-    text.sequence_.push_back({name, {}, static_cast<int>(i), 0});
+    text.mSequence.push_back({name, {}, static_cast<int>(i), 0});
   }
   if (
-    text.sequence_.size() < 3 || text.sequence_.size() == 64 ||
-    text.sequence_.size() % 2 == 0)
+    text.mSequence.size() < 3 || text.mSequence.size() == 64 ||
+    text.mSequence.size() % 2 == 0)
     return std::nullopt;
-  const auto hallway = text.sequence_[1].filename;
-  for (std::size_t i = 0; i < text.sequence_.size(); i += 2)
+  const auto hallway = text.mSequence[1].filename;
+  for (std::size_t i = 0; i < text.mSequence.size(); i += 2)
   {
-    auto& stage = text.sequence_[i];
+    auto& stage = text.mSequence[i];
     for (std::size_t j = 0; j < 2; ++j)
     {
       const auto drop = resourceAt(BACKDROP_TABLE, i + j);
@@ -424,18 +424,18 @@ std::optional<ExeText>
         return std::nullopt;
       stage.backdrops[j] = drop;
     }
-    if (i + 1 < text.sequence_.size())
+    if (i + 1 < text.mSequence.size())
     {
-      auto& room = text.sequence_[i + 1];
+      auto& room = text.mSequence[i + 1];
       if (room.filename != hallway || stage.filename == hallway)
         return std::nullopt;
       room.backdrops = stage.backdrops;
       stage.intermissionMessage = static_cast<int>(i + 1);
-      text.levels_.push_back(stage);
+      text.mLevels.push_back(stage);
     }
   }
-  readTextLayout(text.image_, text.layout_);
-  text.layout_.tipTable = 0xba1;
+  readTextLayout(text.mImage, text.mLayout);
+  text.mLayout.tipTable = 0xba1;
   // The message table terminates when its pointers leave this data segment.
   // Four pointers form a message; incomplete groups are never exposed.
   for (int group = 0; group < 64; ++group)
@@ -444,11 +444,11 @@ std::optional<ExeText>
     for (int row = 0; row < 4; ++row)
     {
       const auto at =
-        text.dataSegment_ + 0xba1 + std::size_t(group * 16 + row * 4);
+        text.mDataSegment + 0xba1 + std::size_t(group * 16 + row * 4);
       if (
-        at + 4 > text.image_.size() ||
-        std::size_t(word(text.image_, at + 2)) * 16 != text.dataSegment_ ||
-        text.dataSegment_ + word(text.image_, at) >= text.image_.size())
+        at + 4 > text.mImage.size() ||
+        std::size_t(word(text.mImage, at + 2)) * 16 != text.mDataSegment ||
+        text.mDataSegment + word(text.mImage, at) >= text.mImage.size())
       {
         valid = false;
         break;
@@ -456,7 +456,7 @@ std::optional<ExeText>
     }
     if (!valid)
       break;
-    ++text.layout_.tipCount;
+    ++text.mLayout.tipCount;
   }
   if (!text.plausible())
     return std::nullopt;
@@ -465,7 +465,7 @@ std::optional<ExeText>
 
 std::string ExeText::assetName(const std::string& stem) const
 {
-  return asset_name(stem, episode_);
+  return asset_name(stem, mEpisode);
 }
 
 std::optional<std::array<std::string, 2>>
@@ -473,9 +473,9 @@ std::optional<std::array<std::string, 2>>
 {
   auto name = upper(filename);
   if (std::filesystem::path(name).extension().empty())
-    name += ".DN" + std::to_string(episode_ + 1);
+    name += ".DN" + std::to_string(mEpisode + 1);
   std::optional<std::array<std::string, 2>> pair;
-  for (const auto& stage : sequence_)
+  for (const auto& stage : mSequence)
   {
     if (stage.filename != name)
       continue;
@@ -488,21 +488,21 @@ std::optional<std::array<std::string, 2>>
 
 bool ExeText::plausible() const
 {
-  return !levels_.empty() && dataSegment_ < image_.size() &&
-    std::size_t(layout_.tipTable + layout_.tipCount * 16) <=
-    image_.size() - dataSegment_;
+  return !mLevels.empty() && mDataSegment < mImage.size() &&
+    std::size_t(mLayout.tipTable + mLayout.tipCount * 16) <=
+    mImage.size() - mDataSegment;
 }
 
 std::string ExeText::at(const int dsOffset) const
 {
-  const auto start = static_cast<std::size_t>(dataSegment_ + dsOffset);
-  if (dsOffset < 0 || start >= image_.size())
+  const auto start = static_cast<std::size_t>(mDataSegment + dsOffset);
+  if (dsOffset < 0 || start >= mImage.size())
     return {};
   std::string s;
   for (std::size_t i = start;
-       i < image_.size() && image_[i] != 0 && s.size() < 200;
+       i < mImage.size() && mImage[i] != 0 && s.size() < 200;
        ++i)
-    s.push_back(static_cast<char>(image_[i]));
+    s.push_back(static_cast<char>(mImage[i]));
   return s;
 }
 
@@ -524,15 +524,15 @@ std::vector<std::string> ExeText::tipMessage(const int index) const
 {
   std::vector<std::string> lines;
   const auto entry =
-    static_cast<std::size_t>(dataSegment_ + layout_.tipTable + index * 16);
-  if (index < 0 || index >= layout_.tipCount || entry + 16 > image_.size())
+    static_cast<std::size_t>(mDataSegment + mLayout.tipTable + index * 16);
+  if (index < 0 || index >= mLayout.tipCount || entry + 16 > mImage.size())
     return lines;
   for (int i = 0; i < 4; ++i)
   {
     const auto pointer = entry + static_cast<std::size_t>(i) * 4;
-    if (std::size_t(word(image_, pointer + 2)) * 16 != dataSegment_)
+    if (std::size_t(word(mImage, pointer + 2)) * 16 != mDataSegment)
       return {};
-    const int offset = word(image_, pointer);
+    const int offset = word(mImage, pointer);
     auto line = at(offset);
     while (!line.empty() && line.back() == ' ')
       line.pop_back();

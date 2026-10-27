@@ -36,7 +36,7 @@ public:
   };
   Carry carry() const;
   void applyCarry(const Carry& c);
-  bool targetsCleared() const { return targetsCleared_; }
+  bool targetsCleared() const { return mTargetsCleared; }
   // End-of-level secret bonuses (10,000 each, paid when the level is left)
   enum Bonus
   {
@@ -62,9 +62,9 @@ public:
     }
   };
   BonusReport bonusReport() const;
-  bool levelComplete() const { return levelComplete_; }
-  void debugFinishLevel() { levelComplete_ = true; }
-  const std::array<std::string, 2>& backdropPair() const { return pair_; }
+  bool levelComplete() const { return mLevelComplete; }
+  void debugFinishLevel() { mLevelComplete = true; }
+  const std::array<std::string, 2>& backdropPair() const { return mPair; }
   static std::array<std::string, 2> backdropPairFor(
     const std::filesystem::path& dataDir,
     const std::string& levelName,
@@ -90,77 +90,77 @@ public:
     int playerX,
     int playerY) const;
 
-  const std::vector<std::string>& warnings() const { return warnings_; }
+  const std::vector<std::string>& warnings() const { return mWarnings; }
 
   // World position of the player's feet in map pixels (the map is 2048x1440).
   int worldX() const
   {
-    return (sandbox_.player.x8 + sandbox_.player.cameraX8) * 8;
+    return (mSandbox.player.x8 + mSandbox.player.cameraX8) * 8;
   }
   int worldY() const
   {
-    return sandbox_.player.y + sandbox_.player.cameraYWords / 8;
+    return mSandbox.player.y + mSandbox.player.cameraYWords / 8;
   }
-  int score() const { return score_; }
+  int score() const { return mScore; }
 
   // World position before the most recent update, for interpolation.
-  int prevWorldX() const { return prevX_; }
-  int prevWorldY() const { return prevY_; }
+  int prevWorldX() const { return mPrevX; }
+  int prevWorldY() const { return mPrevY; }
   // Wide presentation: let actors and shots stay active over the whole visible
   // area (world pixels).
   void setActiveView(int left, int top, int w, int h);
   // Modern presentation: actors stay active over a wider window around Duke.
   // This is part of the simulation (it is derived from the simulated position
   // only), so a replay must use the same value.
-  void setWide(bool wide) { wide_ = wide; }
-  bool wide() const { return wide_; }
+  void setWide(bool wide) { mWide = wide; }
+  bool wide() const { return mWide; }
   void debugDump() const;
   // 0..1: how far the drawing is between the previous and the current update
   // (smooths actor movement)
-  void setRenderBlend(double b) { blend_ = b; }
-  bool dead() const { return dyingTick_ >= 30; }
-  int updateCount() const { return updates_; }
+  void setRenderBlend(double b) { mBlend = b; }
+  bool dead() const { return mDyingTick >= 30; }
+  int updateCount() const { return mUpdates; }
   int somersault() const
   {
-    return sandbox_.player.jumpTravel;
+    return mSandbox.player.jumpTravel;
   } // 0 none, 1 left, 2 right (debug/tests)
   // True once after something moved Duke instantly (transporter): the
   // presentation must not blend across it
-  bool takeDiscontinuity() { return std::exchange(discontinuity_, false); }
+  bool takeDiscontinuity() { return std::exchange(mDiscontinuity, false); }
   // Sound requests (original sound indices 0-47) raised since the last call
-  std::vector<int> takeSounds() { return std::exchange(sounds_, {}); }
+  std::vector<int> takeSounds() { return std::exchange(mSounds, {}); }
   // Debug: everything Duke can pick up
   void grantAll()
   {
-    for (auto& k : keys_)
+    for (auto& k : mKeys)
       k = true;
-    sandbox_.player.boost = 1;
-    sandbox_.player.claw = 1;
-    sandbox_.player.capacity = 4;
-    hasItem_ = hasCard_ = true;
+    mSandbox.player.boost = 1;
+    mSandbox.player.claw = 1;
+    mSandbox.player.capacity = 4;
+    mHasItem = mHasCard = true;
   }
   // Inventory slots: 0-3 keys, 4 boots, 5 claw, 6 special item, 7 access card
   bool hasKey(int i) const
   {
     if (i < 4)
-      return keys_[i];
+      return mKeys[i];
     if (i == 4)
-      return sandbox_.player.boost != 0;
+      return mSandbox.player.boost != 0;
     if (i == 5)
-      return sandbox_.player.claw != 0;
-    return i == 6 ? hasItem_ : hasCard_;
+      return mSandbox.player.claw != 0;
+    return i == 6 ? mHasItem : mHasCard;
   }
   // 16x16 RGBA picture of a key (0 red, 1 green, 2 blue, 3 purple)
   const std::vector<std::uint8_t>& keyIcon(int i) const
   {
     static const int kPiece[4] = {10, 18, 63, 64};
     if (i >= 4)
-      return sprites_[6 + kPiece[i - 4] / 50]
+      return mSprites[6 + kPiece[i - 4] / 50]
                      [static_cast<std::size_t>(kPiece[i - 4] % 50)];
-    return sprites_[8][static_cast<std::size_t>(24 + i)];
+    return mSprites[8][static_cast<std::size_t>(24 + i)];
   }
   // 16x16 RGBA picture of the green wave that Duke's shots are drawn as
-  const std::vector<std::uint8_t>& shotIcon() const { return sprites_[6][6]; }
+  const std::vector<std::uint8_t>& shotIcon() const { return mSprites[6][6]; }
   // 32x32 RGBA picture of Duke standing and facing right
   std::vector<std::uint8_t> standingPortrait() const;
   // Draws the collected keys into the given area of an RGBA frame (inventory)
@@ -169,7 +169,7 @@ public:
   void teleportToCell(
     int col,
     int row); // dev/test: place Duke like the start marker would
-  const PlayerState& player() const { return sandbox_.player; }
+  const PlayerState& player() const { return mSandbox.player; }
 
 private:
   friend struct PlayWorldTestAccess;
@@ -255,8 +255,8 @@ private:
     int state;
     int x[4], y[4], piece[4], px[4], py[4];
   }; // four gems thrown out of a smashed object (313e)
-  std::vector<Spark> sparks_;
-  int sparkVariant_ = 0;
+  std::vector<Spark> mSparks;
+  int mSparkVariant = 0;
   void spawnSparks(int yw, int x8);
   struct Debris
   {
@@ -277,46 +277,46 @@ private:
     bool live[10] = {};
     int step = 0, anim = 0;
   };
-  OrbChain orbs_;
+  OrbChain mOrbs;
   // The final boss (marker 3043): single instance
   struct Boss
   {
     int anim = 0, cnt = 0, step = 0, jumping = 0, dir = 0, period = 10,
         freeze = 0, deadCount = 0;
   };
-  Boss boss_;
-  bool frozen_ = false;
-  bool hasItem_ = false, hasCard_ = false, blast_ = false;
-  int dyingTick_ = 0;
-  int updates_ = 0;
-  bool wide_ = false;
-  int bonusTotals_[5] =
+  Boss mBoss;
+  bool mFrozen = false;
+  bool mHasItem = false, mHasCard = false, mBlast = false;
+  int mDyingTick = 0;
+  int mUpdates = 0;
+  bool mWide = false;
+  int mBonusTotals[5] =
     {}; // cameras, signs, rockets, snake chains, bunny bots in the level
-  bool damageTaken_ = false;
-  bool dukeBonus_ = false;
-  bool snakesDone_ = false;
-  bool upConsumed_ =
+  bool mDamageTaken = false;
+  bool mDukeBonus = false;
+  bool mSnakesDone = false;
+  bool mUpConsumed =
     false; // the Up key press was used by an action and must be released first
-  bool discontinuity_ = false; // Duke or the camera jumped this update
-  int hitFlash_ = 0;
-  bool pullUpDrawn_ = false;
-  std::vector<int> sounds_;
-  void sound(int index) { sounds_.push_back(index); }
+  bool mDiscontinuity = false; // Duke or the camera jumped this update
+  int mHitFlash = 0;
+  bool mPullUpDrawn = false;
+  std::vector<int> mSounds;
+  void sound(int index) { mSounds.push_back(index); }
   void updateOrbs();
-  std::vector<Explosion> explosions_;
-  std::vector<Debris> debris_;
-  std::vector<EnemyShot> enemyShots_;
-  int shotAnim_ = 0; // 0648: toggles the enemy shot frame
-  int hoverAnim_ = 0, hoverTick_ = 0; // 05a6 (0..3), 05a8 (0..9)
-  bool lastShotWasLeftFacing_ = false;
+  std::vector<Explosion> mExplosions;
+  std::vector<Debris> mDebris;
+  std::vector<EnemyShot> mEnemyShots;
+  int mShotAnim = 0; // 0648: toggles the enemy shot frame
+  int mHoverAnim = 0, mHoverTick = 0; // 05a6 (0..3), 05a8 (0..9)
+  bool mLastShotWasLeftFacing = false;
   void spawnExplosion(int yw, int x8, int type);
   void spawnDebris(int yw, int x8);
   void spawnEnemyShot(int yw, int x8, int dir);
   void updatePools();
-  mutable int shiftX_ = 0,
-              shiftY_ =
+  mutable int mShiftX = 0,
+              mShiftY =
                 0; // pixel offset applied while drawing an interpolated actor
-  double blend_ = 1.0;
+  double mBlend = 1.0;
   void
     drawPools(std::vector<std::uint8_t>& out, int w, int h, int left, int top)
       const;
@@ -330,43 +330,43 @@ private:
     int x8,
     int yw,
     int yOffsetPx = 0) const;
-  int famAnim3010_ = 0;
-  bool targetsCleared_ = false;
-  std::vector<int> letters_; // D, U, K, E collected so far
-  int ballAnim_ = 0;
-  bool keys_[4] = {false, false, false, false}; // red, green, blue, purple
-  int controlAnim_ = 0;
-  int walkerAnim_ = 0, walkerPhase_ = 0; // 300E: 05ae / 05b0
-  int famAnimUp_ = 0,
-      famAnimDown_ = 0x1e0; // flyers: 06e9 counts up, 06eb counts down
+  int mFamAnim3010 = 0;
+  bool mTargetsCleared = false;
+  std::vector<int> mLetters; // D, U, K, E collected so far
+  int mBallAnim = 0;
+  bool mKeys[4] = {false, false, false, false}; // red, green, blue, purple
+  int mControlAnim = 0;
+  int mWalkerAnim = 0, mWalkerPhase = 0; // 300E: 05ae / 05b0
+  int mFamAnimUp = 0,
+      mFamAnimDown = 0x1e0; // flyers: 06e9 counts up, 06eb counts down
 
-  int episode_ = 0;
-  Sandbox sandbox_;
-  std::vector<ActorInstance> actors_;
+  int mEpisode = 0;
+  Sandbox mSandbox;
+  std::vector<ActorInstance> mActors;
   std::array<std::vector<std::vector<std::uint8_t>>, 9>
-    sprites_; // ANIM0-5, OBJECT0-2: RGBA per 16x16 piece
-  unsigned phase_ = 0;
+    mSprites; // ANIM0-5, OBJECT0-2: RGBA per 16x16 piece
+  unsigned mPhase = 0;
   struct Popup
   {
     int x, y, value, age;
   };
   std::vector<Popup>
-    popups_; // little score sprites that rise from collected items
-  std::vector<std::vector<std::uint8_t>> numbers_; // NUMBERS.DN1 pieces as RGBA
+    mPopups; // little score sprites that rise from collected items
+  std::vector<std::vector<std::uint8_t>> mNumbers; // NUMBERS.DN1 pieces as RGBA
   void addScore(int value, int x, int y);
-  int score_ = 0;
-  bool levelComplete_ = false;
-  int exitState_ = 0;
-  std::array<std::string, 2> pair_{};
-  int prevX_ = 0, prevY_ = 0;
-  int airTicks_ =
+  int mScore = 0;
+  bool mLevelComplete = false;
+  int mExitState = 0;
+  std::array<std::string, 2> mPair{};
+  int mPrevX = 0, mPrevY = 0;
+  int mAirTicks =
     0; // updates since Duke left the ground, drives the somersault frames
-  std::array<Bank, 8> banks_;
-  std::array<std::vector<std::uint8_t>, 2> backdrops_; // 208x160 RGBA each
-  std::array<Tileset, 5> man_;
-  Tileset border_;
-  std::vector<std::uint8_t> frame_; // pre-rendered chrome, 320x200 RGBA
-  std::vector<std::string> warnings_;
+  std::array<Bank, 8> mBanks;
+  std::array<std::vector<std::uint8_t>, 2> mBackdrops; // 208x160 RGBA each
+  std::array<Tileset, 5> mMan;
+  Tileset mBorder;
+  std::vector<std::uint8_t> mFrame; // pre-rendered chrome, 320x200 RGBA
+  std::vector<std::string> mWarnings;
 };
 
 } // namespace duke1

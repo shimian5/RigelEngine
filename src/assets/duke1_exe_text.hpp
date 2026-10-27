@@ -68,10 +68,10 @@ public:
   static std::optional<ExeText>
     fromImage(std::vector<std::uint8_t> image, int episode);
 
-  int episode() const { return episode_; }
-  const std::vector<LevelInfo>& levels() const { return levels_; }
-  const std::vector<LevelInfo>& sequence() const { return sequence_; }
-  const TextLayout& layout() const { return layout_; }
+  int episode() const { return mEpisode; }
+  const std::vector<LevelInfo>& levels() const { return mLevels; }
+  const std::vector<LevelInfo>& sequence() const { return mSequence; }
+  const TextLayout& layout() const { return mLayout; }
   std::string assetName(const std::string& stem) const;
   std::optional<std::array<std::string, 2>>
     backdropPair(const std::string& filename) const;
@@ -89,12 +89,12 @@ public:
   bool plausible() const;
 
 private:
-  std::vector<std::uint8_t> image_;
-  std::size_t dataSegment_ = 0;
-  int episode_ = 0;
-  std::vector<LevelInfo> sequence_;
-  std::vector<LevelInfo> levels_;
-  TextLayout layout_{};
+  std::vector<std::uint8_t> mImage;
+  std::size_t mDataSegment = 0;
+  int mEpisode = 0;
+  std::vector<LevelInfo> mSequence;
+  std::vector<LevelInfo> mLevels;
+  TextLayout mLayout{};
 };
 
 // Decompress an LZEXE 0.91 packed MZ executable; returns the load image (code

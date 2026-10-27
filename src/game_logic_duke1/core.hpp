@@ -98,11 +98,11 @@ public:
   // Caller supplies integer DOS timer callbacks. At most one update; remainder
   // discarded.
   bool callbacks(std::uint64_t count);
-  std::uint64_t pending() const { return pending_; }
-  int speed() const { return speed_; }
+  std::uint64_t pending() const { return mPending; }
+  int speed() const { return mSpeed; }
 
 private:
-  int speed_;
-  std::uint64_t pending_ = 0;
+  int mSpeed;
+  std::uint64_t mPending = 0;
 };
 } // namespace duke1

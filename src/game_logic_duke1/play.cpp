@@ -138,35 +138,35 @@ PlayWorld::PlayWorld(
   const std::array<std::string, 2>* context,
   const int episode)
 {
-  episode_ = std::filesystem::path(levelName).extension().empty()
+  mEpisode = std::filesystem::path(levelName).extension().empty()
     ? episode
     : episode_from_asset(levelName);
   const auto levelFile = std::filesystem::path(levelName).extension().empty()
-    ? asset_name(levelName, episode_)
+    ? asset_name(levelName, mEpisode)
     : levelName;
-  const auto executable = ExeText::load(dir, episode_);
+  const auto executable = ExeText::load(dir, mEpisode);
   if (!executable)
     throw std::runtime_error(
       "missing or unsupported Duke 1 episode executable");
   const auto level = parse_level(read_file(dir, levelFile));
-  sandbox_.world = CollisionWorld(0);
+  mSandbox.world = CollisionWorld(0);
   std::copy(
-    level.cells.begin(), level.cells.end(), sandbox_.world.cells.begin());
+    level.cells.begin(), level.cells.end(), mSandbox.world.cells.begin());
 
   // Player start marker: place camera and player like the original loader does.
   int startCol = -1, startRow = -1;
-  for (std::size_t i = 0; i < sandbox_.world.cells.size(); ++i)
-    if (sandbox_.world.cells[i] == 0x3032)
+  for (std::size_t i = 0; i < mSandbox.world.cells.size(); ++i)
+    if (mSandbox.world.cells[i] == 0x3032)
     {
       startCol = static_cast<int>(i % 128);
       startRow = static_cast<int>(i / 128);
     }
   if (startCol >= 0)
   {
-    auto& cells = sandbox_.world.cells;
+    auto& cells = mSandbox.world.cells;
     const auto idx = static_cast<std::size_t>(startRow * 128 + startCol);
     cells[idx] = startCol > 0 ? cells[idx - 1] : 0;
-    auto& p = sandbox_.player;
+    auto& p = mSandbox.player;
     p.cameraX8 = std::clamp(2 * startCol - 14, 0, 230);
     p.x8 = 2 * startCol - p.cameraX8;
     p.cameraYWords = std::max(0, 128 * startRow - 384);
@@ -175,7 +175,7 @@ PlayWorld::PlayWorld(
 
   // Replace active IDs with the cell value the original loader leaves behind,
   // and remember the actors so their sprites can be drawn on top.
-  auto& cells = sandbox_.world.cells;
+  auto& cells = mSandbox.world.cells;
   for (std::size_t i = 0; i < cells.size(); ++i)
   {
     const auto v = cells[i];
@@ -205,31 +205,31 @@ PlayWorld::PlayWorld(
         under = col > 0 && cells[i - 1] < 0x3000 ? cells[i - 1] : 0;
       if (!keepSolid)
         cells[i] = under;
-      actors_.push_back({v, col, row, true, false, a.hits, under, i});
-      initPorted(actors_.back());
+      mActors.push_back({v, col, row, true, false, a.hits, under, i});
+      initPorted(mActors.back());
       switch (v)
       {
         case 0x3024:
-          ++bonusTotals_[0];
+          ++mBonusTotals[0];
           break;
         case 0x302A:
-          ++bonusTotals_[1];
+          ++mBonusTotals[1];
           break;
         case 0x3007:
-          ++bonusTotals_[2];
+          ++mBonusTotals[2];
           break;
         case 0x3013:
-          ++bonusTotals_[3];
+          ++mBonusTotals[3];
           break;
         case 0x303B:
-          ++bonusTotals_[4];
+          ++mBonusTotals[4];
           break;
         default:
           break;
       }
       const bool fallsOnScreen = v == 0x3015 || v == 0x3052 || v == 0x3018 ||
         v == 0x3051 || v == 0x3000 || v == 0x3023;
-      if (a.settle && actors_.back().ported && !fallsOnScreen)
+      if (a.settle && mActors.back().ported && !fallsOnScreen)
       {
         // These start out resting; plain boxes, crates and food fall visibly
         // once they come on screen
@@ -237,9 +237,9 @@ PlayWorld::PlayWorld(
         while (r < 89 &&
                cells[static_cast<std::size_t>((r + 1) * 128 + col)] < 0x1800)
           ++r;
-        actors_.back().row = r;
-        actors_.back().yw += (r - row) * 128;
-        actors_.back().prevYw = actors_.back().yw;
+        mActors.back().row = r;
+        mActors.back().yw += (r - row) * 128;
+        mActors.back().prevYw = mActors.back().yw;
       }
       break;
     }
@@ -254,8 +254,8 @@ PlayWorld::PlayWorld(
         dir,
         asset_name(
           std::string(solid ? "SOLID" : "BACK") + std::to_string(n),
-          episode_)));
-      auto& dst = banks_[static_cast<std::size_t>(solid * 4 + n)].rgba;
+          mEpisode)));
+      auto& dst = mBanks[static_cast<std::size_t>(solid * 4 + n)].rgba;
       dst.assign(96 * 128 * 4, 0);
       for (int j = 0; j < 48 && j < static_cast<int>(set.tiles.size()); ++j)
       {
@@ -275,39 +275,39 @@ PlayWorld::PlayWorld(
       }
     }
 
-  for (auto& b : backdrops_)
+  for (auto& b : mBackdrops)
     b.assign(VIEW_W * VIEW_H * 4, 0);
   if (context)
-    pair_ = *context;
+    mPair = *context;
   else if (const auto pair = executable->backdropPair(levelFile))
-    pair_ = *pair;
-  if (!pair_[0].empty())
+    mPair = *pair;
+  if (!mPair[0].empty())
   {
     for (int i = 0; i < 2; ++i)
     {
       const auto bd = parse_backdrop_compat(
-        read_file(dir, pair_[static_cast<std::size_t>(i)]),
-        pair_[static_cast<std::size_t>(i)]);
+        read_file(dir, mPair[static_cast<std::size_t>(i)]),
+        mPair[static_cast<std::size_t>(i)]);
       if (!bd.warning.empty())
-        warnings_.push_back(bd.warning);
+        mWarnings.push_back(bd.warning);
       for (unsigned y = 0; y < std::min(160u, bd.image.height); ++y)
         for (unsigned x = 0; x < std::min(208u, bd.image.width); ++x)
           std::copy_n(
             &bd.image
                .rgba[(static_cast<std::size_t>(y) * bd.image.width + x) * 4],
             4,
-            &backdrops_[static_cast<std::size_t>(i)]
+            &mBackdrops[static_cast<std::size_t>(i)]
                        [(static_cast<std::size_t>(y) * VIEW_W + x) * 4]);
     }
   }
   else
   {
-    warnings_.push_back("Flat backdrop: map-to-pair relationship unverified");
+    mWarnings.push_back("Flat backdrop: map-to-pair relationship unverified");
   }
   // De-duplicate warnings (both pair members can report the same condition)
-  std::sort(warnings_.begin(), warnings_.end());
-  warnings_.erase(
-    std::unique(warnings_.begin(), warnings_.end()), warnings_.end());
+  std::sort(mWarnings.begin(), mWarnings.end());
+  mWarnings.erase(
+    std::unique(mWarnings.begin(), mWarnings.end()), mWarnings.end());
 
   {
     static const char* names[9] = {
@@ -323,40 +323,40 @@ PlayWorld::PlayWorld(
     for (int b = 0; b < 9; ++b)
     {
       const auto set =
-        parse_tiles(read_file(dir, asset_name(names[b], episode_)));
+        parse_tiles(read_file(dir, asset_name(names[b], mEpisode)));
       for (const auto& t : set.tiles)
-        sprites_[static_cast<std::size_t>(b)].push_back(t.rgba());
+        mSprites[static_cast<std::size_t>(b)].push_back(t.rgba());
     }
   }
   {
     const auto set =
-      parse_tiles(read_file(dir, asset_name("NUMBERS", episode_)));
+      parse_tiles(read_file(dir, asset_name("NUMBERS", mEpisode)));
     for (const auto& t : set.tiles)
-      numbers_.push_back(t.rgba());
+      mNumbers.push_back(t.rgba());
   }
   for (int i = 0; i < 5; ++i)
-    man_[static_cast<std::size_t>(i)] = parse_tiles(
-      read_file(dir, asset_name("MAN" + std::to_string(i), episode_)));
-  border_ = parse_tiles(read_file(dir, asset_name("BORDER", episode_)));
+    mMan[static_cast<std::size_t>(i)] = parse_tiles(
+      read_file(dir, asset_name("MAN" + std::to_string(i), mEpisode)));
+  mBorder = parse_tiles(read_file(dir, asset_name("BORDER", mEpisode)));
   buildFrame();
-  prevX_ = worldX();
-  prevY_ = worldY();
+  mPrevX = worldX();
+  mPrevY = worldY();
 }
 
 void PlayWorld::buildFrame()
 {
-  frame_.assign(static_cast<std::size_t>(SCREEN_W) * SCREEN_H * 4, 255);
-  fillRect(frame_, 0, 0, SCREEN_W, SCREEN_H, 170, 170, 170);
+  mFrame.assign(static_cast<std::size_t>(SCREEN_W) * SCREEN_H * 4, 255);
+  fillRect(mFrame, 0, 0, SCREEN_W, SCREEN_H, 170, 170, 170);
   for (const auto& p : CHROME)
   {
-    if (p.tile < static_cast<int>(border_.tiles.size()))
+    if (p.tile < static_cast<int>(mBorder.tiles.size()))
       drawTile(
-        frame_, border_.tiles[static_cast<std::size_t>(p.tile)], p.x, p.y);
+        mFrame, mBorder.tiles[static_cast<std::size_t>(p.tile)], p.x, p.y);
   }
   for (const auto& b : PANELS)
-    fillRect(frame_, b.x0, b.y0, b.x1, b.y1, 0, 0, 0);
-  fillRect(frame_, 0, 192, SCREEN_W, SCREEN_H, 0, 0, 0);
-  fillRect(frame_, VIEW_X, VIEW_Y, VIEW_X + VIEW_W, VIEW_Y + VIEW_H, 0, 0, 0);
+    fillRect(mFrame, b.x0, b.y0, b.x1, b.y1, 0, 0, 0);
+  fillRect(mFrame, 0, 192, SCREEN_W, SCREEN_H, 0, 0, 0);
+  fillRect(mFrame, VIEW_X, VIEW_Y, VIEW_X + VIEW_W, VIEW_Y + VIEW_H, 0, 0, 0);
 }
 
 std::array<std::string, 2> PlayWorld::backdropPairFor(
@@ -373,14 +373,14 @@ std::array<std::string, 2> PlayWorld::backdropPairFor(
 
 PlayWorld::Carry PlayWorld::carry() const
 {
-  const auto& p = sandbox_.player;
-  return {score_, p.health, p.boost, p.claw, p.capacity};
+  const auto& p = mSandbox.player;
+  return {mScore, p.health, p.boost, p.claw, p.capacity};
 }
 
 void PlayWorld::applyCarry(const Carry& c)
 {
-  auto& p = sandbox_.player;
-  score_ = c.score;
+  auto& p = mSandbox.player;
+  mScore = c.score;
   p.health = c.health;
   p.boost = c.boost;
   p.claw = c.claw;
@@ -389,24 +389,24 @@ void PlayWorld::applyCarry(const Carry& c)
 
 void PlayWorld::update(const Input& input)
 {
-  prevX_ = worldX();
-  prevY_ = worldY();
-  ++phase_;
-  ++updates_;
-  if (wide_)
+  mPrevX = worldX();
+  mPrevY = worldY();
+  ++mPhase;
+  ++mUpdates;
+  if (mWide)
     setActiveView(worldX() - 240, worldY() - 140, 480, 220);
   else
-    sandbox_.wideCull = false;
-  if (sandbox_.player.health <= 0)
+    mSandbox.wideCull = false;
+  if (mSandbox.player.health <= 0)
   {
     // Duke is gone for a moment: a burst of sparks around him for about 30
     // updates, then the level restarts
-    sandbox_.player.pendingHit = false;
-    if (++dyingTick_ == 1)
+    mSandbox.player.pendingHit = false;
+    if (++mDyingTick == 1)
       sound(0);
-    if (dyingTick_ >= 2)
+    if (mDyingTick >= 2)
     {
-      const auto& p = sandbox_.player;
+      const auto& p = mSandbox.player;
       const int px = p.x8 + p.cameraX8;
       const int rowWords = ((p.y - 16) >> 4) * 0x80;
       const int a = rowWords + p.cameraYWords;
@@ -435,7 +435,7 @@ void PlayWorld::update(const Input& input)
         {{-3, 0, 0}},
         {{2, 0, 0}, {0, 1, 0}},
         {{0, 1, 0}}};
-      const auto idx = static_cast<std::size_t>(dyingTick_ - 1);
+      const auto idx = static_cast<std::size_t>(mDyingTick - 1);
       if (idx < 19)
         for (const auto& s : kBurst[idx])
           spawnSparks((s.yKind ? b : a) + s.yAdd, px + s.dx);
@@ -445,47 +445,47 @@ void PlayWorld::update(const Input& input)
     return;
   }
   if (!input.up)
-    upConsumed_ = false;
-  sandbox_.input = frozen_ ? Input{} : input;
-  const int pullUpBefore = sandbox_.player.pullUp;
-  const int immunityBefore = sandbox_.player.immunity;
-  sandbox_.player.phase = (phase_ % 4) *
+    mUpConsumed = false;
+  mSandbox.input = mFrozen ? Input{} : input;
+  const int pullUpBefore = mSandbox.player.pullUp;
+  const int immunityBefore = mSandbox.player.immunity;
+  mSandbox.player.phase = (mPhase % 4) *
     32; // the shared animation step the original's player code looks at
-  sandbox_.tick();
-  pullUpDrawn_ = pullUpBefore > 0 || sandbox_.player.pullUp > 0;
-  if (sandbox_.player.immunity > immunityBefore)
-    damageTaken_ = true;
-  if (sandbox_.player.immunity > immunityBefore)
-    hitFlash_ =
+  mSandbox.tick();
+  mPullUpDrawn = pullUpBefore > 0 || mSandbox.player.pullUp > 0;
+  if (mSandbox.player.immunity > immunityBefore)
+    mDamageTaken = true;
+  if (mSandbox.player.immunity > immunityBefore)
+    mHitFlash =
       1; // just hit: the original shows the skeleton for a single update
-  else if (hitFlash_ > 0)
-    --hitFlash_;
-  for (const auto& e : sandbox_.events)
+  else if (mHitFlash > 0)
+    --mHitFlash;
+  for (const auto& e : mSandbox.events)
     if (e.kind == Event::Score)
-      score_ += e.value;
+      mScore += e.value;
     else if (e.kind == Event::Break)
       spawnDebris((e.value / 128) * 128, (e.value % 128) * 2 + 2);
     else if (e.kind == Event::Sound)
       sound(e.value);
-  sandbox_.events.clear();
-  for (auto& pop : popups_)
+  mSandbox.events.clear();
+  for (auto& pop : mPopups)
     ++pop.age;
-  popups_.erase(
+  mPopups.erase(
     std::remove_if(
-      popups_.begin(),
-      popups_.end(),
+      mPopups.begin(),
+      mPopups.end(),
       [](const Popup& q) { return q.age > 40; }),
-    popups_.end());
-  airTicks_ =
-    (sandbox_.player.grounded || sandbox_.player.cling) ? 0 : airTicks_ + 1;
+    mPopups.end());
+  mAirTicks =
+    (mSandbox.player.grounded || mSandbox.player.cling) ? 0 : mAirTicks + 1;
   updatePorted();
   updatePools();
   interact();
-  if (discontinuity_)
+  if (mDiscontinuity)
   {
-    prevX_ = worldX();
-    prevY_ = worldY();
-    for (auto& actor : actors_)
+    mPrevX = worldX();
+    mPrevY = worldY();
+    for (auto& actor : mActors)
     {
       actor.prevX8 = actor.x8;
       actor.prevYw = actor.yw;
@@ -495,8 +495,8 @@ void PlayWorld::update(const Input& input)
 
 void PlayWorld::render(std::vector<std::uint8_t>& out) const
 {
-  out = frame_;
-  const auto& p = sandbox_.player;
+  out = mFrame;
+  const auto& p = mSandbox.player;
   std::vector<std::uint8_t> view;
   renderWorld(
     view,
@@ -529,8 +529,8 @@ void PlayWorld::render(std::vector<std::uint8_t>& out) const
 
 void PlayWorld::addScore(int value, int x, int y)
 {
-  score_ += value;
-  popups_.push_back({x, y, value, 0});
+  mScore += value;
+  mPopups.push_back({x, y, value, 0});
 }
 
 void PlayWorld::interact()
@@ -541,9 +541,9 @@ void PlayWorld::interact()
         return &a;
     return nullptr;
   };
-  auto& p = sandbox_.player;
+  auto& p = mSandbox.player;
 
-  for (auto& actor : actors_)
+  for (auto& actor : mActors)
   {
     if (!actor.alive || actor.ported)
       continue;
@@ -559,7 +559,7 @@ void PlayWorld::interact()
       !offscreen(actor.row * 128, actor.col * 2 + 2))
     {
       const auto below =
-        sandbox_.world
+        mSandbox.world
           .cells[static_cast<std::size_t>((actor.row + 1) * 128 + actor.col)];
       if (below < 0x1800)
         ++actor.row;
@@ -577,7 +577,7 @@ void PlayWorld::interact()
     if (
       entry->shotScore > 0 || plainCrate || (entry->isContainer && !actor.open))
     {
-      for (auto& b : sandbox_.bullets)
+      for (auto& b : mSandbox.bullets)
       {
         if (b.kind == 0)
           continue;
@@ -588,7 +588,7 @@ void PlayWorld::interact()
           if (plainCrate)
           {
             actor.alive = false;
-            sandbox_.world.cells[actor.cellIndex] = actor.under;
+            mSandbox.world.cells[actor.cellIndex] = actor.under;
           }
           else if (entry->isContainer)
           {
@@ -596,7 +596,7 @@ void PlayWorld::interact()
             spawnSparks(actor.row * 128, actor.col * 2 + 2);
             if (
               actor.row >= 89 ||
-              sandbox_.world.cells[static_cast<std::size_t>(
+              mSandbox.world.cells[static_cast<std::size_t>(
                 (actor.row + 1) * 128 + actor.col)] < 0x1800)
               addScore(
                 500,
@@ -606,7 +606,7 @@ void PlayWorld::interact()
           else if (--actor.hits <= 0)
           {
             actor.alive = false;
-            sandbox_.world.cells[actor.cellIndex] = actor.under;
+            mSandbox.world.cells[actor.cellIndex] = actor.under;
             addScore(
               static_cast<int>(entry->shotScore),
               actor.col * 16,
@@ -628,7 +628,7 @@ void PlayWorld::interact()
       if (touchesPlayer(ax8, ayWords))
       {
         actor.alive = false;
-        sandbox_.world.cells[actor.cellIndex] = actor.under;
+        mSandbox.world.cells[actor.cellIndex] = actor.under;
         int award = static_cast<int>(
           entry->isContainer ? entry->openScore : entry->touchScore);
         // Flag and radio items pay 100, 500, 2000 or 5000 depending on the
@@ -638,7 +638,7 @@ void PlayWorld::interact()
           actor.id == 0x3056)
         {
           static const int kPhasePay[4] = {100, 500, 2000, 5000};
-          award = kPhasePay[phase_ % 4];
+          award = kPhasePay[mPhase % 4];
         }
         addScore(award, actor.col * 16, actor.row * 16);
         if (entry->heal && p.health < 9)
@@ -659,10 +659,10 @@ void PlayWorld::interact()
         switch (actor.id)
         {
           case 0x3020:
-            hasItem_ = true;
+            mHasItem = true;
             break; // item that powers the wall machines
           case 0x3033:
-            hasCard_ = true;
+            mHasCard = true;
             break; // access card
           case 0x3006:
             p.boost = 1;
@@ -703,14 +703,14 @@ void PlayWorld::renderWorld(
     for (int col = col0; col <= col1; ++col)
     {
       unsigned v =
-        sandbox_.world.cells[static_cast<std::size_t>(row * 128 + col)];
+        mSandbox.world.cells[static_cast<std::size_t>(row * 128 + col)];
       if (v > 0x20 && v < 0x5E0)
-        v += 32 * (phase_ % 4); // animated tiles cycle through four images
+        v += 32 * (mPhase % 4); // animated tiles cycle through four images
       const int sx = col * 16 - left, sy = row * 16 - top;
       if (v == 0 || v == 0x20)
       {
         // Backdrops are fixed to the screen and repeat across the wider view.
-        const auto& bd = backdrops_[v == 0 ? 0 : 1];
+        const auto& bd = mBackdrops[v == 0 ? 0 : 1];
         for (int y = 0; y < 16; ++y)
         {
           const int ty = sy + y;
@@ -749,7 +749,7 @@ void PlayWorld::renderWorld(
             out,
             sx,
             sy,
-            banks_[static_cast<std::size_t>(group)].rgba.data(),
+            mBanks[static_cast<std::size_t>(group)].rgba.data(),
             96,
             (index % 6) * 16,
             (index / 6) * 16,
@@ -765,7 +765,7 @@ void PlayWorld::renderWorld(
     }
   }
 
-  for (const auto& actor : actors_)
+  for (const auto& actor : mActors)
   {
     if (!actor.alive || actor.ported)
       continue;
@@ -784,7 +784,7 @@ void PlayWorld::renderWorld(
       for (const auto& e2 : kActors)
         if (e2.id == entry->exposedId && e2.updateCount)
         {
-          upd = kActorUpdates[e2.firstUpdate + phase_ % e2.updateCount];
+          upd = kActorUpdates[e2.firstUpdate + mPhase % e2.updateCount];
           if (upd.count == 0)
             upd = kActorUpdates[e2.firstUpdate];
         }
@@ -795,7 +795,7 @@ void PlayWorld::renderWorld(
     }
     else if (entry->updateCount != 0)
     {
-      upd = kActorUpdates[entry->firstUpdate + phase_ % entry->updateCount];
+      upd = kActorUpdates[entry->firstUpdate + mPhase % entry->updateCount];
       if (upd.count == 0)
         upd = kActorUpdates[entry->firstUpdate]; // drawn once and then left in
                                                  // place
@@ -805,7 +805,7 @@ void PlayWorld::renderWorld(
     // per update
     const int fallShift = actor.prevRow >= 0 && actor.prevRow != actor.row
       ? static_cast<int>(
-          std::lround((actor.row - actor.prevRow) * 16 * (blend_ - 1.0)))
+          std::lround((actor.row - actor.prevRow) * 16 * (mBlend - 1.0)))
       : 0;
     if (
       ax + 48 < left || ax - 48 > left + w || ay + 48 < top ||
@@ -814,7 +814,7 @@ void PlayWorld::renderWorld(
     for (int k = 0; k < upd.count; ++k)
     {
       const auto& dr = kActorDraws[upd.first + k];
-      const auto& bank = sprites_[dr.bank];
+      const auto& bank = mSprites[dr.bank];
       if (dr.frame >= bank.size())
         continue;
       blit(
@@ -840,7 +840,7 @@ void PlayWorld::renderWorld(
   drawPools(out, w, h, left, top);
 
   // Score sprites: a two-colour picture of the value, rising and then gone
-  for (const auto& pop : popups_)
+  for (const auto& pop : mPopups)
   {
     int base = -1;
     switch (pop.value)
@@ -872,13 +872,13 @@ void PlayWorld::renderWorld(
     if (base < 0)
       continue;
     const std::size_t idx = static_cast<std::size_t>(base + pop.age % 2);
-    if (idx >= numbers_.size())
+    if (idx >= mNumbers.size())
       continue;
     blit(
       out,
       pop.x - left,
       pop.y - top - pop.age,
-      numbers_[idx].data(),
+      mNumbers[idx].data(),
       16,
       0,
       0,
@@ -894,21 +894,21 @@ void PlayWorld::renderWorld(
 
   // Shots: the wave piece (OBJECT0 pieces 6..9) cycles while the bullet
   // travels.
-  for (const auto& b : sandbox_.bullets)
+  for (const auto& b : mSandbox.bullets)
   {
     if (b.kind == 0)
       continue;
-    const auto& bank = sprites_[6];
+    const auto& bank = mSprites[6];
     const std::size_t frame = b.newFlag
       ? 46
-      : 6 + phase_ % 2; // muzzle flash on the first frame, then two frames
+      : 6 + mPhase % 2; // muzzle flash on the first frame, then two frames
     if (frame >= bank.size())
       continue;
     // Shots travel 16 px per update; draw them where they were that far back
     // along the path
     const int shotShift = b.newFlag
       ? 0
-      : static_cast<int>(std::lround(16 * (1.0 - blend_))) *
+      : static_cast<int>(std::lround(16 * (1.0 - mBlend))) *
         (b.kind == 1 ? 1 : -1);
     blit(
       out,
@@ -928,22 +928,22 @@ void PlayWorld::renderWorld(
       h);
   }
 
-  const auto& p = sandbox_.player;
-  const bool blink = p.immunity > 0 && (p.immunity % 2) == 0 && hitFlash_ == 0;
-  if (!blink && exitState_ < 2 && p.health > 0)
+  const auto& p = mSandbox.player;
+  const bool blink = p.immunity > 0 && (p.immunity % 2) == 0 && mHitFlash == 0;
+  if (!blink && mExitState < 2 && p.health > 0)
   {
     const bool leftFacing = p.facing == 0;
     // MAN0 groups 0-3: walking left, 4-7: walking right; MAN1 groups 0/1:
     // standing left/right
     const bool standing = p.grounded && p.walkFrame == 0;
-    const Tileset* pSet = standing ? &man_[1] : &man_[0];
+    const Tileset* pSet = standing ? &mMan[1] : &mMan[0];
     int base = standing ? (leftFacing ? 0 : 4)
                         : 4 * ((leftFacing ? 0 : 4) + p.walkFrame % 4);
     auto useFrame = [&](const int frame) {
-      pSet = &man_[static_cast<std::size_t>(frame / 12)];
+      pSet = &mMan[static_cast<std::size_t>(frame / 12)];
       base = 4 * (frame % 12);
     };
-    if (pullUpDrawn_)
+    if (mPullUpDrawn)
     {
       // Hauling himself up from a ceiling bar: frames 0x28 - n (left) or 0x2b -
       // n (right), n = what is left of the pull-up
@@ -953,7 +953,7 @@ void PlayWorld::renderWorld(
     {
       // Hanging from a bar: hand-over-hand frames 0x1c-0x1f (left) / 0x20-0x23
       // (right); firing uses 0x24 / 0x25
-      if (sandbox_.input.fire)
+      if (mSandbox.input.fire)
         useFrame(leftFacing ? 0x24 : 0x25);
       else
         useFrame((leftFacing ? 0x1c : 0x20) + p.walkFrame % 4);
@@ -970,13 +970,13 @@ void PlayWorld::renderWorld(
       // Jump poses (identified from an original DOS capture): MAN0 groups 8/9
       // while rising, 10/11 while falling
       const bool rising =
-        worldY() < prevY_ || (worldY() == prevY_ && airTicks_ <= 4);
+        worldY() < mPrevY || (worldY() == mPrevY && mAirTicks <= 4);
       base = 4 * ((rising ? 8 : 10) + (leftFacing ? 0 : 1));
-      pSet = &man_[0];
+      pSet = &mMan[0];
     }
-    if (hitFlash_ > 0)
+    if (mHitFlash > 0)
     { // Duke is hit: his skeleton flashes (MAN3 pieces 0x20-0x27)
-      pSet = &man_[3];
+      pSet = &mMan[3];
       base = leftFacing ? 32 : 36;
     }
     const auto& set = *pSet;
@@ -1020,9 +1020,9 @@ std::vector<std::uint8_t> PlayWorld::standingPortrait() const
   for (int i = 0; i < 4; ++i)
   {
     const auto idx = static_cast<std::size_t>(4 + i);
-    if (idx >= man_[1].tiles.size())
+    if (idx >= mMan[1].tiles.size())
       continue;
-    const auto rgba = man_[1].tiles[idx].rgba();
+    const auto rgba = mMan[1].tiles[idx].rgba();
     for (int y = 0; y < 16; ++y)
       for (int x = 0; x < 16; ++x)
         for (int c = 0; c < 4; ++c)
@@ -1044,25 +1044,25 @@ PlayWorld::BonusReport PlayWorld::bonusReport() const
 {
   BonusReport r;
   auto allGone = [&](const std::uint16_t id) {
-    for (const auto& a : actors_)
+    for (const auto& a : mActors)
       if (a.id == id && a.alive)
         return false;
     return true;
   };
-  r.present[Cameras] = bonusTotals_[0] > 0;
-  r.earned[Cameras] = bonusTotals_[0] > 0 && allGone(0x3024);
-  r.present[AcmeSigns] = bonusTotals_[1] > 0;
-  r.earned[AcmeSigns] = bonusTotals_[1] > 0 && allGone(0x302A);
-  r.present[Rockets] = bonusTotals_[2] > 0;
-  r.earned[Rockets] = bonusTotals_[2] > 0 && allGone(0x3007);
-  r.present[SnakeBots] = bonusTotals_[3] > 0;
-  r.earned[SnakeBots] = bonusTotals_[3] > 0 && snakesDone_;
-  r.present[BunnyBots] = bonusTotals_[4] > 0;
-  r.earned[BunnyBots] = bonusTotals_[4] > 0 && allGone(0x303B);
+  r.present[Cameras] = mBonusTotals[0] > 0;
+  r.earned[Cameras] = mBonusTotals[0] > 0 && allGone(0x3024);
+  r.present[AcmeSigns] = mBonusTotals[1] > 0;
+  r.earned[AcmeSigns] = mBonusTotals[1] > 0 && allGone(0x302A);
+  r.present[Rockets] = mBonusTotals[2] > 0;
+  r.earned[Rockets] = mBonusTotals[2] > 0 && allGone(0x3007);
+  r.present[SnakeBots] = mBonusTotals[3] > 0;
+  r.earned[SnakeBots] = mBonusTotals[3] > 0 && mSnakesDone;
+  r.present[BunnyBots] = mBonusTotals[4] > 0;
+  r.earned[BunnyBots] = mBonusTotals[4] > 0 && allGone(0x303B);
   r.present[NoDamage] = true;
-  r.earned[NoDamage] = !damageTaken_;
+  r.earned[NoDamage] = !mDamageTaken;
   r.present[DukeLetters] = true;
-  r.earned[DukeLetters] = dukeBonus_;
+  r.earned[DukeLetters] = mDukeBonus;
   return r;
 }
 

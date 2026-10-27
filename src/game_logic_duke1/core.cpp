@@ -435,7 +435,7 @@ void Sandbox::tick()
   moveBullets();
 }
 TickGate::TickGate(int speed)
-  : speed_(speed)
+  : mSpeed(speed)
 {
   if (speed < 0 || speed > 9)
     throw std::invalid_argument(
@@ -443,13 +443,13 @@ TickGate::TickGate(int speed)
 }
 bool TickGate::callbacks(std::uint64_t count)
 {
-  const auto threshold = std::uint64_t(9 + speed_);
-  if (count >= threshold || pending_ >= threshold - count)
+  const auto threshold = std::uint64_t(9 + mSpeed);
+  if (count >= threshold || mPending >= threshold - count)
   {
-    pending_ = 0;
+    mPending = 0;
     return true;
   }
-  pending_ += count;
+  mPending += count;
   return false;
 }
 } // namespace duke1
