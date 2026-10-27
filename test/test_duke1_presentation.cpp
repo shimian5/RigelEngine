@@ -8,6 +8,35 @@ namespace rigel::duke1
 struct PlayWorldTestAccess
 {
   static Sandbox& sandbox(PlayWorld& world) { return world.mSandbox; }
+  static void keyDoor(PlayWorld& world, int color)
+  {
+    PlayWorld::ActorInstance reader{};
+    reader.id = static_cast<std::uint16_t>(0x3048 + color);
+    reader.alive = reader.ported = true;
+    reader.state = 1;
+    reader.x8 = 16;
+    reader.yw = 5 * 128;
+    reader.cellIndex = 5 * 128 + 7;
+    world.mActors.push_back(reader);
+    auto door = reader;
+    door.id = static_cast<std::uint16_t>(0x304C + color);
+    door.x8 = 24;
+    door.cellIndex = 5 * 128 + 11;
+    world.mActors.push_back(door);
+    world.mSandbox.world.cells[door.cellIndex] = 0x1820;
+  }
+  static void grantKey(PlayWorld& world, int color)
+  {
+    world.mKeys[color] = true;
+  }
+  static bool opening(const PlayWorld& world)
+  {
+    return world.mActors[1].v0 > 0;
+  }
+  static bool hasKey(const PlayWorld& world, int color)
+  {
+    return world.mKeys[color];
+  }
   static void primedTnt(PlayWorld& world)
   {
     world.mSandbox.player.x8 = 2;
@@ -234,4 +263,34 @@ TEST_CASE(
   const std::array<std::uint8_t, 3> expected{
     static_cast<std::uint8_t>(kind == 1 ? 47 : 48), 0, 0};
   CHECK(pixel(render(world), kind == 1 ? 104 : 128, 67) == expected);
+}
+
+TEST_CASE(
+  "DN1 key switches request the DOS door sound once on successful unlock",
+  "[duke1][sound]")
+{
+  rigel::test::Duke1Fixture fixture;
+  duke1::PlayWorld world(fixture.mData, "WORLDAL1");
+  WorldAccess::prepare(world);
+  const int color = GENERATE(0, 1, 2, 3);
+  WorldAccess::keyDoor(world, color);
+  duke1::Input input;
+  input.up = true;
+  world.update(input);
+  CHECK(world.takeSounds().empty());
+  CHECK_FALSE(WorldAccess::opening(world));
+
+  WorldAccess::grantKey(world, color);
+  world.update({});
+  CHECK(world.takeSounds().empty());
+  CHECK_FALSE(WorldAccess::opening(world));
+  world.update(input);
+  CHECK(world.takeSounds() == std::vector<int>{31});
+  CHECK(WorldAccess::opening(world));
+  CHECK_FALSE(WorldAccess::hasKey(world, color));
+  for (int i = 0; i < 18; ++i)
+  {
+    world.update(input);
+    CHECK(world.takeSounds().empty());
+  }
 }
