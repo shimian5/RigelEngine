@@ -17,6 +17,20 @@ android_jar=${ANDROID_PLATFORM_JAR:-"$sdk/platforms/android-33/android.jar"}
 grep -q '^Pkg.Revision = 27.2.12479018$' "$ndk/source.properties" ||
   { echo "This build pins NDK r27c (27.2.12479018)" >&2; exit 1; }
 
+# Refuse a release without its permanent identity before doing any compilation.
+release=${RIGEL_ANDROID_RELEASE:-0}
+key=${ANDROID_KEYSTORE:-${ANDROID_DEBUG_KEYSTORE:-}}
+if [[ "$release" == 1 ]]; then
+  [[ -n "$key" && -f "$key" && -n "${ANDROID_KEYSTORE_PASSWORD:-}" ]] ||
+    { echo "Release requires ANDROID_KEYSTORE and ANDROID_KEYSTORE_PASSWORD" >&2; exit 1; }
+fi
+if [[ -n "$key" && ! -f "$key" ]]; then
+  echo "Specified signing keystore does not exist" >&2
+  exit 1
+fi
+mapfile -t version < <(python3 "$repo/tools/release_version.py")
+[[ ${#version[@]} == 2 ]] || { echo "Invalid release version" >&2; exit 1; }
+
 mkdir -p "$build"
 build=$(cd "$build" && pwd)
 downloads="$build/downloads"
@@ -98,31 +112,37 @@ mapfile -d '' classes < <(find "$stage/classes" -name '*.class' -print0)
   --lib "$android_jar" --min-api 26 --output "$stage" "${classes[@]}"
 "$tools/aapt2" link -o "$stage/base.apk" \
   --manifest "$repo/android/app/AndroidManifest.xml" -I "$android_jar" \
-  --min-sdk-version 26 --target-sdk-version 33
+  --min-sdk-version 26 --target-sdk-version 33 \
+  --version-name "${version[0]}" --version-code "${version[1]}"
 python3 "$repo/tools/package_android.py" "$stage"
 "$tools/zipalign" -f -p 4 "$stage/unsigned.apk" "$output/rigelengine-proton-arm64-unsigned.apk"
 
-# Local callers may provide their existing debug key. CI generates a throwaway key.
-key=${ANDROID_DEBUG_KEYSTORE:-"$build/debug.keystore"}
+# Development CI is deliberately isolated from the permanent release key.
+key=${key:-"$build/debug.keystore"}
 if [[ ! -f "$key" ]]; then
-  if [[ -n "${ANDROID_DEBUG_KEYSTORE:-}" ]]; then
-    echo "Specified ANDROID_DEBUG_KEYSTORE does not exist" >&2
-    exit 1
-  fi
   "${java_bin}keytool" -genkeypair -keystore "$key" -storepass android \
     -keypass android -alias rigel -keyalg RSA -keysize 2048 -validity 10000 \
     -dname "CN=Rigel Debug" -noprompt
 fi
+export ANDROID_KEYSTORE_PASSWORD=${ANDROID_KEYSTORE_PASSWORD:-android}
+export ANDROID_KEY_PASSWORD=${ANDROID_KEY_PASSWORD:-$ANDROID_KEYSTORE_PASSWORD}
+signed=rigelengine-proton-arm64-debug.apk
+if [[ "$release" == 1 ]]; then
+  signed=rigelengine-proton-arm64.apk
+fi
 "${java_bin}java" -jar "$tools/lib/apksigner.jar" sign --ks "$key" \
-  --ks-pass pass:android --key-pass pass:android \
-  --out "$output/rigelengine-proton-arm64-debug.apk" "$output/rigelengine-proton-arm64-unsigned.apk"
-"${java_bin}java" -jar "$tools/lib/apksigner.jar" verify --verbose \
-  "$output/rigelengine-proton-arm64-debug.apk"
-"$tools/zipalign" -c -p 4 "$output/rigelengine-proton-arm64-debug.apk"
-python3 "$repo/tools/package_android.py" --verify "$output/rigelengine-proton-arm64-debug.apk"
+  --ks-key-alias "${ANDROID_KEY_ALIAS:-rigel}" \
+  --ks-pass env:ANDROID_KEYSTORE_PASSWORD --key-pass env:ANDROID_KEY_PASSWORD \
+  --out "$output/$signed" "$output/rigelengine-proton-arm64-unsigned.apk"
+"${java_bin}java" -jar "$tools/lib/apksigner.jar" verify --verbose --print-certs \
+  "$output/$signed"
+"$tools/zipalign" -c -p 4 "$output/$signed"
+python3 "$repo/tools/package_android.py" --verify "$output/$signed"
+"$tools/aapt2" dump badging "$output/$signed" |
+  grep -F "versionCode='${version[1]}' versionName='${version[0]}'"
 (
   cd "$output"
-  sha256sum ./rigelengine-proton-arm64-debug.apk ./rigelengine-proton-arm64-unsigned.apk > SHA256SUMS
+  sha256sum "./$signed" ./rigelengine-proton-arm64-unsigned.apk > SHA256SUMS
   git -C "$repo" rev-parse HEAD > COMMIT
   if git -C "$repo" diff --quiet HEAD; then
     printf 'clean tracked source tree\n' > SOURCE_STATE

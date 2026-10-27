@@ -39,15 +39,29 @@ art, audio, research files or signing keys enter the APK or uploaded artifact.
 
 ## Signing and device updates
 
-Each fresh CI runner generates a disposable debug key. CI APKs are test builds,
-not release builds, and successive runs do not have a stable signing identity.
-An APK signed this way cannot update the existing G2 installation signed with a
-different key. Do not uninstall/reset the player's app as a workaround.
+Public APKs on the repository Releases page use the permanent project signing key.
+An update with the same package and certificate preserves saves/settings. The private
+keystore and its password are backed up outside the checkout and stored as GitHub
+Actions secrets; never commit them. Development CI APKs use disposable keys and cannot
+update a release installation. Do not uninstall/reset a player's app as a workaround.
 
-For local in-place updates, set ANDROID_DEBUG_KEYSTORE to the existing local
-debug keystore (alias rigel, debug password android). It is never copied into the
-repository or artifact. For repeatable distribution, use the unsigned artifact
-with your stable signing process; release signing is outside this CI job.
+Local development updates can still use ANDROID_DEBUG_KEYSTORE with the original
+local key. For release builds set RIGEL_ANDROID_RELEASE=1, ANDROID_KEYSTORE and
+ANDROID_KEYSTORE_PASSWORD (and optionally ANDROID_KEY_PASSWORD and ANDROID_KEY_ALIAS).
+The alias defaults to rigel; the key password defaults to the keystore password.
+Passwords are passed through environment variables, not command arguments. A release
+build fails before compilation if the permanent keystore or password is missing.
+Its signed output is rigelengine-proton-arm64.apk.
+
+The release workflow requires ANDROID_RELEASE_KEYSTORE_BASE64 and
+ANDROID_RELEASE_KEYSTORE_PASSWORD repository secrets. Only that workflow receives
+the permanent key; pull-request and development CI jobs do not. The key is decoded
+under the runner's temporary directory and removed even if the job fails.
+
+Version metadata lives in version.json. Keep the Android manifest and CMake numeric
+version in sync; tools/release_version.py checks them. Increase android_version_code
+for every published APK, including betas. The release tag must be v followed by the
+exact version string. See [release process](../docs/RELEASING.md).
 
 ## Build-path overrides
 
@@ -59,4 +73,4 @@ with your stable signing process; release signing is outside this CI job.
 
 The last two Android path overrides allow verification with an existing local
 SDK layout. CI uses the normal SDK package layout. SDK licenses are accepted by
-the Android setup action; no signing secrets or game downloads are used.
+the Android setup action; development CI needs no signing secrets or game downloads.

@@ -525,6 +525,10 @@ if(APPLE)
     ]] COMPONENT bin)
 elseif(UNIX)
     include(GNUInstallDirs)
+    install(FILES ${CMAKE_SOURCE_DIR}/LICENSE.md
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/licenses/rigelengine-proton
+        COMPONENT bin
+    )
     install(TARGETS RigelEngine
         DESTINATION ${CMAKE_INSTALL_BINDIR}
         COMPONENT bin

@@ -166,16 +166,19 @@ command-line options, debugging tools and engine features.
 
 ## Pre-built binaries
 
-For this fork's Android build, open a successful run in
-[GitHub Actions](https://github.com/shimian5/RigelEngine-Proton/actions/workflows/ci.yml)
-and download the `rigelengine-proton-android-arm64-apks` artifact. It contains a signed development APK,
-an aligned unsigned APK for separate signing, checksums and source revision information.
-A GitHub sign-in is required to download workflow artifacts.
+Download public builds from [Proton Releases](https://github.com/shimian5/RigelEngine-Proton/releases):
+Android ARM64 APK, Windows x64 ZIP, and Linux x64/ARM64 packages. Prereleases are
+labelled as test versions. Players supply their own original game files.
 
-CI uses a disposable debug signing key, so APKs from different runs may not update an
-existing installation. See [Android signing and updates](android/README.md#signing-and-device-updates)
-before updating an installation with saves you want to keep. These are development builds,
-not signed release packages, and contain no game data.
+Android release APKs use a permanent signing identity so later releases can update
+in place while preserving saves/settings. Development APKs from
+[GitHub Actions](https://github.com/shimian5/RigelEngine-Proton/actions/workflows/ci.yml)
+use disposable test keys; do not use those to update an existing release installation.
+See [Android signing and updates](android/README.md#signing-and-device-updates).
+
+Windows packages include SDL dependencies; install the Microsoft Visual C++ 2015–2022
+Redistributable (x64) if needed. Linux packages are built on Ubuntu 24.04 and require
+compatible system libraries; the tar archive does not bundle those libraries.
 
 The [upstream releases](https://github.com/lethal-guitar/RigelEngine/releases), upstream
 [Flatpak](https://flathub.org/apps/details/io.github.lethal_guitar.RigelEngine) and
@@ -211,7 +214,7 @@ with the documented Java, SDK and NDK setup. No game files are needed to build.
 Pushes, pull requests and manual runs of the [CI workflow](.github/workflows/ci.yml) check:
 
 * Linux x86-64 and ARM64 builds and tests in Debug and Release
-* Windows/MSVC x64 builds and tests in Debug
+* Windows/MSVC x64 builds and tests in Debug and Release
 * source formatting with clang-format 11
 * Android ARM64 APK compilation, signing and package verification
 
@@ -224,3 +227,5 @@ research checks require separately supplied DOS data or local probe traces.
 Android CI uploads the APK artifact for 14 days and verifies its allowed contents and
 native architecture. It does not launch the game or test device performance, controllers
 or Android lifecycle behaviour; those require separate device testing.
+
+Maintainers: see [releasing Proton](docs/RELEASING.md) for versioning, signing and tags.

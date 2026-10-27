@@ -2,77 +2,51 @@ name: Bundling
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build_package_linux:
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - os: ubuntu-24.04
+          arch: x64
+        - os: ubuntu-24.04-arm
+          arch: arm64
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install --no-install-recommends -y cmake g++ libsdl2-dev libsdl2-mixer-dev make
-    - name: Run CMake
-      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-    - name: Build
-      run: cd build && make -j2
-    - name: Package (deb)
-      run: cd build && cpack -G "DEB" && mv packages/rigelengine-proton.deb packages/rigelengine-proton_linux_x64.deb && mv packages/rigelengine-proton.deb.sha256 packages/rigelengine-proton_linux_x64.deb.sha256
-    - name: Run CMake (GL ES version)
-      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DUSE_GL_ES=ON
-    - name: Build (GL ES version)
-      run: cd build && make -j2
-    - name: Package (deb), GL ES version
-      run: cd build && cpack -G "DEB" && mv packages/rigelengine-proton.deb packages/rigelengine-proton_linux_gles_x64.deb && mv packages/rigelengine-proton.deb.sha256 packages/rigelengine-proton_linux_gles_x64.deb.sha256
+      run: sudo apt-get update && sudo apt-get install --no-install-recommends -y cmake g++ libsdl2-dev libsdl2-mixer-dev make dpkg-dev
+    - name: Build and package
+      env:
+        ARCH: ${{ matrix.arch }}
+      run: |
+        version=$(python3 tools/release_version.py | head -1)
+        mkdir -p dist-packages
+        for renderer in gl gles; do
+          extra=()
+          if [[ "$renderer" == gles ]]; then extra=(-DUSE_GL_ES=ON); fi
+          cmake -S . -B "build-$renderer" -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 "${extra[@]}"
+          cmake --build "build-$renderer" --parallel 2
+          (cd "build-$renderer" && cpack -G DEB && cpack -G TGZ)
+          for ext in deb tar.gz; do
+            name="rigelengine-proton-$version-linux-$ARCH-$renderer.$ext"
+            source="build-$renderer/packages/rigelengine-proton.$ext"
+            if [[ "$ext" == tar.gz ]]; then source="build-$renderer/packages/rigelengine-proton-bin.tar.gz"; fi
+            cp "$source" "dist-packages/$name"
+            (cd dist-packages && sha256sum "$name" > "$name.sha256")
+          done
+        done
     - uses: actions/upload-artifact@v4
       with:
-        name: ubuntu_deb_build
-        path: build/packages/*.deb*
-#  build_package_osx:
-#    runs-on: macos-11
-#    steps:
-#    - uses: actions/checkout@v4
-#      with:
-#        submodules: recursive
-#    - name: Install dependencies
-#      run: brew install sdl2 sdl2_mixer
-#    - name: Run CMake
-#      run: cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15
-#    - name: Build
-#      run: cd build && make -j2
-#    - name: Package (dmg)
-#      run: cd build && cpack -G "DragNDrop" .. && mv packages/rigelengine-proton.dmg packages/rigelengine-proton_mac_x64.dmg && mv packages/rigelengine-proton.dmg.sha256 packages/rigelengine-proton_mac_x64.dmg.sha256
-#    - uses: actions/upload-artifact@v4
-#      with:
-#        name: macos_dmg_build
-#        path: build/packages/*.dmg*
-#
-# Older approach, has been broken for a while:
-#  build_package_osx:
-#    runs-on: macos-11
-#    steps:
-#    - uses: actions/checkout@v4
-#      with:
-#        submodules: recursive
-#    - name: Install dependencies
-#      run: brew install sdl2 sdl2_mixer llvm@8
-#    - name: Run CMake
-#      run: |
-#        export rigel_llvm_path=`brew --prefix llvm@8`;
-#        export CC="$rigel_llvm_path/bin/clang";
-#        export CXX="$CC++";
-#        export CPPFLAGS="-I$rigel_llvm_path/include";
-#        export LDFLAGS="-L$rigel_llvm_path/lib -Wl,-rpath,$rigel_llvm_path/lib";
-#        unset rigel_llvm_path;
-#        cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Release
-#        # TODO: -DCMAKE_OSX_DEPLOYMENT_TARGET=10.14 -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
-#    - name: Build
-#      run: cd build && make -j2
-#    - name: Package (dmg)
-#      run: cd build && cpack -G "DragNDrop" .. && mv packages/rigelengine-proton.dmg packages/rigelengine-proton_mac_x64.dmg && mv packages/rigelengine-proton.dmg.sha256 packages/rigelengine-proton_mac_x64.dmg.sha256
-#    - uses: actions/upload-artifact@v4
-#      with:
-#        name: macos_dmg_build
-#        path: build/packages/*.dmg*
+        name: rigelengine-proton-linux-${{ matrix.arch }}
+        path: dist-packages/
+        if-no-files-found: error

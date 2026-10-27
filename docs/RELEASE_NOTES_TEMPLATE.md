@@ -1,9 +1,17 @@
-RigelEngine: Proton test build for Duke Nukem I and Duke Nukem II for Android ARM64 (debug-signed APK).
+RigelEngine: Proton brings Duke Nukem I and II together with a shared launcher,
+modern HUD and menus, controller support, widescreen rendering and persistent saves.
 
-**You need your own game files.** Nothing from the games is included. Put them in the app's
-folder (`Android/data/org.rigelengine.android/files`): a `Duke1` folder with Duke Nukem I
-(`DN1.EXE`, `*.DN1`, and the other episodes' files) and/or `NUKEM2.CMP` for Duke Nukem II.
-See the README for details. Each game works without the other.
+Downloads:
+- Android ARM64 APK (Android 8.0+, permanent project signature).
+- Windows x64 ZIP (extract it; install the Microsoft VC++ 2015–2022 x64 runtime if needed).
+- Linux x64/ARM64 deb and tar.gz packages, built on Ubuntu 24.04; compatible system
+  SDL2/SDL2_mixer libraries are required. Choose gl for OpenGL or gles for OpenGL ES.
 
-Known limits: touch controls are not finished (a controller is recommended). Saves show a
-screenshot of where you saved. Please report problems as GitHub issues on this repository.
+**Supply your own DOS game files.** No game data is included. On Android put Duke
+Nukem I files in a Duke1 folder under Android/data/org.rigelengine.android/files,
+and/or put NUKEM2.CMP there for Duke Nukem II. Desktop builds prompt for the data path.
+See the README for episode file requirements. Either game works independently.
+
+This is a beta. A controller is recommended on Android; touch controls are incomplete.
+Keep save backups. Report problems with the platform, version and reproduction steps.
+SHA256SUMS verifies downloads; COMMIT identifies the source used.

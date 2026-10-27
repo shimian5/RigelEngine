@@ -24,6 +24,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
+    - name: Validate release versions
+      run: |
+        python3 tools/release_version.py
+        python3 -m unittest discover -s tools -p test_release_version.py
     - name: Install pinned clang-format
       run: |
         python3 -m venv .ci-format
@@ -78,6 +82,10 @@ jobs:
       run: ctest --test-dir build --output-on-failure
 
   build_windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Debug, Release]
     runs-on: windows-2022
     steps:
     - uses: actions/checkout@v4
@@ -98,9 +106,38 @@ jobs:
       run: |
         cmake -S . -B build "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" "-DSDL2_PATH=$env:VCPKG_ROOT/installed/x64-windows" "-DSDL2_MIXER_PATH=$env:VCPKG_ROOT/installed/x64-windows" -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBUILD_TESTS=ON
     - name: Build
-      run: cmake --build build --config Debug --parallel 2
+      run: cmake --build build --config ${{ matrix.build_type }} --parallel 2
     - name: Test
-      run: ctest --test-dir build --build-config Debug --output-on-failure
+      run: ctest --test-dir build --build-config ${{ matrix.build_type }} --output-on-failure
+
+    - name: Package Windows Release
+      if: matrix.build_type == 'Release'
+      shell: pwsh
+      run: |
+        $package = "build/windows-package"
+        New-Item -ItemType Directory -Force -Path $package | Out-Null
+        Copy-Item build/src/Release/rigelengine-proton.exe $package
+        Copy-Item build/src/Release/*.dll $package
+        Copy-Item LICENSE.md,README.md "$package/"
+        Copy-Item "$env:VCPKG_ROOT/installed/x64-windows/share" "$package/dependency-licenses" -Recurse
+        @"
+        RigelEngine: Proton for Windows x64.
+        Install Microsoft Visual C++ 2015-2022 Redistributable (x64) if needed:
+        https://aka.ms/vs/17/release/vc_redist.x64.exe
+        Run rigelengine-proton.exe and select your own DOS game files.
+        No game data is included. See README.md for setup.
+        "@ | Set-Content "$package/START-HERE.txt"
+        $version = (Get-Content version.json | ConvertFrom-Json).version
+        $zip = "build/rigelengine-proton-$version-windows-x64.zip"
+        Compress-Archive -Path "$package/*" -DestinationPath $zip
+        $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+        "$hash  $(Split-Path -Leaf $zip)" | Set-Content "$zip.sha256"
+    - uses: actions/upload-artifact@v4
+      if: matrix.build_type == 'Release'
+      with:
+        name: rigelengine-proton-windows-x64
+        path: build/rigelengine-proton-*-windows-x64.zip*
+        if-no-files-found: error
 
   build_android:
     name: Android ARM64 APK

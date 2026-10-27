@@ -1,6 +1,6 @@
 name: Release
 
-# Creates a pre-release with the Android ARM64 test APK when a tag such as
+# Creates a pre-release with Android and tested desktop packages when a tag such as
 # v1.0.0-beta.1 is pushed. No game data is built into or attached to it.
 on:
   push:
@@ -14,10 +14,11 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   android_release:
-    name: Android ARM64 pre-release
+    name: Build and publish Proton pre-release
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -27,6 +28,8 @@ jobs:
       with:
         ref: ${{ env.TAG }}
         submodules: recursive
+    - name: Validate release tag
+      run: python3 tools/release_version.py --tag "$TAG"
     - uses: actions/setup-java@v4
       with:
         distribution: temurin
@@ -37,18 +40,55 @@ jobs:
         log-accepted-android-sdk-licenses: false
     - name: Install pinned Android toolchain
       run: sdkmanager "platforms;android-33" "build-tools;35.0.0" "ndk;27.2.12479018"
+    - name: Restore permanent Android signing identity
+      env:
+        KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+        KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+      run: |
+        test -n "$KEYSTORE_BASE64" && test -n "$KEYSTORE_PASSWORD" || {
+          echo "Permanent Android release signing secrets are required" >&2; exit 1;
+        }
+        umask 077
+        printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/proton-release.keystore"
     - name: Build and verify APK without game data
       env:
         RIGEL_ANDROID_JOBS: '2'
+        RIGEL_ANDROID_RELEASE: '1'
+        ANDROID_KEYSTORE: ${{ runner.temp }}/proton-release.keystore
+        ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
       run: |
         export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"
         bash tools/build_android.sh
+    - name: Collect desktop packages from successful checks of this commit
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+      run: |
+        mkdir -p release-assets
+        sha=$(git rev-parse HEAD)
+        for workflow in ci.yml bundling.yml; do
+          run=$(gh run list --workflow "$workflow" --commit "$sha" --status success --json databaseId --jq '.[0].databaseId')
+          test -n "$run" && [[ "$run" != null ]] || {
+            echo "No successful $workflow run exists for $sha; push master and wait for checks first" >&2; exit 1;
+          }
+          if [[ "$workflow" == ci.yml ]]; then
+            gh run download "$run" --name rigelengine-proton-windows-x64 --dir release-assets
+          else
+            gh run download "$run" --name rigelengine-proton-linux-x64 --dir release-assets
+            gh run download "$run" --name rigelengine-proton-linux-arm64 --dir release-assets
+          fi
+        done
     - name: Create the pre-release
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        cp build-android/output/rigelengine-proton-arm64-debug.apk "rigelengine-proton-${TAG}-arm64-debug.apk"
-        sha256sum "rigelengine-proton-${TAG}-arm64-debug.apk" > SHA256SUMS
-        gh release create "$TAG" --prerelease --title "RigelEngine: Proton $TAG (test build)" \
-          --notes-file docs/RELEASE_NOTES_TEMPLATE.md \
-          "rigelengine-proton-${TAG}-arm64-debug.apk" SHA256SUMS
+        cp build-android/output/rigelengine-proton-arm64.apk "release-assets/rigelengine-proton-${TAG}-arm64.apk"
+        cp build-android/output/COMMIT release-assets/COMMIT
+        cd release-assets
+        sha256sum ./*.apk ./*.zip ./*.deb ./*.tar.gz > SHA256SUMS
+        gh release create "$TAG" --verify-tag --prerelease --title "RigelEngine: Proton $TAG" \
+          --notes-file "$GITHUB_WORKSPACE/docs/RELEASE_NOTES_TEMPLATE.md" \
+          ./*.apk ./*.zip ./*.deb ./*.tar.gz SHA256SUMS COMMIT
+    - name: Remove runner signing key
+      if: always()
+      run: rm -f -- "$RUNNER_TEMP/proton-release.keystore"

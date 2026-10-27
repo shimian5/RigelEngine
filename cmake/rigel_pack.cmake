@@ -36,7 +36,7 @@ set(CPACK_WARN_ON_ABSOLUTE_INSTALL_DESTINATION TRUE)
 
 # Debian
 # (abencsik) intentionally left this here for future reference
-# set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON) # automatically resolve deps
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= 2.27), libstdc++6 (>= 8.4.0), libsdl2-2.0-0 (>= 2.0.4), libsdl2-mixer-2.0-0 (>= 2.0.1)")
 set(CPACK_DEBIAN_PACKAGE_SECTION "games")
 set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "")
