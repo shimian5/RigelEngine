@@ -542,8 +542,6 @@ void PlayWorld::interact()
     return nullptr;
   };
   auto& p = sandbox_.player;
-  const int playerX8 = p.x8 + p.cameraX8;
-  const int playerYWords = (p.y / 16) * 128 + p.cameraYWords;
 
   for (auto& actor : actors_)
   {

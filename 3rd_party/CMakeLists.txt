@@ -44,3 +44,6 @@ add_subdirectory(nuked-opl3 EXCLUDE_FROM_ALL)
 add_subdirectory(loguru EXCLUDE_FROM_ALL)
 
 rigel_disable_warnings(entityx)
+target_include_directories(entityx SYSTEM INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/entityx"
+)
