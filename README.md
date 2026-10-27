@@ -150,6 +150,9 @@ Both games provide eight numbered save slots, a quick-save slot and a level-star
 Use the pause menu to save or load; Continue resumes the latest save for the selected game.
 Saves live in the application user profile, separately from your original game files.
 
+Both games use the keyboard bindings from the Options menu (arrow keys, Ctrl to jump and Alt to
+fire by default, F5 quick save, F7 quick load). Duke Nukem I also accepts Space or Z to jump and X to fire.
+
 Persistent saves record the starting state and your inputs, then reconstruct your progress
 when loaded. Loading a long session can therefore take longer. Keep the matching game data;
 compatibility across engine changes is not guaranteed.

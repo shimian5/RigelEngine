@@ -271,32 +271,35 @@ Duke1Mode::Duke1Mode(
 
 void Duke1Mode::handleEvent(const SDL_Event& event)
 {
+  // The keys are the ones configured for Duke Nukem II in the options, so one
+  // set of bindings serves both games. Space, Z and X stay as extra jump/fire
+  // keys.
+  const auto& options = mContext.mpUserProfile->mOptions;
   auto setKey = [&](const SDL_Keycode key, const bool down) {
-    switch (key)
+    if (key == options.mLeftKeybinding)
     {
-      case SDLK_LEFT:
-        mInput.left = down;
-        break;
-      case SDLK_RIGHT:
-        mInput.right = down;
-        break;
-      case SDLK_UP:
-        mInput.up = down;
-        break;
-      case SDLK_DOWN:
-        mInput.down = down;
-        break;
-      case SDLK_SPACE:
-      case SDLK_LCTRL:
-      case SDLK_z:
-        mInput.jump = down;
-        break;
-      case SDLK_LALT:
-      case SDLK_x:
-        mInput.fire = down;
-        break;
-      default:
-        break;
+      mInput.left = down;
+    }
+    else if (key == options.mRightKeybinding)
+    {
+      mInput.right = down;
+    }
+    else if (key == options.mUpKeybinding)
+    {
+      mInput.up = down;
+    }
+    else if (key == options.mDownKeybinding)
+    {
+      mInput.down = down;
+    }
+    else if (
+      key == options.mJumpKeybinding || key == SDLK_SPACE || key == SDLK_z)
+    {
+      mInput.jump = down;
+    }
+    else if (key == options.mFireKeybinding || key == SDLK_x)
+    {
+      mInput.fire = down;
     }
   };
 
@@ -307,11 +310,15 @@ void Duke1Mode::handleEvent(const SDL_Event& event)
       {
         mPauseRequested = true;
       }
-      if (event.key.keysym.sym == SDLK_F5 && !event.key.repeat)
+      if (
+        event.key.keysym.sym == options.mQuickSaveKeybinding &&
+        !event.key.repeat)
       {
         mQuickSaveRequested = true;
       }
-      if (event.key.keysym.sym == SDLK_F9 && !event.key.repeat)
+      if (
+        event.key.keysym.sym == options.mQuickLoadKeybinding &&
+        !event.key.repeat)
       {
         mQuickLoadRequested = true;
       }
