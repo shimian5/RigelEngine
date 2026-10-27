@@ -33,6 +33,11 @@ namespace
 {
 
 constexpr auto REF_HEIGHT = 1080.0f;
+constexpr auto REF_WIDTH = 1920.0f;
+// Menus without a side panel only need this much width
+constexpr auto MIN_LIST_WIDTH = 1280.0f;
+// Left edge of the menu item labels
+constexpr auto LIST_TEXT_X = 215.0f;
 
 constexpr ImU32 ORANGE = IM_COL32(255, 153, 0, 255);
 constexpr ImU32 WHITE = IM_COL32(255, 255, 255, 255);
@@ -46,8 +51,12 @@ struct Canvas
   ImFont* mpFont;
   float mScale;
   ImVec2 mSize;
+  float mOffsetY = 0.0f; // vertical centering, in reference pixels
 
   float s(const float v) const { return v * mScale; }
+
+  /** Scales a vertical reference position, including the centering offset */
+  float sy(const float v) const { return (v + mOffsetY) * mScale; }
 
   ImVec2 textSize(const char* text, const float sizeRef) const
   {
@@ -74,7 +83,7 @@ struct Canvas
       x -= size.x;
     }
 
-    const auto y = s(centerYRef) - size.y / 2.0f;
+    const auto y = sy(centerYRef) - size.y / 2.0f;
     mpList->AddText(
       mpFont,
       s(sizeRef),
@@ -91,7 +100,7 @@ struct Canvas
     const ImU32 color) const
   {
     const auto cx = s(cxRef);
-    const auto cy = s(cyRef);
+    const auto cy = sy(cyRef);
     const auto rOut = s(radiusRef);
     const auto rIn = rOut * 0.36f;
 
@@ -135,8 +144,8 @@ struct Canvas
       const auto h = s(44.0f);
       const auto x1 = labelX - gap;
       mpList->AddRectFilled(
-        {x1 - w, s(yRef) - h / 2.0f + s(14.0f)},
-        {x1, s(yRef) + h / 2.0f + s(14.0f)},
+        {x1 - w, sy(yRef) - h / 2.0f + s(14.0f)},
+        {x1, sy(yRef) + h / 2.0f + s(14.0f)},
         WHITE,
         h / 2.0f);
       text(glyph, (x1 - w / 2.0f) / mScale, yRef - 28.0f, 30.0f, WHITE, true);
@@ -145,12 +154,12 @@ struct Canvas
     {
       const auto r = s(34.0f);
       const auto cx = labelX - gap - r;
-      mpList->AddCircleFilled({cx, s(yRef)}, r, WHITE, 32);
+      mpList->AddCircleFilled({cx, sy(yRef)}, r, WHITE, 32);
       const auto g = textSize(glyph, 46.0f);
       mpList->AddText(
         mpFont,
         s(46.0f),
-        {cx - g.x / 2.0f, s(yRef) - g.y / 2.0f},
+        {cx - g.x / 2.0f, sy(yRef) - g.y / 2.0f},
         IM_COL32(20, 20, 20, 255),
         glyph);
     }
@@ -164,7 +173,10 @@ struct Canvas
 };
 
 
-void drawMainBackdrop(const Canvas& c, const float offsetX)
+void drawMainBackdrop(
+  const Canvas& c,
+  const float offsetX,
+  const float designWidth)
 {
   // Dark gradient with a large, faint radiation symbol
   c.mpList->AddRectFilledMultiColor(
@@ -174,7 +186,11 @@ void drawMainBackdrop(const Canvas& c, const float offsetX)
     IM_COL32(12, 12, 16, 255),
     IM_COL32(4, 4, 6, 255),
     IM_COL32(14, 14, 18, 255));
-  c.trefoil(1540.0f + offsetX, 560.0f, 520.0f, IM_COL32(255, 153, 0, 34));
+  c.trefoil(
+    1540.0f * designWidth / REF_WIDTH + offsetX,
+    560.0f,
+    520.0f,
+    IM_COL32(255, 153, 0, 34));
 }
 
 } // namespace
@@ -249,25 +265,49 @@ std::string formatPlayTime(const double seconds)
 void drawConsoleMenu(const ConsoleMenuView& view)
 {
   const auto display = ImGui::GetIO().DisplaySize;
-  Canvas c{
-    ImGui::GetForegroundDrawList(),
-    static_cast<ImFont*>(imgui_integration::hudFont()),
-    display.y / REF_HEIGHT,
-    display};
-  if (!c.mpFont || !view.mpList)
+
+  // The layout is designed for 1920x1080. Windows that are narrower than that
+  // (e.g. 4:3) scale it down to fit instead of cutting off the sides, and
+  // menus without a side panel use the width they actually need so they stay
+  // as large as possible.
+  auto* pFont = static_cast<ImFont*>(imgui_integration::hudFont());
+  if (!pFont || !view.mpList)
   {
     return;
   }
 
-  const auto widthRef = display.x / c.mScale;
-  const auto offsetX = (widthRef - 1920.0f) / 2.0f;
+  const auto hasSidePanel = !view.mInfoLines.empty() || view.mImageTexture != 0;
+  const auto availableWidthRef = display.x / (display.y / REF_HEIGHT);
+
+  // Width needed to show the widest label and subtitle without cutting them off
+  auto neededWidth = MIN_LIST_WIDTH;
+  for (const auto& item : view.mpList->items())
+  {
+    const auto labelWidth =
+      pFont->CalcTextSizeA(82.0f, 100000.0f, 0.0f, item.mLabel.c_str()).x;
+    neededWidth = std::max(neededWidth, LIST_TEXT_X + labelWidth + 80.0f);
+  }
+  const auto subtitleWidth =
+    pFont->CalcTextSizeA(48.0f, 100000.0f, 0.0f, view.mSubtitle.c_str()).x;
+  neededWidth = std::max(neededWidth, subtitleWidth + 80.0f);
+
+  const auto designWidth = hasSidePanel
+    ? REF_WIDTH
+    : std::clamp(
+        availableWidthRef, std::min(neededWidth, REF_WIDTH), REF_WIDTH);
+  const auto scale = std::min(display.y / REF_HEIGHT, display.x / designWidth);
+
+  Canvas c{ImGui::GetForegroundDrawList(), pFont, scale, display};
+
+  c.mOffsetY = (display.y / scale - REF_HEIGHT) / 2.0f;
+  const auto offsetX = (display.x / scale - designWidth) / 2.0f;
   auto X = [&](const float v) {
     return v + offsetX;
   };
 
   if (view.mDrawMainBackdrop)
   {
-    drawMainBackdrop(c, offsetX);
+    drawMainBackdrop(c, offsetX, designWidth);
   }
   else
   {
@@ -279,16 +319,19 @@ void drawConsoleMenu(const ConsoleMenuView& view)
 
   if (view.mDrawMainBackdrop)
   {
-    c.text(view.mTitle.c_str(), X(960.0f), 100.0f, 118.0f, ORANGE, true);
+    c.text(
+      view.mTitle.c_str(), X(designWidth / 2.0f), 100.0f, 118.0f, ORANGE, true);
   }
   else
   {
-    c.text(view.mTitle.c_str(), X(960.0f), 95.0f, 92.0f, WHITE, true);
+    c.text(
+      view.mTitle.c_str(), X(designWidth / 2.0f), 95.0f, 92.0f, WHITE, true);
   }
 
   if (!view.mSubtitle.empty())
   {
-    c.text(view.mSubtitle.c_str(), X(960.0f), 200.0f, 48.0f, GREY, true);
+    c.text(
+      view.mSubtitle.c_str(), X(designWidth / 2.0f), 200.0f, 48.0f, GREY, true);
   }
 
   const auto& list = *view.mpList;
@@ -308,8 +351,8 @@ void drawConsoleMenu(const ConsoleMenuView& view)
 
     if (selected)
     {
-      const auto top = c.s(y - pitch * 0.45f);
-      const auto bottom = c.s(y + pitch * 0.45f);
+      const auto top = c.sy(y - pitch * 0.45f);
+      const auto bottom = c.sy(y + pitch * 0.45f);
       const auto xRight = c.s(X(1180.0f));
       c.mpList->AddQuadFilled(
         {0.0f, top},
@@ -320,7 +363,7 @@ void drawConsoleMenu(const ConsoleMenuView& view)
       c.trefoil(X(108.0f), y, 46.0f, ORANGE);
       c.text(
         item.mLabel.c_str(),
-        X(215.0f),
+        X(LIST_TEXT_X),
         y,
         82.0f,
         item.mEnabled ? ORANGE : DISABLED);
@@ -329,7 +372,7 @@ void drawConsoleMenu(const ConsoleMenuView& view)
     {
       c.text(
         item.mLabel.c_str(),
-        X(215.0f),
+        X(LIST_TEXT_X),
         y,
         72.0f,
         item.mEnabled ? GREY : DISABLED);
@@ -375,8 +418,8 @@ void drawConsoleMenu(const ConsoleMenuView& view)
     const auto x = X(1380.0f);
     constexpr auto width = 480.0f;
     const auto height = width / view.mImageAspect;
-    const ImVec2 topLeft{c.s(x), c.s(330.0f)};
-    const ImVec2 bottomRight{c.s(x + width), c.s(330.0f + height)};
+    const ImVec2 topLeft{c.s(x), c.sy(330.0f)};
+    const ImVec2 bottomRight{c.s(x + width), c.sy(330.0f + height)};
     c.mpList->AddRectFilled(
       {topLeft.x - c.s(4.0f), topLeft.y - c.s(4.0f)},
       {bottomRight.x + c.s(4.0f), bottomRight.y + c.s(4.0f)},
@@ -388,7 +431,7 @@ void drawConsoleMenu(const ConsoleMenuView& view)
   }
 
   // Footer legend, right aligned
-  auto right = X(1860.0f);
+  auto right = X(designWidth - 60.0f);
   constexpr auto footerY = 1000.0f;
   if (!view.mStartLabel.empty())
   {
@@ -406,23 +449,25 @@ void drawConsoleMenu(const ConsoleMenuView& view)
 void drawConsoleResults(const ConsoleResultsView& view)
 {
   const auto display = ImGui::GetIO().DisplaySize;
+  const auto scale = std::min(display.y / REF_HEIGHT, display.x / REF_WIDTH);
   Canvas c{
     ImGui::GetForegroundDrawList(),
     static_cast<ImFont*>(imgui_integration::hudFont()),
-    display.y / REF_HEIGHT,
+    scale,
     display};
   if (!c.mpFont)
   {
     return;
   }
 
-  const auto offsetX = (display.x / c.mScale - 1920.0f) / 2.0f;
+  c.mOffsetY = (display.y / scale - REF_HEIGHT) / 2.0f;
+  const auto offsetX = (display.x / scale - REF_WIDTH) / 2.0f;
   auto X = [&](const float v) {
     return v + offsetX;
   };
 
   c.mpList->AddRectFilled({0, 0}, display, IM_COL32(18, 18, 24, 255));
-  c.text(view.mTitle.c_str(), X(960.0f), 95.0f, 92.0f, WHITE, true);
+  c.text(view.mTitle.c_str(), X(REF_WIDTH / 2.0f), 95.0f, 92.0f, WHITE, true);
 
   const auto left = X(520.0f);
   const auto right = X(1400.0f);
@@ -456,7 +501,7 @@ void drawConsoleResults(const ConsoleResultsView& view)
   {
     const auto lineY = y - 20.0f;
     c.mpList->AddRectFilled(
-      {c.s(left), c.s(lineY)}, {c.s(right), c.s(lineY + 3.0f)}, GREY);
+      {c.s(left), c.sy(lineY)}, {c.s(right), c.sy(lineY + 3.0f)}, GREY);
     c.text("BONUS TOTAL", left, y + 30.0f, 60.0f, WHITE);
     c.text(view.mTotal.c_str(), right, y + 30.0f, 60.0f, ORANGE, false, true);
   }
