@@ -70,6 +70,8 @@ public:
     availableEpisodes(const std::filesystem::path& dataDir);
 
 private:
+  friend struct Duke1ModeTestAccess;
+
   void handleEvent(const SDL_Event& event);
   void submitOverlayHud();
 

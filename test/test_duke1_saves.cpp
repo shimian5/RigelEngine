@@ -45,3 +45,18 @@ TEST_CASE(
   invalid[4] = 255;
   CHECK_FALSE(rigel::deserializeDuke1Save(invalid));
 }
+
+TEST_CASE("DN1 saves reject invalid carry before replay", "[duke1]")
+{
+  rigel::Duke1Save save;
+  SECTION("negative level") { save.mLevelIndex = -1; }
+  SECTION("negative episode") { save.mEpisode = -1; }
+  SECTION("negative score") { save.mCarry.score = -1; }
+  SECTION("health above maximum") { save.mCarry.health = 10; }
+  SECTION("negative health") { save.mCarry.health = -1; }
+  SECTION("invalid boots selector") { save.mCarry.boost = 2; }
+  SECTION("invalid claw selector") { save.mCarry.claw = 2; }
+  SECTION("zero projectile capacity") { save.mCarry.capacity = 0; }
+  SECTION("capacity exceeds the projectile pool") { save.mCarry.capacity = 5; }
+  CHECK_FALSE(rigel::deserializeDuke1Save(rigel::serializeDuke1Save(save)));
+}
