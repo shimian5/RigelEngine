@@ -1,5 +1,5 @@
-// Independent DOS Duke1 core. Behavior evidence:
-// re-notes/dn1/04_gameplay_spec.md.
+// Duke Nukem 1 player, collision and projectile core, following the original
+// program's integer coordinate rules.
 #pragma once
 #include <array>
 #include <cstdint>

@@ -34,8 +34,8 @@ namespace rigel::ui
 namespace
 {
 
-// Sprite rectangle tables, recovered from the original Evercade build
-// (see re-notes/HUD_OVERLAY.md). Entries are {x, y, w, h} within the atlas.
+// Sprite rectangles of the atlas layout that user-supplied skins follow, per
+// resolution tier. Entries are {x, y, w, h} within the atlas.
 constexpr HudSpriteRect RECTS_1080[] = {
   {1866, 146, 40, 40}, {1866, 188, 40, 40}, {1908, 197, 40, 40},
   {1950, 197, 40, 40}, {1992, 197, 40, 40}, {2040, 32, 2, 10},

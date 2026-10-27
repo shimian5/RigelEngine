@@ -163,10 +163,8 @@ enum class HudSkinSource
 
 /** Texture atlas + rectangle table for the overlay HUD
  *
- * The atlas follows the layout described in re-notes/HUD_OVERLAY.md. It can
- * come from files supplied by the user (hud_skin/modern_hud_<tier>.png in the
- * game directory, either their own artwork or imported from a legally owned
- * cartridge dump).
+ * The atlas layout is described in docs/HUD_SKINS.md. It can come from files
+ * supplied by the user (hud_skin/modern_hud_<tier>.png in the game directory).
  */
 class HudSkin
 {

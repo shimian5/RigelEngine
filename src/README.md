@@ -68,6 +68,18 @@ For the platform startup code, it acts as the main facade for the game.
 This is where all the game logic is implemented. See corresponding README for more
 details.
 
+### `game_logic_classic`, `game_logic_common`
+
+The original-style Duke Nukem II world and the interfaces shared by the Duke Nukem II worlds.
+
+### `game_logic_duke1`
+
+The Duke Nukem I gameplay: a deterministic player/collision core (`core.*`), the level world with its
+actors (`play.*`, `actors.cpp`), and standalone command-line tools and tests (see its README).
+It does not depend on Duke Nukem II code. The rest of Duke Nukem I is spread over the shared modules:
+file and EXE-text loading in `assets/duke1_*`, the PC speaker sound renderer in `audio/duke1_speaker.*`,
+and the game mode, saves and story screens in `frontend/duke1_*`.
+
 ### `renderer`
 
 Provides 2d-rendering functionality, using OpenGL as backend. This is meant

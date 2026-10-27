@@ -1,7 +1,6 @@
-// Behaviour of the original actors, ported from the DOS game's code (see
-// re-notes/dn1). Coordinates follow the original: x in 8 pixel units (the
-// loader adds 2 for the frame border), y in map words (128 per 16 pixel row),
-// cells are 16 pixels = 2 units wide.
+// Behaviour of the Duke Nukem 1 actors. Coordinates follow the original: x in
+// 8 pixel units (the loader adds 2 for the frame border), y in map words (128
+// per 16 pixel row), cells are 16 pixels = 2 units wide.
 #include "play.hpp"
 
 #include <algorithm>
