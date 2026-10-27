@@ -31,10 +31,10 @@ RIGEL_DISABLE_WARNINGS
 RIGEL_RESTORE_WARNINGS
 
 #ifdef RIGEL_DEV_SCREENSHOT
-#include <loguru.hpp>
-#include <stb_image_write.h>
-#include <cstdlib>
-#include <vector>
+  #include <cstdlib>
+  #include <loguru.hpp>
+  #include <stb_image_write.h>
+  #include <vector>
 #endif
 
 #include <algorithm>
@@ -735,13 +735,23 @@ struct Renderer::Impl
       0, 0, size.width, size.height, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
     {
       auto nonZero = 0u;
-      for (auto b : pixels) { nonZero += (b != 0 && b != 255) ? 1u : 0u; }
-      LOG_F(INFO, "devScreenshot %dx%d glError=%d nonZeroBytes=%u", size.width, size.height, int(glGetError()), nonZero);
+      for (auto b : pixels)
+      {
+        nonZero += (b != 0 && b != 255) ? 1u : 0u;
+      }
+      LOG_F(
+        INFO,
+        "devScreenshot %dx%d glError=%d nonZeroBytes=%u",
+        size.width,
+        size.height,
+        int(glGetError()),
+        nonZero);
       GLint drawBuf = 0, readBuf = 0, fbo = 0;
       glGetIntegerv(GL_READ_BUFFER, &readBuf);
       glGetIntegerv(GL_DRAW_BUFFER0, &drawBuf);
       glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &fbo);
-      LOG_F(INFO, "readBuf=0x%x drawBuf=0x%x readFbo=%d", readBuf, drawBuf, fbo);
+      LOG_F(
+        INFO, "readBuf=0x%x drawBuf=0x%x readFbo=%d", readBuf, drawBuf, fbo);
     }
     const auto rowBytes = size_t(size.width) * 4;
     for (int y = 0; y < size.height; ++y)

@@ -58,11 +58,20 @@ ConsoleMenuMode::ConsoleMenuMode(Context context)
     {
       switch (*p)
       {
-        case 'd': mList.move(1); break;
-        case 'u': mList.move(-1); break;
-        case 'a': activateSelected(); break;
-        case 'b': (void)goBack(); break;
-        default: break;
+        case 'd':
+          mList.move(1);
+          break;
+        case 'u':
+          mList.move(-1);
+          break;
+        case 'a':
+          activateSelected();
+          break;
+        case 'b':
+          (void)goBack();
+          break;
+        default:
+          break;
       }
     }
   }
@@ -78,71 +87,73 @@ void ConsoleMenuMode::enter(const Screen screen)
   switch (screen)
   {
     case Screen::Main:
-      mList.setItems({
-        {"NEW GAME", true},
-        {"EPISODE SELECT", true},
-        {"LOAD GAME", true},
-        {"STATS", true},
-        {"OPTIONS", true},
-        {"GAME SELECT", true}});
+      mList.setItems(
+        {{"NEW GAME", true},
+         {"EPISODE SELECT", true},
+         {"LOAD GAME", true},
+         {"STATS", true},
+         {"OPTIONS", true},
+         {"GAME SELECT", true}});
       break;
 
     case Screen::Episodes:
     case Screen::StatsEpisodes:
-    {
-      std::vector<ui::ConsoleMenuItem> items;
-      for (auto i = 0; i < data::NUM_EPISODES; ++i)
       {
-        const auto locked = shareware && i > 0;
-        items.push_back(
-          {"EPISODE " + std::to_string(i + 1) + (locked ? "  (FULL GAME)" : ""),
-           !locked});
+        std::vector<ui::ConsoleMenuItem> items;
+        for (auto i = 0; i < data::NUM_EPISODES; ++i)
+        {
+          const auto locked = shareware && i > 0;
+          items.push_back(
+            {"EPISODE " + std::to_string(i + 1) +
+               (locked ? "  (FULL GAME)" : ""),
+             !locked});
+        }
+        mList.setItems(std::move(items));
+        break;
       }
-      mList.setItems(std::move(items));
-      break;
-    }
 
     case Screen::Difficulty:
       mList.setItems({{"EASY", true}, {"MEDIUM", true}, {"HARD", true}});
       break;
 
     case Screen::LoadGame:
-    {
-      mSlotNames.clear();
-      std::vector<ui::ConsoleMenuItem> items;
-
-      auto describe = [&](const std::string& slot, const char* label) {
-        const auto oSummary = readSaveSummary(slot);
-        char buffer[160];
-        if (oSummary)
-        {
-          std::snprintf(
-            buffer,
-            sizeof(buffer),
-            "%s   E%d L%d   %s   %s",
-            label,
-            oSummary->mEpisode,
-            oSummary->mLevel,
-            ui::formatScoreWithCommas(oSummary->mScore).c_str(),
-            ui::formatPlayTime(oSummary->mPlayTimeSeconds).c_str());
-        }
-        else
-        {
-          std::snprintf(buffer, sizeof(buffer), "%s   EMPTY", label);
-        }
-        mSlotNames.push_back(slot);
-        items.push_back({buffer, oSummary.has_value()});
-      };
-
-      describe("quicksave", "QUICK SAVE");
-      describe("autosave", "AUTOSAVE");
-      for (auto i = 0; i < NUM_SAVE_SLOTS_CONSOLE; ++i)
       {
-        describe(consoleSlotName(i), ("SLOT " + std::to_string(i + 1)).c_str());
+        mSlotNames.clear();
+        std::vector<ui::ConsoleMenuItem> items;
+
+        auto describe = [&](const std::string& slot, const char* label) {
+          const auto oSummary = readSaveSummary(slot);
+          char buffer[160];
+          if (oSummary)
+          {
+            std::snprintf(
+              buffer,
+              sizeof(buffer),
+              "%s   E%d L%d   %s   %s",
+              label,
+              oSummary->mEpisode,
+              oSummary->mLevel,
+              ui::formatScoreWithCommas(oSummary->mScore).c_str(),
+              ui::formatPlayTime(oSummary->mPlayTimeSeconds).c_str());
+          }
+          else
+          {
+            std::snprintf(buffer, sizeof(buffer), "%s   EMPTY", label);
+          }
+          mSlotNames.push_back(slot);
+          items.push_back({buffer, oSummary.has_value()});
+        };
+
+        describe("quicksave", "QUICK SAVE");
+        describe("autosave", "AUTOSAVE");
+        for (auto i = 0; i < NUM_SAVE_SLOTS_CONSOLE; ++i)
+        {
+          describe(
+            consoleSlotName(i), ("SLOT " + std::to_string(i + 1)).c_str());
+        }
+        mList.setItems(std::move(items));
+        break;
       }
-      mList.setItems(std::move(items));
-      break;
-    }
 
     case Screen::Stats:
     case Screen::Story:
@@ -227,26 +238,28 @@ std::unique_ptr<GameMode> ConsoleMenuMode::activateSelected()
       break;
 
     case Screen::Difficulty:
-    {
-      const data::GameSessionId sessionId{
-        mChosenEpisode, 0, DIFFICULTIES[selected]};
-      mContext.mpServiceProvider->fadeOutScreen();
-
-      // Like the console release, play the story after choosing a difficulty
-      // when starting a new game from the first level of an episode.
-      if (!mContext.mpUserProfile->mOptions.mSkipIntro && mChosenEpisode == 0)
       {
-        mPendingSession = sessionId;
-        mScreen = Screen::Story;
-        mIntroMovie.emplace(mContext);
-        mIntroMovie->startWithLogoOnly();
-        return nullptr;
+        const data::GameSessionId sessionId{
+          mChosenEpisode, 0, DIFFICULTIES[selected]};
+        mContext.mpServiceProvider->fadeOutScreen();
+
+        // Like the console release, play the story after choosing a difficulty
+        // when starting a new game from the first level of an episode.
+        if (!mContext.mpUserProfile->mOptions.mSkipIntro && mChosenEpisode == 0)
+        {
+          mPendingSession = sessionId;
+          mScreen = Screen::Story;
+          mIntroMovie.emplace(mContext);
+          mIntroMovie->startWithLogoOnly();
+          return nullptr;
+        }
+        return std::make_unique<GameSessionMode>(sessionId, mContext);
       }
-      return std::make_unique<GameSessionMode>(sessionId, mContext);
-    }
 
     case Screen::LoadGame:
-      if (const auto oSave = readReplaySaveFile(mSlotNames[std::size_t(selected)]))
+      if (
+        const auto oSave =
+          readReplaySaveFile(mSlotNames[std::size_t(selected)]))
       {
         const auto locked = mContext.mpServiceProvider->isSharewareVersion() &&
           oSave->mSessionId.needsRegisteredVersion();
@@ -390,24 +403,27 @@ void ConsoleMenuMode::render()
       break;
 
     case Screen::Stats:
-    {
-      view.mTitle = "EPISODE " + std::to_string(mChosenEpisode + 1) + " HIGH SCORES";
-      view.mBackLabel = "BACK";
-      const auto& scores = mContext.mpUserProfile->mHighScoreLists[std::size_t(mChosenEpisode)];
-      for (const auto& entry : scores)
       {
-        if (entry.mScore > 0)
+        view.mTitle =
+          "EPISODE " + std::to_string(mChosenEpisode + 1) + " HIGH SCORES";
+        view.mBackLabel = "BACK";
+        const auto& scores =
+          mContext.mpUserProfile->mHighScoreLists[std::size_t(mChosenEpisode)];
+        for (const auto& entry : scores)
         {
-          view.mInfoLines.emplace_back(
-            entry.mName + "  " + ui::formatScoreWithCommas(entry.mScore), false);
+          if (entry.mScore > 0)
+          {
+            view.mInfoLines.emplace_back(
+              entry.mName + "  " + ui::formatScoreWithCommas(entry.mScore),
+              false);
+          }
         }
+        if (view.mInfoLines.empty())
+        {
+          view.mInfoLines.emplace_back("NO SCORES YET", true);
+        }
+        break;
       }
-      if (view.mInfoLines.empty())
-      {
-        view.mInfoLines.emplace_back("NO SCORES YET", true);
-      }
-      break;
-    }
 
     case Screen::QuitConfirm:
       view.mTitle = "QUIT GAME?";

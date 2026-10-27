@@ -26,7 +26,7 @@
 #include <loguru.hpp>
 
 #ifdef __ANDROID__
-#include <SDL_log.h>
+  #include <SDL_log.h>
 #endif
 
 #include <cstdlib>
@@ -254,7 +254,11 @@ GameRunner::GameRunner(
     if (const auto* pLoad = std::getenv("RIGEL_DEV_LOAD_SAVE"))
     {
       mRequestedReplay = readReplaySaveFile(pLoad);
-      LOG_F(INFO, "DEV: loading save '%s': %s", pLoad, mRequestedReplay ? "found" : "NOT FOUND");
+      LOG_F(
+        INFO,
+        "DEV: loading save '%s': %s",
+        pLoad,
+        mRequestedReplay ? "found" : "NOT FOUND");
     }
 #endif
 
@@ -545,7 +549,8 @@ void GameRunner::handleEvent(const SDL_Event& event)
 
 void GameRunner::updateAndRender(engine::TimeDelta dt)
 {
-  if (gameQuit() || levelFinished() || requestedGameToLoad() || mRequestedReplay)
+  if (
+    gameQuit() || levelFinished() || requestedGameToLoad() || mRequestedReplay)
   {
     // TODO: This is a workaround to make the fadeout on quitting work.
     // Would be good to find a better way to do this.

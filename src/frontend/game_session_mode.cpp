@@ -239,7 +239,8 @@ std::unique_ptr<GameMode> GameSessionMode::updateAndRender(
           char time[16];
           if (seconds >= 0)
           {
-            std::snprintf(time, sizeof(time), "%d:%02d", seconds / 60, seconds % 60);
+            std::snprintf(
+              time, sizeof(time), "%d:%02d", seconds / 60, seconds % 60);
           }
           else
           {
@@ -248,9 +249,15 @@ std::unique_ptr<GameMode> GameSessionMode::updateAndRender(
 
           auto* pServices = mContext.mpServiceProvider;
           ui::ConsoleResultsScreen::Sounds sounds;
-          sounds.mRowEarned = [pServices] { pServices->playSound(data::SoundId::BigExplosion); };
-          sounds.mScoreTick = [pServices] { pServices->playSound(data::SoundId::DukeJumping); };
-          sounds.mTotal = [pServices] { pServices->playSound(data::SoundId::BigExplosion); };
+          sounds.mRowEarned = [pServices] {
+            pServices->playSound(data::SoundId::BigExplosion);
+          };
+          sounds.mScoreTick = [pServices] {
+            pServices->playSound(data::SoundId::DukeJumping);
+          };
+          sounds.mTotal = [pServices] {
+            pServices->playSound(data::SoundId::BigExplosion);
+          };
 
           auto stage = ConsoleBonusStage{ui::ConsoleResultsScreen{
             "LEVEL " + std::to_string(mCurrentLevelNr + 1) + " COMPLETE",

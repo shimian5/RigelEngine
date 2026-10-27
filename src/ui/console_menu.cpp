@@ -21,8 +21,8 @@
 #include <imgui.h>
 
 #include <algorithm>
-#include <cmath>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 
 
@@ -76,7 +76,11 @@ struct Canvas
 
     const auto y = s(centerYRef) - size.y / 2.0f;
     mpList->AddText(
-      mpFont, s(sizeRef), {x + s(2.0f), y + s(2.0f)}, IM_COL32(0, 0, 0, 170), text);
+      mpFont,
+      s(sizeRef),
+      {x + s(2.0f), y + s(2.0f)},
+      IM_COL32(0, 0, 0, 170),
+      text);
     mpList->AddText(mpFont, s(sizeRef), {x, y}, color, text);
   }
 
@@ -257,7 +261,9 @@ void drawConsoleMenu(const ConsoleMenuView& view)
 
   const auto widthRef = display.x / c.mScale;
   const auto offsetX = (widthRef - 1920.0f) / 2.0f;
-  auto X = [&](const float v) { return v + offsetX; };
+  auto X = [&](const float v) {
+    return v + offsetX;
+  };
 
   if (view.mDrawMainBackdrop)
   {
@@ -266,7 +272,9 @@ void drawConsoleMenu(const ConsoleMenuView& view)
   else
   {
     c.mpList->AddRectFilled(
-      {0, 0}, display, IM_COL32(18, 18, 24, std::clamp(view.mDimAlpha, 0, 255)));
+      {0, 0},
+      display,
+      IM_COL32(18, 18, 24, std::clamp(view.mDimAlpha, 0, 255)));
   }
 
   if (view.mDrawMainBackdrop)
@@ -289,8 +297,8 @@ void drawConsoleMenu(const ConsoleMenuView& view)
   const auto pitch = visible > 5 ? 128.0f : 150.0f;
   const auto firstRowY = visible > 5 ? 290.0f : 330.0f;
 
-  for (auto row = 0; row < ConsoleList::MAX_VISIBLE_ROWS &&
-       list.firstVisible() + row < count;
+  for (auto row = 0;
+       row < ConsoleList::MAX_VISIBLE_ROWS && list.firstVisible() + row < count;
        ++row)
   {
     const auto index = list.firstVisible() + row;
@@ -310,7 +318,12 @@ void drawConsoleMenu(const ConsoleMenuView& view)
         {0.0f, bottom},
         IM_COL32(0, 0, 0, 225));
       c.trefoil(X(108.0f), y, 46.0f, ORANGE);
-      c.text(item.mLabel.c_str(), X(215.0f), y, 82.0f, item.mEnabled ? ORANGE : DISABLED);
+      c.text(
+        item.mLabel.c_str(),
+        X(215.0f),
+        y,
+        82.0f,
+        item.mEnabled ? ORANGE : DISABLED);
     }
     else
     {
@@ -387,7 +400,9 @@ void drawConsoleResults(const ConsoleResultsView& view)
   }
 
   const auto offsetX = (display.x / c.mScale - 1920.0f) / 2.0f;
-  auto X = [&](const float v) { return v + offsetX; };
+  auto X = [&](const float v) {
+    return v + offsetX;
+  };
 
   c.mpList->AddRectFilled({0, 0}, display, IM_COL32(18, 18, 24, 255));
   c.text(view.mTitle.c_str(), X(960.0f), 95.0f, 92.0f, WHITE, true);
@@ -408,7 +423,14 @@ void drawConsoleResults(const ConsoleResultsView& view)
     c.text(row.mLabel.c_str(), left, y, 56.0f, shown ? WHITE : DISABLED);
     if (shown)
     {
-      c.text(row.mValue.c_str(), right, y, 56.0f, row.mEarned ? ORANGE : DISABLED, false, true);
+      c.text(
+        row.mValue.c_str(),
+        right,
+        y,
+        56.0f,
+        row.mEarned ? ORANGE : DISABLED,
+        false,
+        true);
     }
     y += 68.0f;
   }
@@ -451,12 +473,14 @@ void drawConsoleTitleScreen(
   const auto pulse = 0.55f + 0.45f * std::sin(float(timeSeconds) * 3.0f);
   const auto legendWidth = c.legendWidthRef(prompt.c_str(), false);
   const auto alpha = int(255.0f * pulse);
-  (void)alpha; // the legend widget draws at full strength, the pulse is on the plate below
+  (void)alpha; // the legend widget draws at full strength, the pulse is on the
+               // plate below
   c.mpList->AddRectFilled(
     {0, c.s(930.0f)},
     {display.x, c.s(1070.0f)},
     IM_COL32(0, 0, 0, int(120.0f * pulse)));
-  c.buttonLegend("A", prompt.c_str(), 960.0f + offsetX + legendWidth / 2.0f, 1000.0f, false);
+  c.buttonLegend(
+    "A", prompt.c_str(), 960.0f + offsetX + legendWidth / 2.0f, 1000.0f, false);
 }
 
 
@@ -474,7 +498,8 @@ const char* randomQuitMessage()
   const auto ticks = std::chrono::duration_cast<std::chrono::milliseconds>(
                        std::chrono::steady_clock::now().time_since_epoch())
                        .count();
-  return MESSAGES[std::size_t(ticks / 7) % (sizeof(MESSAGES) / sizeof(MESSAGES[0]))];
+  return MESSAGES
+    [std::size_t(ticks / 7) % (sizeof(MESSAGES) / sizeof(MESSAGES[0]))];
 }
 
 } // namespace rigel::ui

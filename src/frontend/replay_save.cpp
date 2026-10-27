@@ -21,7 +21,7 @@
 #include <loguru.hpp>
 
 #ifdef __ANDROID__
-#include <SDL_log.h>
+  #include <SDL_log.h>
 #endif
 
 #include <chrono>
@@ -123,7 +123,9 @@ std::uint16_t packPlayerInput(const game_logic::PlayerInput& input)
 
 game_logic::PlayerInput unpackPlayerInput(const std::uint16_t v)
 {
-  auto get = [v](const int bit) { return (v & (1u << bit)) != 0; };
+  auto get = [v](const int bit) {
+    return (v & (1u << bit)) != 0;
+  };
 
   game_logic::PlayerInput input;
   input.mLeft = get(0);
@@ -167,7 +169,9 @@ std::vector<std::uint8_t> serializeReplaySave(const ReplaySave& save)
   std::vector<std::pair<std::uint32_t, std::uint16_t>> runs;
   for (const auto value : save.mInputs)
   {
-    if (!runs.empty() && runs.back().second == value && runs.back().first < 0xFFFF)
+    if (
+      !runs.empty() && runs.back().second == value &&
+      runs.back().first < 0xFFFF)
     {
       ++runs.back().first;
     }
@@ -312,7 +316,9 @@ bool writeReplaySaveFile(const std::string& slotName, const ReplaySave& save)
     {
       return false;
     }
-    file.write(reinterpret_cast<const char*>(bytes.data()), std::streamsize(bytes.size()));
+    file.write(
+      reinterpret_cast<const char*>(bytes.data()),
+      std::streamsize(bytes.size()));
     if (!file)
     {
       return false;
@@ -327,9 +333,13 @@ bool writeReplaySaveFile(const std::string& slotName, const ReplaySave& save)
     return false;
   }
 
-  LOG_F(INFO, "Wrote save %s (%zu bytes)", oPath->u8string().c_str(), bytes.size());
+  LOG_F(
+    INFO, "Wrote save %s (%zu bytes)", oPath->u8string().c_str(), bytes.size());
 #ifdef __ANDROID__
-  SDL_Log("RIGEL save written: %s (%zu bytes)", oPath->u8string().c_str(), bytes.size());
+  SDL_Log(
+    "RIGEL save written: %s (%zu bytes)",
+    oPath->u8string().c_str(),
+    bytes.size());
 #endif
   return true;
 }

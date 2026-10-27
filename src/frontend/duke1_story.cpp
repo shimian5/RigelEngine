@@ -29,11 +29,23 @@ namespace rigel
 namespace
 {
 
-constexpr std::array<std::array<std::uint8_t, 3>, 16> EGA = {{
-  {0, 0, 0},       {0, 0, 170},     {0, 170, 0},     {0, 170, 170},
-  {170, 0, 0},     {170, 0, 170},   {170, 85, 0},    {170, 170, 170},
-  {85, 85, 85},    {85, 85, 255},   {85, 255, 85},   {85, 255, 255},
-  {255, 85, 85},   {255, 85, 255},  {255, 255, 85},  {255, 255, 255}}};
+constexpr std::array<std::array<std::uint8_t, 3>, 16> EGA = {
+  {{0, 0, 0},
+   {0, 0, 170},
+   {0, 170, 0},
+   {0, 170, 170},
+   {170, 0, 0},
+   {170, 0, 170},
+   {170, 85, 0},
+   {170, 170, 170},
+   {85, 85, 85},
+   {85, 85, 255},
+   {85, 255, 85},
+   {85, 255, 255},
+   {255, 85, 85},
+   {255, 85, 255},
+   {255, 255, 85},
+   {255, 255, 255}}};
 
 
 void fillRect(
@@ -94,8 +106,8 @@ void blit8(
 }
 
 
-// The two font sheets form one numbering: 0-49 first sheet, 50-99 second; capitals follow the space
-// and lower case letters map to the second alphabet.
+// The two font sheets form one numbering: 0-49 first sheet, 50-99 second;
+// capitals follow the space and lower case letters map to the second alphabet.
 int glyphIndex(const unsigned char c)
 {
   const int index = c >= 97 ? 69 + (c - 97) : 10 + (c - 32);
@@ -105,14 +117,18 @@ int glyphIndex(const unsigned char c)
 } // namespace
 
 
-Duke1Screens::Duke1Screens(const std::filesystem::path& dataDir, const duke1::ExeText& text)
+Duke1Screens::Duke1Screens(
+  const std::filesystem::path& dataDir,
+  const duke1::ExeText& text)
   : mDataDir(dataDir)
   , mText(text)
 {
   try
   {
-    const auto font1 = duke1::parse_tiles(duke1::read_file(dataDir, mText.assetName("FONT1")));
-    const auto font2 = duke1::parse_tiles(duke1::read_file(dataDir, mText.assetName("FONT2")));
+    const auto font1 =
+      duke1::parse_tiles(duke1::read_file(dataDir, mText.assetName("FONT1")));
+    const auto font2 =
+      duke1::parse_tiles(duke1::read_file(dataDir, mText.assetName("FONT2")));
     for (const auto* set : {&font1, &font2})
     {
       for (const auto& tile : set->tiles)
@@ -120,7 +136,8 @@ Duke1Screens::Duke1Screens(const std::filesystem::path& dataDir, const duke1::Ex
         mGlyphs.push_back(tile.rgba());
       }
     }
-    const auto border = duke1::parse_tiles(duke1::read_file(dataDir, mText.assetName("BORDER")));
+    const auto border =
+      duke1::parse_tiles(duke1::read_file(dataDir, mText.assetName("BORDER")));
     if (mGlyphs.size() >= 100 && border.tiles.size() > 17)
     {
       mPaper = border.tiles[17].rgba(); // 16x16 diagonal red hatching
@@ -153,21 +170,27 @@ void Duke1Screens::drawText(
 }
 
 
-void Duke1Screens::drawCentered(std::vector<std::uint8_t>& rgba, const int y, const std::string& text) const
+void Duke1Screens::drawCentered(
+  std::vector<std::uint8_t>& rgba,
+  const int y,
+  const std::string& text) const
 {
-  drawText(rgba, std::max(0, (DUKE1_SCREEN_W - int(text.size()) * 8) / 2), y, text);
+  drawText(
+    rgba, std::max(0, (DUKE1_SCREEN_W - int(text.size()) * 8) / 2), y, text);
 }
 
 
 std::vector<std::uint8_t> Duke1Screens::storyBackground() const
 {
   // The story pages show the hatching dimmed: dark red lines on black
-  std::vector<std::uint8_t> rgba(std::size_t(DUKE1_SCREEN_W) * DUKE1_SCREEN_H * 4, 0);
+  std::vector<std::uint8_t> rgba(
+    std::size_t(DUKE1_SCREEN_W) * DUKE1_SCREEN_H * 4, 0);
   for (int y = 0; y < DUKE1_SCREEN_H; ++y)
   {
     for (int x = 0; x < DUKE1_SCREEN_W; ++x)
     {
-      const auto* s = &mPaper[(std::size_t(y % 16) * 16 + std::size_t(x % 16)) * 4];
+      const auto* s =
+        &mPaper[(std::size_t(y % 16) * 16 + std::size_t(x % 16)) * 4];
       auto* d = &rgba[(std::size_t(y) * DUKE1_SCREEN_W + std::size_t(x)) * 4];
       const bool line = s[0] == EGA[12][0]; // the light red diagonal
       d[0] = line ? EGA[4][0] : 0;
@@ -207,12 +230,15 @@ void Duke1Screens::drawBox(
           {
             const auto px = (c * 8 + i) % 16;
             const auto py = (r * 8 + j) % 16;
-            const auto* s = &mPaper[(std::size_t(py) * 16 + std::size_t(px)) * 4];
+            const auto* s =
+              &mPaper[(std::size_t(py) * 16 + std::size_t(px)) * 4];
             const int dx = x + c * 8 + i;
             const int dy = y + r * 8 + j;
-            if (dx >= 0 && dy >= 0 && dx < DUKE1_SCREEN_W && dy < DUKE1_SCREEN_H)
+            if (
+              dx >= 0 && dy >= 0 && dx < DUKE1_SCREEN_W && dy < DUKE1_SCREEN_H)
             {
-              auto* d = &rgba[(std::size_t(dy) * DUKE1_SCREEN_W + std::size_t(dx)) * 4];
+              auto* d =
+                &rgba[(std::size_t(dy) * DUKE1_SCREEN_W + std::size_t(dx)) * 4];
               d[0] = s[0];
               d[1] = s[1];
               d[2] = s[2];
@@ -226,13 +252,18 @@ void Duke1Screens::drawBox(
 }
 
 
-std::vector<std::uint8_t> Duke1Screens::portraitPicture(const std::string& name) const
+std::vector<std::uint8_t>
+  Duke1Screens::portraitPicture(const std::string& name) const
 {
-  std::vector<std::uint8_t> rgba(std::size_t(DUKE1_SCREEN_W) * DUKE1_SCREEN_H * 4, 255);
+  std::vector<std::uint8_t> rgba(
+    std::size_t(DUKE1_SCREEN_W) * DUKE1_SCREEN_H * 4, 255);
   try
   {
-    const auto screen = duke1::parse_screen(duke1::read_file(mDataDir, mText.assetName(std::filesystem::path(name).stem().string())));
-    for (std::size_t i = 0; i < screen.indices.size() && i * 4 + 3 < rgba.size(); ++i)
+    const auto screen = duke1::parse_screen(duke1::read_file(
+      mDataDir, mText.assetName(std::filesystem::path(name).stem().string())));
+    for (std::size_t i = 0;
+         i < screen.indices.size() && i * 4 + 3 < rgba.size();
+         ++i)
     {
       const auto& color = EGA[screen.indices[i] & 15];
       rgba[i * 4 + 0] = color[0];
@@ -299,9 +330,14 @@ std::vector<std::vector<std::uint8_t>> Duke1Screens::introPages() const
   for (std::size_t i = 0; i < layout.dialogue.size(); ++i)
   {
     std::vector<std::string> lines;
-    for (const auto& draw : layout.dialogue[i]) lines.push_back(mText.at(draw.offset));
-    if (!lines.empty()) pages.push_back(boxOverPortrait(
-      i == 0 ? "BADGUY" : "DUKE", lines, i == 2 ? 112 : (i == 1 ? 80 : 0), i == 2 ? 72 : 144));
+    for (const auto& draw : layout.dialogue[i])
+      lines.push_back(mText.at(draw.offset));
+    if (!lines.empty())
+      pages.push_back(boxOverPortrait(
+        i == 0 ? "BADGUY" : "DUKE",
+        lines,
+        i == 2 ? 112 : (i == 1 ? 80 : 0),
+        i == 2 ? 72 : 144));
   }
   return pages;
 }
@@ -310,19 +346,28 @@ std::vector<std::vector<std::uint8_t>> Duke1Screens::introPages() const
 std::vector<std::vector<std::uint8_t>> Duke1Screens::endingPages() const
 {
   std::vector<std::vector<std::uint8_t>> pages;
-  if (!mValid) return pages;
+  if (!mValid)
+    return pages;
   const auto& ending = mText.layout().ending;
   // The final episode destroys the boss. Earlier episodes show its escape.
-  if (mText.episode() != 2) pages.push_back(portraitPicture("END"));
-  const auto first = mText.episode() == 2 && !ending.empty() ? ending.size() - 1 : 0;
-  const auto last = mText.episode() == 2 ? ending.size() :
-    (ending.empty() ? 0 : ending.size() - 1);
-  for (std::size_t i = first; i < last; ++i) {
+  if (mText.episode() != 2)
+    pages.push_back(portraitPicture("END"));
+  const auto first =
+    mText.episode() == 2 && !ending.empty() ? ending.size() - 1 : 0;
+  const auto last = mText.episode() == 2
+    ? ending.size()
+    : (ending.empty() ? 0 : ending.size() - 1);
+  for (std::size_t i = first; i < last; ++i)
+  {
     const auto& dialogue = ending[i];
     std::vector<std::string> lines;
-    for (const auto& draw : dialogue.lines) lines.push_back(mText.at(draw.offset));
-    pages.push_back(boxOverPortrait(dialogue.player ? "DUKE" : "BADGUY", lines,
-                                   dialogue.player ? 80 : 0, 144));
+    for (const auto& draw : dialogue.lines)
+      lines.push_back(mText.at(draw.offset));
+    pages.push_back(boxOverPortrait(
+      dialogue.player ? "DUKE" : "BADGUY",
+      lines,
+      dialogue.player ? 80 : 0,
+      144));
   }
   return pages;
 }
@@ -337,7 +382,8 @@ std::vector<std::uint8_t> Duke1Screens::hallwayMessage(const int index) const
   auto page = storyBackground();
   drawBox(page, 8, 8, 30, 6);
   int y = 24;
-  for (const auto& line : lines) {
+  for (const auto& line : lines)
+  {
     drawText(page, 24, y, line);
     y += 8;
   }

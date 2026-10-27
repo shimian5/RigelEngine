@@ -131,9 +131,8 @@ public:
 
   /** Binary (de)serialization, used for replay based save files */
   void serialize(std::vector<std::uint8_t>& out) const;
-  static std::optional<PersistentPlayerState> deserialize(
-    const std::uint8_t*& pData,
-    const std::uint8_t* pEnd);
+  static std::optional<PersistentPlayerState>
+    deserialize(const std::uint8_t*& pData, const std::uint8_t* pEnd);
 
   TutorialMessageState& tutorialMessages();
   const TutorialMessageState& tutorialMessages() const;

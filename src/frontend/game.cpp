@@ -27,12 +27,12 @@
 #include "ui/imgui_integration.hpp"
 
 #include "anti_piracy_screen_mode.hpp"
-#include "demo_player.hpp"
-#include "game_session_mode.hpp"
-#include "intro_demo_loop_mode.hpp"
 #include "console_menu_mode.hpp"
 #include "console_title_mode.hpp"
+#include "demo_player.hpp"
 #include "duke1_mode.hpp"
+#include "game_session_mode.hpp"
+#include "intro_demo_loop_mode.hpp"
 #include "menu_mode.hpp"
 #include "platform.hpp"
 
@@ -223,7 +223,8 @@ Game::Game(
       pUserProfile->mOptions.mEnableTopLevelMods,
       pUserProfile->mModLibrary.enabledModPaths())
   , mpSoundSystem([&]() -> std::unique_ptr<audio::SoundSystem> {
-    Duke1Mode::setGamePath(effectiveGamePath(commandLineOptions, *pUserProfile));
+    Duke1Mode::setGamePath(
+      effectiveGamePath(commandLineOptions, *pUserProfile));
     if (commandLineOptions.mDisableAudio)
     {
       return nullptr;

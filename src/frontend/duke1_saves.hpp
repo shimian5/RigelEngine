@@ -28,7 +28,8 @@
 namespace rigel
 {
 
-/** A Duke Nukem 1 save: the level, what Duke carried into it, and every update's input since.
+/** A Duke Nukem 1 save: the level, what Duke carried into it, and every
+ * update's input since.
  *
  * Loading replays the inputs, which is exact because the game is deterministic.
  */
@@ -47,7 +48,8 @@ std::uint8_t packDuke1Input(const duke1::Input& input);
 duke1::Input unpackDuke1Input(std::uint8_t packed);
 
 std::vector<std::uint8_t> serializeDuke1Save(const Duke1Save& save);
-std::optional<Duke1Save> deserializeDuke1Save(const std::vector<std::uint8_t>& bytes);
+std::optional<Duke1Save>
+  deserializeDuke1Save(const std::vector<std::uint8_t>& bytes);
 
 bool writeDuke1Save(const std::string& slot, const Duke1Save& save);
 std::optional<Duke1Save> readDuke1Save(const std::string& slot);

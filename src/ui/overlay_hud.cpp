@@ -58,10 +58,7 @@ float easeOutCubic(const float t)
 class Painter
 {
 public:
-  Painter(
-    renderer::Renderer* pRenderer,
-    const HudSkin& skin,
-    const int alpha)
+  Painter(renderer::Renderer* pRenderer, const HudSkin& skin, const int alpha)
     : mpRenderer(pRenderer)
     , mSkin(skin)
     , mLayout(hudLayout(skin.tier()))
@@ -98,8 +95,7 @@ public:
   {
     const auto& r = mSkin.rect(index);
     mSkin.atlas().render(
-      base::Rect<int>{{r.x, r.y}, {r.w, r.h}},
-      base::Rect<int>{{x, y}, size});
+      base::Rect<int>{{r.x, r.y}, {r.w, r.h}}, base::Rect<int>{{x, y}, size});
   }
 
   void drawCentered(const int index, const int cx, const int cy) const
@@ -157,7 +153,8 @@ void drawBar(
     x + leftSize.width,
     y,
     {totalWidth - leftSize.width - rightSize.width, h});
-  p.drawScaled(right, x + totalWidth - rightSize.width, y, {rightSize.width, h});
+  p.drawScaled(
+    right, x + totalWidth - rightSize.width, y, {rightSize.width, h});
 }
 
 
@@ -176,14 +173,19 @@ void drawScoreText(
   }
 
   const auto fontSize = float(p.s(fontSizeRef));
-  const auto textSize = pFont->CalcTextSizeA(fontSize, 10000.0f, 0.0f, text.c_str());
+  const auto textSize =
+    pFont->CalcTextSizeA(fontSize, 10000.0f, 0.0f, text.c_str());
   auto* pDrawList = ImGui::GetBackgroundDrawList();
-  const auto pos = ImVec2{
-    float(rightX) - textSize.x, float(centerY) - textSize.y / 2.0f};
+  const auto pos =
+    ImVec2{float(rightX) - textSize.x, float(centerY) - textSize.y / 2.0f};
 
   // Soft shadow for legibility over bright backgrounds
   pDrawList->AddText(
-    pFont, fontSize, {pos.x + 1.5f, pos.y + 1.5f}, IM_COL32(0, 0, 0, alpha * 160 / 255), text.c_str());
+    pFont,
+    fontSize,
+    {pos.x + 1.5f, pos.y + 1.5f},
+    IM_COL32(0, 0, 0, alpha * 160 / 255),
+    text.c_str());
   pDrawList->AddText(
     pFont, fontSize, pos, IM_COL32(255, 255, 255, alpha), text.c_str());
 }
@@ -236,7 +238,8 @@ void drawOverlayHud(
     {
       for (auto i = 0; i < NUM_PIPS; ++i)
       {
-        p.draw(i < state.health - 1 ? PipFull : PipEmpty, pipX + i * pipStep, pipY);
+        p.draw(
+          i < state.health - 1 ? PipFull : PipEmpty, pipX + i * pipStep, pipY);
       }
     }
   }
@@ -246,7 +249,8 @@ void drawOverlayHud(
     const auto weaponIndex =
       WeaponFirst + std::min(int(state.weapon), WeaponLast - WeaponFirst);
     const auto slotCenterX = p.s(L.weaponSlotX) + p.s(L.weaponSlotW) / 2;
-    const auto slotCenterY = margin + p.s(L.weaponSlotY) + p.s(L.weaponSlotH) / 2;
+    const auto slotCenterY =
+      margin + p.s(L.weaponSlotY) + p.s(L.weaponSlotH) / 2;
     p.drawCentered(weaponIndex, slotCenterX, slotCenterY);
 
     // Projectile icon(s) next to it. Rapid fire and the flame thrower show
@@ -269,8 +273,8 @@ void drawOverlayHud(
     }
 
     // Ammo bar
-    const auto ratio =
-      std::clamp(float(state.ammo) / float(std::max(1, state.maxAmmo)), 0.0f, 1.0f);
+    const auto ratio = std::clamp(
+      float(state.ammo) / float(std::max(1, state.maxAmmo)), 0.0f, 1.0f);
     drawBar(
       p,
       AmmoBarLeft,
@@ -324,7 +328,7 @@ void drawOverlayHud(
         buffer,
         L.timerFontSize,
         windowSize.width - p.s(L.scoreInsetRight),
-        margin + panelSize.height + p.s(L.timerFontSize) ,
+        margin + panelSize.height + p.s(L.timerFontSize),
         alpha);
     }
   }
@@ -337,8 +341,7 @@ void drawOverlayHud(
     const auto& rect = skin.rect(BossBar);
 
     // Keep clear of the bottom left panel (inventory and radar)
-    const auto leftLimit =
-      p.sizeOf(InventoryPanel).width + margin;
+    const auto leftLimit = p.sizeOf(InventoryPanel).width + margin;
     const auto available = windowSize.width - leftLimit - margin;
     const auto sc = std::min(p.scale(), float(available) / float(rect.w));
     const auto barW = int(std::lround(rect.w * sc));
@@ -424,7 +427,10 @@ void drawOverlayHud(
       const auto pulse = std::abs(std::cos(state.timeSeconds * 2.0));
       p.setAlpha(int(alpha * (1.0f - t) * (0.5 + 0.5 * pulse)));
       p.drawScaled(
-        RadarRing, centerX - ringSize / 2, centerY - ringSize / 2, {ringSize, ringSize});
+        RadarRing,
+        centerX - ringSize / 2,
+        centerY - ringSize / 2,
+        {ringSize, ringSize});
       p.setAlpha(alpha);
 
       // Dots

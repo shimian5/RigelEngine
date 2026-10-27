@@ -1,18 +1,25 @@
-#include "exe_text.hpp"
 #include "assets.hpp"
+#include "exe_text.hpp"
 
 #include <algorithm>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
-namespace {
-void check(bool ok) { if (!ok) throw std::runtime_error("episode metadata assertion failed"); }
-void put(std::vector<std::uint8_t>& image, std::size_t at, unsigned value) {
+namespace
+{
+void check(bool ok)
+{
+  if (!ok)
+    throw std::runtime_error("episode metadata assertion failed");
+}
+void put(std::vector<std::uint8_t>& image, std::size_t at, unsigned value)
+{
   image.at(at) = value & 255;
   image.at(at + 1) = (value >> 8) & 255;
 }
-std::vector<std::uint8_t> fixture(int episode) {
+std::vector<std::uint8_t> fixture(int episode)
+{
   constexpr std::size_t ds = 0x100;
   std::vector<std::uint8_t> image(ds + 0x5000);
   image[0] = 0xba;
@@ -21,42 +28,70 @@ std::vector<std::uint8_t> fixture(int episode) {
   image[0x14] = 0x8e;
   image[0x15] = 0xda;
   std::size_t pool = ds + 0xc80;
-  const auto pointer = [&](std::size_t table, int index, const std::string& name) {
-    put(image, ds + table + std::size_t(index) * 4, pool - ds);
-    put(image, ds + table + std::size_t(index) * 4 + 2, ds / 16);
-    for (char c : name) image.at(pool++) = static_cast<std::uint8_t>(c);
-    image.at(pool++) = 0;
-  };
-  const std::vector<std::string> sequence{"WORLDAL1", "WORLDAL2", "WORLDAL3", "WORLDAL2", "WORLDALC"};
+  const auto pointer =
+    [&](std::size_t table, int index, const std::string& name) {
+      put(image, ds + table + std::size_t(index) * 4, pool - ds);
+      put(image, ds + table + std::size_t(index) * 4 + 2, ds / 16);
+      for (char c : name)
+        image.at(pool++) = static_cast<std::uint8_t>(c);
+      image.at(pool++) = 0;
+    };
+  const std::vector<std::string> sequence{
+    "WORLDAL1", "WORLDAL2", "WORLDAL3", "WORLDAL2", "WORLDALC"};
   for (std::size_t i = 0; i < sequence.size(); ++i)
-    pointer(0x3a4, static_cast<int>(i), duke1::asset_name(sequence[i], episode));
+    pointer(
+      0x3a4, static_cast<int>(i), duke1::asset_name(sequence[i], episode));
   for (int i = 0; i < 6; ++i)
     pointer(0xb47, i, duke1::asset_name("DROP" + std::to_string(i), episode));
   return image;
 }
-void textFixture(bool shareware) {
+void textFixture(bool shareware)
+{
   auto image = fixture(0);
   image.resize(0x16000);
   constexpr std::size_t ui = 0x10000;
   const std::vector<std::uint8_t> signature{
-    0xb8,20,0,0x50,0x0e,0xe8,0,0,0xb8,0x10,0x17,0x50,0x0e,0xe8,0,0};
-  std::copy(signature.begin(), signature.end(), image.begin() + ui + (shareware ? 0x62e : 0x62c));
-  const auto draw = [&](std::size_t at, int offset, int column, int row, bool near) {
-    std::vector<std::uint8_t> bytes{0x1e,0xb8,0,0,0x50,0xb8,0,0,0x50,0xb8,0,0,0x50};
-    put(bytes, 2, offset);
-    put(bytes, 6, column);
-    put(bytes, 10, row);
-    if (near) {
-      bytes.insert(bytes.end(), {0x0e,0xe8,0,0});
-      put(bytes, 15, 0x3800 - (at + bytes.size()));
-    } else {
-      bytes.insert(bytes.end(), {0x9a,0,0,0,0});
-      put(bytes, 14, 0x3800);
-      put(bytes, 16, ui / 16);
-    }
-    std::copy(bytes.begin(), bytes.end(), image.begin() + ui + at);
-    return at + bytes.size();
-  };
+    0xb8,
+    20,
+    0,
+    0x50,
+    0x0e,
+    0xe8,
+    0,
+    0,
+    0xb8,
+    0x10,
+    0x17,
+    0x50,
+    0x0e,
+    0xe8,
+    0,
+    0};
+  std::copy(
+    signature.begin(),
+    signature.end(),
+    image.begin() + ui + (shareware ? 0x62e : 0x62c));
+  const auto draw =
+    [&](std::size_t at, int offset, int column, int row, bool near) {
+      std::vector<std::uint8_t> bytes{
+        0x1e, 0xb8, 0, 0, 0x50, 0xb8, 0, 0, 0x50, 0xb8, 0, 0, 0x50};
+      put(bytes, 2, offset);
+      put(bytes, 6, column);
+      put(bytes, 10, row);
+      if (near)
+      {
+        bytes.insert(bytes.end(), {0x0e, 0xe8, 0, 0});
+        put(bytes, 15, 0x3800 - (at + bytes.size()));
+      }
+      else
+      {
+        bytes.insert(bytes.end(), {0x9a, 0, 0, 0, 0});
+        put(bytes, 14, 0x3800);
+        put(bytes, 16, ui / 16);
+      }
+      std::copy(bytes.begin(), bytes.end(), image.begin() + ui + at);
+      return at + bytes.size();
+    };
   std::size_t at = 0x640;
   at = draw(at, 0x3000, 0, 0, false);
   at = draw(at, 0x3029, 0, 2, true);
@@ -72,7 +107,8 @@ void textFixture(bool shareware) {
   draw(at, 0x3532, 1, 21, true);
   at = draw(0x3c38, 0x3600, 11, 19, true);
   draw(at, 0x3619, 11, 20, true);
-  for (int page = 0; page < 5; ++page) {
+  for (int page = 0; page < 5; ++page)
+  {
     const int column = page == 0 || page == 2 ? 1 : 11;
     at = draw(0x4300 + page * 0x60, 0x3700 + page * 0x80, column, 19, true);
     draw(at, 0x3720 + page * 0x80, column, 20, true);
@@ -93,22 +129,30 @@ void textFixture(bool shareware) {
   check(layout.ending.back().lines.back().offset == 0x3920);
 }
 
-}
+} // namespace
 
-int main() {
+int main()
+{
   textFixture(false);
   textFixture(true);
-  for (int episode = 0; episode < 3; ++episode) {
+  for (int episode = 0; episode < 3; ++episode)
+  {
     const auto image = fixture(episode);
     const auto executable = duke1::ExeText::fromImage(image, episode);
     check(executable.has_value());
     check(executable->levels().size() == 2);
     check(executable->sequence().size() == 5);
     check(executable->levels()[1].intermissionMessage == 3);
-    check(executable->levels()[1].filename == duke1::asset_name("WORLDAL3", episode));
-    check(executable->levels()[1].backdrops[0] == duke1::asset_name("DROP2", episode));
+    check(
+      executable->levels()[1].filename ==
+      duke1::asset_name("WORLDAL3", episode));
+    check(
+      executable->levels()[1].backdrops[0] ==
+      duke1::asset_name("DROP2", episode));
     check(!executable->backdropPair("WORLDAL2"));
-    check(executable->backdropPair("WORLDALC")->at(0) == duke1::asset_name("DROP4", episode));
+    check(
+      executable->backdropPair("WORLDALC")->at(0) ==
+      duke1::asset_name("DROP4", episode));
     check(!duke1::ExeText::fromImage(image, (episode + 1) % 3));
     auto broken = image;
     broken.at(1) = 0xff;
@@ -117,7 +161,9 @@ int main() {
     broken = image;
     put(broken, 0x100 + 0xb47 + 2, 0xffff);
     check(!duke1::ExeText::fromImage(std::move(broken), episode));
-    check(duke1::episode_from_asset("worldal1.dn" + std::to_string(episode + 1)) == episode);
+    check(
+      duke1::episode_from_asset("worldal1.dn" + std::to_string(episode + 1)) ==
+      episode);
   }
   check(!duke1::ExeText::fromImage({}, 0));
   check(!duke1::ExeText::fromImage(fixture(0), 3));

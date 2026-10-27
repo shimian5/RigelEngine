@@ -23,32 +23,39 @@
 #include <string>
 #include <vector>
 
-namespace duke1 {
+namespace duke1
+{
 
-// The story, dialogue and hint texts of Duke Nukem 1 live inside the (compressed) DN1.EXE.
-// This unpacks the player's own copy in memory and reads the text rows from it. Nothing is stored
-// by us: no game text is part of the engine.
-class ExeText {
- public:
-  struct LevelInfo {
+// The story, dialogue and hint texts of Duke Nukem 1 live inside the
+// (compressed) DN1.EXE. This unpacks the player's own copy in memory and reads
+// the text rows from it. Nothing is stored by us: no game text is part of the
+// engine.
+class ExeText
+{
+public:
+  struct LevelInfo
+  {
     std::string filename;
     std::array<std::string, 2> backdrops;
     int sequenceIndex = 0;
     int intermissionMessage = 0;
   };
 
-  struct TextDraw {
+  struct TextDraw
+  {
     int offset = 0;
     int column = 0;
     int row = 0;
   };
 
-  struct PortraitPage {
+  struct PortraitPage
+  {
     bool player = false;
     std::vector<TextDraw> lines;
   };
 
-  struct TextLayout {
+  struct TextLayout
+  {
     std::vector<std::vector<TextDraw>> introPages;
     std::array<std::vector<TextDraw>, 3> dialogue;
     std::vector<PortraitPage> ending;
@@ -56,27 +63,32 @@ class ExeText {
     int tipCount = 0;
   };
 
-  static std::optional<ExeText> load(const std::filesystem::path& dataDir, int episode = 0);
-  static std::optional<ExeText> fromImage(std::vector<std::uint8_t> image, int episode);
+  static std::optional<ExeText>
+    load(const std::filesystem::path& dataDir, int episode = 0);
+  static std::optional<ExeText>
+    fromImage(std::vector<std::uint8_t> image, int episode);
 
   int episode() const { return episode_; }
   const std::vector<LevelInfo>& levels() const { return levels_; }
   const std::vector<LevelInfo>& sequence() const { return sequence_; }
   const TextLayout& layout() const { return layout_; }
   std::string assetName(const std::string& stem) const;
-  std::optional<std::array<std::string, 2>> backdropPair(const std::string& filename) const;
+  std::optional<std::array<std::string, 2>>
+    backdropPair(const std::string& filename) const;
 
   // NUL terminated text at the given data-segment offset
   std::string at(int dsOffset) const;
-  // `count` fixed-stride rows starting at a data-segment offset (trailing blanks removed)
+  // `count` fixed-stride rows starting at a data-segment offset (trailing
+  // blanks removed)
   std::vector<std::string> rows(int dsOffset, int count, int stride) const;
-  // Contextual four-line machine tip number `index` (original map-sequence index)
+  // Contextual four-line machine tip number `index` (original map-sequence
+  // index)
   std::vector<std::string> tipMessage(int index) const;
 
   // Validate the decoded DOS table layout before reading any resource or text.
   bool plausible() const;
 
- private:
+private:
   std::vector<std::uint8_t> image_;
   std::size_t dataSegment_ = 0;
   int episode_ = 0;
@@ -85,7 +97,9 @@ class ExeText {
   TextLayout layout_{};
 };
 
-// Decompress an LZEXE 0.91 packed MZ executable; returns the load image (code and data), or nothing.
-std::optional<std::vector<std::uint8_t>> unpackLzexe91(const std::vector<std::uint8_t>& exe);
+// Decompress an LZEXE 0.91 packed MZ executable; returns the load image (code
+// and data), or nothing.
+std::optional<std::vector<std::uint8_t>>
+  unpackLzexe91(const std::vector<std::uint8_t>& exe);
 
-}  // namespace duke1
+} // namespace duke1

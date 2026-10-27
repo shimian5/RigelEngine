@@ -30,7 +30,8 @@
 namespace rigel
 {
 
-/** Game picker shown after the title screen: Continue / Duke Nukem / Duke Nukem II / Load / Options / Quit */
+/** Game picker shown after the title screen: Continue / Duke Nukem / Duke Nukem
+ * II / Load / Options / Quit */
 class ConsoleLauncherMode : public GameMode
 {
 public:

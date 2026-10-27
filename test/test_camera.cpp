@@ -49,8 +49,7 @@ struct CameraEntityFactory : MockEntityFactory
     // enterShip reads both the initial draw order and ship animation bounds.
     mShipDrawData.mDrawOrder = 0;
     mShipDrawData.mFrames = {
-      engine::SpriteFrame{0, {}, {6, 3}},
-      engine::SpriteFrame{0, {}, {6, 3}}};
+      engine::SpriteFrame{0, {}, {6, 3}}, engine::SpriteFrame{0, {}, {6, 3}}};
   }
 
   Sprite createSpriteForId(data::ActorID) override
@@ -76,7 +75,8 @@ TEST_CASE("Ship camera horizontal dead zone", "[camera]")
   data::GameOptions options;
   auto entity = entities.entities.create();
   entity.assign<WorldPosition>(61, 59);
-  entity.assign<Sprite>(factory.createSpriteForId(data::ActorID::Dukes_ship_RIGHT));
+  entity.assign<Sprite>(
+    factory.createSpriteForId(data::ActorID::Dukes_ship_RIGHT));
   assignPlayerComponents(entity, Orientation::Right);
   Player player{
     entity,
@@ -109,7 +109,7 @@ TEST_CASE("Ship camera horizontal dead zone", "[camera]")
 
   int playerOffset = 11;
   int cameraDelta = 0;
-  SECTION("Left edge does not scroll") {}
+  SECTION("Left edge does not scroll") { }
   SECTION("One tile beyond the left edge")
   {
     playerOffset = 10;

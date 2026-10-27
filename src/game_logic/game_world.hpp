@@ -32,9 +32,9 @@
 #include "game_logic_common/input.hpp"
 #include "ui/hud_renderer.hpp"
 #include "ui/hud_skin.hpp"
-#include "ui/overlay_hud.hpp"
 #include "ui/ingame_message_display.hpp"
 #include "ui/menu_element_renderer.hpp"
+#include "ui/overlay_hud.hpp"
 
 RIGEL_DISABLE_WARNINGS
 #include <entityx/entityx.h>

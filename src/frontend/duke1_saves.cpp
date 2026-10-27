@@ -32,13 +32,15 @@ namespace
 {
 
 constexpr std::array<char, 4> MAGIC = {'D', 'N', '1', 'S'};
-constexpr std::uint8_t VERSION = 3; // bump whenever the simulation changes in a way that alters replays
+constexpr std::uint8_t VERSION =
+  3; // bump whenever the simulation changes in a way that alters replays
 
 void put32(std::vector<std::uint8_t>& out, std::int32_t v)
 {
   for (int i = 0; i < 4; ++i)
   {
-    out.push_back(static_cast<std::uint8_t>((static_cast<std::uint32_t>(v) >> (8 * i)) & 0xFF));
+    out.push_back(static_cast<std::uint8_t>(
+      (static_cast<std::uint32_t>(v) >> (8 * i)) & 0xFF));
   }
 }
 
@@ -118,7 +120,9 @@ bool writeDuke1Save(const std::string& slot, const Duke1Save& save)
     {
       return false;
     }
-    file.write(reinterpret_cast<const char*>(bytes.data()), std::streamsize(bytes.size()));
+    file.write(
+      reinterpret_cast<const char*>(bytes.data()),
+      std::streamsize(bytes.size()));
     if (!file)
     {
       return false;
@@ -150,18 +154,22 @@ std::optional<Duke1Save> readDuke1Save(const std::string& slot)
   return deserializeDuke1Save(bytes);
 }
 
-std::optional<Duke1Save> deserializeDuke1Save(const std::vector<std::uint8_t>& bytes)
+std::optional<Duke1Save>
+  deserializeDuke1Save(const std::vector<std::uint8_t>& bytes)
 {
   constexpr std::size_t LEGACY_HEADER = 5 + 8 * 4;
-  if (bytes.size() < LEGACY_HEADER || !std::equal(MAGIC.begin(), MAGIC.end(), bytes.begin()) ||
-      (bytes[4] != 2 && bytes[4] != VERSION))
+  if (
+    bytes.size() < LEGACY_HEADER ||
+    !std::equal(MAGIC.begin(), MAGIC.end(), bytes.begin()) ||
+    (bytes[4] != 2 && bytes[4] != VERSION))
   {
     return std::nullopt;
   }
 
   const std::size_t shift = bytes[4] >= 3 ? 4 : 0;
   const std::size_t HEADER = LEGACY_HEADER + shift;
-  if (bytes.size() < HEADER) return std::nullopt;
+  if (bytes.size() < HEADER)
+    return std::nullopt;
   Duke1Save save;
   save.mLevelIndex = get32(bytes, 5);
   save.mEpisode = shift ? get32(bytes, 9) : 0;
@@ -178,13 +186,16 @@ std::optional<Duke1Save> deserializeDuke1Save(const std::vector<std::uint8_t>& b
   }
   const auto count = std::size_t(rawCount);
   const auto& carry = save.mCarry;
-  if (save.mEpisode < 0 || save.mEpisode > 2 || save.mLevelIndex < 0 || carry.score < 0 || carry.health < 0 || carry.health > 9 ||
-      carry.boost < 0 || carry.boost > 1 || carry.claw < 0 || carry.claw > 1 ||
-      carry.capacity < 1 || carry.capacity > 4)
+  if (
+    save.mEpisode < 0 || save.mEpisode > 2 || save.mLevelIndex < 0 ||
+    carry.score < 0 || carry.health < 0 || carry.health > 9 ||
+    carry.boost < 0 || carry.boost > 1 || carry.claw < 0 || carry.claw > 1 ||
+    carry.capacity < 1 || carry.capacity > 4)
   {
     return std::nullopt;
   }
-  save.mInputs.assign(bytes.begin() + HEADER, bytes.begin() + HEADER + std::ptrdiff_t(count));
+  save.mInputs.assign(
+    bytes.begin() + HEADER, bytes.begin() + HEADER + std::ptrdiff_t(count));
   return save;
 }
 
@@ -208,7 +219,10 @@ std::optional<std::string> newestDuke1Save()
       continue;
     }
     const auto time = std::filesystem::last_write_time(*oPath, ec);
-    if (!ec && (!newest || time.time_since_epoch().count() > newestTime.time_since_epoch().count()))
+    if (
+      !ec &&
+      (!newest ||
+       time.time_since_epoch().count() > newestTime.time_since_epoch().count()))
     {
       newest = name;
       newestTime = time;

@@ -75,7 +75,8 @@ private:
 };
 
 
-/** Creates the main menu: console-style or the original, depending on options */
+/** Creates the main menu: console-style or the original, depending on options
+ */
 std::unique_ptr<GameMode> createMainMenuMode(GameMode::Context context);
 
 } // namespace rigel

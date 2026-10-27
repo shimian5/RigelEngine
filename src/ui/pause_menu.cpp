@@ -61,11 +61,20 @@ void PauseMenu::open(const Info& info)
     {
       switch (*p)
       {
-        case 'd': mList.move(1); break;
-        case 'u': mList.move(-1); break;
-        case 'a': activateSelected(); break;
-        case 'b': goBack(); break;
-        default: break;
+        case 'd':
+          mList.move(1);
+          break;
+        case 'u':
+          mList.move(-1);
+          break;
+        case 'a':
+          activateSelected();
+          break;
+        case 'b':
+          goBack();
+          break;
+        default:
+          break;
       }
     }
   }
@@ -93,57 +102,58 @@ void PauseMenu::enterScreen(const Screen screen)
   {
     case Screen::Main:
       mHasAnySave = newestSaveSlotName().has_value();
-      mList.setItems({
-        {"QUICK SAVE", true},
-        {"LOAD LAST SAVE", mHasAnySave},
-        {"SAVE GAME", true},
-        {"LOAD GAME", true},
-        {"OPTIONS", true},
-        {"CONTROLS", true},
-        {"QUIT GAME", true}});
+      mList.setItems(
+        {{"QUICK SAVE", true},
+         {"LOAD LAST SAVE", mHasAnySave},
+         {"SAVE GAME", true},
+         {"LOAD GAME", true},
+         {"OPTIONS", true},
+         {"CONTROLS", true},
+         {"QUIT GAME", true}});
       break;
 
     case Screen::SaveSlots:
     case Screen::LoadSlots:
-    {
-      std::vector<ConsoleMenuItem> items;
-      for (auto i = 0; i < NUM_SAVE_SLOTS_CONSOLE; ++i)
       {
-        const auto oSummary = readSaveSummary(consoleSlotName(i));
-        char buffer[128];
-        if (oSummary)
+        std::vector<ConsoleMenuItem> items;
+        for (auto i = 0; i < NUM_SAVE_SLOTS_CONSOLE; ++i)
         {
-          std::snprintf(
-            buffer,
-            sizeof(buffer),
-            "SLOT %d   E%d L%d   %s   %s",
-            i + 1,
-            oSummary->mEpisode,
-            oSummary->mLevel,
-            formatScoreWithCommas(oSummary->mScore).c_str(),
-            formatPlayTime(oSummary->mPlayTimeSeconds).c_str());
-        }
-        else
-        {
-          std::snprintf(buffer, sizeof(buffer), "SLOT %d   EMPTY", i + 1);
-        }
+          const auto oSummary = readSaveSummary(consoleSlotName(i));
+          char buffer[128];
+          if (oSummary)
+          {
+            std::snprintf(
+              buffer,
+              sizeof(buffer),
+              "SLOT %d   E%d L%d   %s   %s",
+              i + 1,
+              oSummary->mEpisode,
+              oSummary->mLevel,
+              formatScoreWithCommas(oSummary->mScore).c_str(),
+              formatPlayTime(oSummary->mPlayTimeSeconds).c_str());
+          }
+          else
+          {
+            std::snprintf(buffer, sizeof(buffer), "SLOT %d   EMPTY", i + 1);
+          }
 
-        // Saving can overwrite anything, loading needs an existing save
-        items.push_back({buffer, screen == Screen::SaveSlots || oSummary.has_value()});
+          // Saving can overwrite anything, loading needs an existing save
+          items.push_back(
+            {buffer, screen == Screen::SaveSlots || oSummary.has_value()});
+        }
+        mList.setItems(std::move(items));
+        break;
       }
-      mList.setItems(std::move(items));
-      break;
-    }
 
     case Screen::Controls:
-      mList.setItems({
-        {"MOVE:  D-PAD / LEFT STICK", true},
-        {"JUMP:  A / B / LEFT TRIGGER", true},
-        {"FIRE:  X / Y / RIGHT TRIGGER", true},
-        {"LOOK / ENTER:  UP", true},
-        {"DUCK:  DOWN", true},
-        {"QUICK SAVE:  BACK + X / Y", true},
-        {"QUICK LOAD:  BACK + A / B", true}});
+      mList.setItems(
+        {{"MOVE:  D-PAD / LEFT STICK", true},
+         {"JUMP:  A / B / LEFT TRIGGER", true},
+         {"FIRE:  X / Y / RIGHT TRIGGER", true},
+         {"LOOK / ENTER:  UP", true},
+         {"DUCK:  DOWN", true},
+         {"QUICK SAVE:  BACK + X / Y", true},
+         {"QUICK LOAD:  BACK + A / B", true}});
       break;
 
     case Screen::QuitConfirm:
@@ -308,55 +318,55 @@ void PauseMenu::updateAndRender(const engine::TimeDelta dt)
   switch (mScreen)
   {
     case Screen::Main:
-    {
-      ConsoleMenuView view;
-      view.mTitle = "GAME PAUSED";
-      view.mpList = &mList;
-      view.mStartLabel = "RESUME";
-      view.mInfoLines = {
-        {"EPISODE " + std::to_string(mInfo.mEpisode), false},
-        {"LEVEL " + std::to_string(mInfo.mLevel), false},
-        {"CURRENT SCORE", true},
-        {formatScoreWithCommas(mInfo.mScore), false},
-        {"CURRENT TIME", true},
-        {formatPlayTime(mInfo.mPlayTimeSeconds), false}};
-      drawConsoleMenu(view);
-      break;
-    }
+      {
+        ConsoleMenuView view;
+        view.mTitle = "GAME PAUSED";
+        view.mpList = &mList;
+        view.mStartLabel = "RESUME";
+        view.mInfoLines = {
+          {"EPISODE " + std::to_string(mInfo.mEpisode), false},
+          {"LEVEL " + std::to_string(mInfo.mLevel), false},
+          {"CURRENT SCORE", true},
+          {formatScoreWithCommas(mInfo.mScore), false},
+          {"CURRENT TIME", true},
+          {formatPlayTime(mInfo.mPlayTimeSeconds), false}};
+        drawConsoleMenu(view);
+        break;
+      }
 
     case Screen::Controls:
-    {
-      ConsoleMenuView view;
-      view.mTitle = "CONTROLS";
-      view.mpList = &mList;
-      view.mConfirmLabel = "BACK";
-      view.mBackLabel = "BACK";
-      drawConsoleMenu(view);
-      break;
-    }
+      {
+        ConsoleMenuView view;
+        view.mTitle = "CONTROLS";
+        view.mpList = &mList;
+        view.mConfirmLabel = "BACK";
+        view.mBackLabel = "BACK";
+        drawConsoleMenu(view);
+        break;
+      }
 
     case Screen::QuitConfirm:
-    {
-      ConsoleMenuView view;
-      view.mTitle = "QUIT TO MENU?";
-      view.mSubtitle = mQuitMessage;
-      view.mpList = &mList;
-      view.mBackLabel = "BACK";
-      drawConsoleMenu(view);
-      break;
-    }
+      {
+        ConsoleMenuView view;
+        view.mTitle = "QUIT TO MENU?";
+        view.mSubtitle = mQuitMessage;
+        view.mpList = &mList;
+        view.mBackLabel = "BACK";
+        drawConsoleMenu(view);
+        break;
+      }
 
     case Screen::SaveSlots:
     case Screen::LoadSlots:
-    {
-      ConsoleMenuView view;
-      view.mTitle = mScreen == Screen::SaveSlots ? "SAVE GAME" : "LOAD GAME";
-      view.mpList = &mList;
-      view.mConfirmLabel = mScreen == Screen::SaveSlots ? "SAVE" : "LOAD";
-      view.mBackLabel = "BACK";
-      drawConsoleMenu(view);
-      break;
-    }
+      {
+        ConsoleMenuView view;
+        view.mTitle = mScreen == Screen::SaveSlots ? "SAVE GAME" : "LOAD GAME";
+        view.mpList = &mList;
+        view.mConfirmLabel = mScreen == Screen::SaveSlots ? "SAVE" : "LOAD";
+        view.mBackLabel = "BACK";
+        drawConsoleMenu(view);
+        break;
+      }
 
     case Screen::Options:
       if (mOptionsMenu)

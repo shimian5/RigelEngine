@@ -78,23 +78,23 @@ void TextEntryWidget::handleEvent(const SDL_Event& event)
     {
       case SDL_CONTROLLER_BUTTON_DPAD_UP:
       case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
-      {
-        if (mText.empty() && capacity > 0)
         {
-          mText += 'A';
+          if (mText.empty() && capacity > 0)
+          {
+            mText += 'A';
+            break;
+          }
+          if (!mText.empty())
+          {
+            const auto step =
+              event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_UP ? 1 : -1;
+            const auto pos = LETTERS.find(mText.back());
+            const auto size = static_cast<int>(LETTERS.size());
+            const auto current = pos == std::string_view::npos ? 0 : int(pos);
+            mText.back() = LETTERS[size_t((current + step + size) % size)];
+          }
           break;
         }
-        if (!mText.empty())
-        {
-          const auto step =
-            event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_UP ? 1 : -1;
-          const auto pos = LETTERS.find(mText.back());
-          const auto size = static_cast<int>(LETTERS.size());
-          const auto current = pos == std::string_view::npos ? 0 : int(pos);
-          mText.back() = LETTERS[size_t((current + step + size) % size)];
-        }
-        break;
-      }
 
       case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
         if (mText.size() < capacity)

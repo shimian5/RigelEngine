@@ -485,8 +485,11 @@ void HudRenderer::drawOverlayHud(
     const auto y0 = r.topLeft.y;
     const auto x1 = r.topLeft.x + r.size.width - 1;
     const auto y1 = r.topLeft.y + r.size.height - 1;
-    for (const auto& corner : {base::Vec2{x0, y0}, base::Vec2{x1, y0},
-                                base::Vec2{x0, y1}, base::Vec2{x1, y1}})
+    for (const auto& corner :
+         {base::Vec2{x0, y0},
+          base::Vec2{x1, y0},
+          base::Vec2{x0, y1},
+          base::Vec2{x1, y1}})
     {
       const auto left = corner.x == x0;
       const auto top = corner.y == y0;
@@ -494,8 +497,7 @@ void HudRenderer::drawOverlayHud(
         {{left ? corner.x : corner.x - (arm - 1), corner.y}, {arm, 1}},
         BRACKET);
       mpRenderer->drawFilledRectangle(
-        {{corner.x, top ? corner.y : corner.y - (arm - 1)}, {1, arm}},
-        BRACKET);
+        {{corner.x, top ? corner.y : corner.y - (arm - 1)}, {1, arm}}, BRACKET);
     }
   };
 
@@ -504,11 +506,12 @@ void HudRenderer::drawOverlayHud(
     drawBrackets(r);
   };
 
-  auto drawText = [&](const base::Vec2& pxPos, std::string_view text, const Color& color) {
-    auto guard = renderer::saveState(mpRenderer);
-    renderer::setLocalTranslation(mpRenderer, pxPos);
-    mpTextRenderer->drawBigText(0, 1, text, color);
-  };
+  auto drawText =
+    [&](const base::Vec2& pxPos, std::string_view text, const Color& color) {
+      auto guard = renderer::saveState(mpRenderer);
+      renderer::setLocalTranslation(mpRenderer, pxPos);
+      mpTextRenderer->drawBigText(0, 1, text, color);
+    };
 
   // Top left: health pips
   {
@@ -518,7 +521,8 @@ void HudRenderer::drawOverlayHud(
     const auto lowHealthBlink = (mElapsedFrames / 4) % 2 == 0;
 
     mpRenderer->drawFilledRectangle(
-      {{margin - 2, margin - 2}, {NUM_HEALTH_SLICES * pipStep + 2, pipSize + 4}},
+      {{margin - 2, margin - 2},
+       {NUM_HEALTH_SLICES * pipStep + 2, pipSize + 4}},
       PLATE);
 
     for (auto i = 0; i < NUM_HEALTH_SLICES; ++i)
@@ -532,7 +536,8 @@ void HudRenderer::drawOverlayHud(
 
   // Top left: weapon and ammo
   {
-    const auto box = base::Rect<int>{{margin, margin + 10}, {NUM_HEALTH_SLICES * tile - 2, 20}};
+    const auto box = base::Rect<int>{
+      {margin, margin + 10}, {NUM_HEALTH_SLICES * tile - 2, 20}};
     drawSlot(box);
 
     {
@@ -570,7 +575,9 @@ void HudRenderer::drawOverlayHud(
     const auto slotsY = margin + 22;
     for (auto i = 0; i < numSlots; ++i)
     {
-      drawSlot({{rightEdge - (i + 1) * (slotSize + 2) + 2, slotsY}, {slotSize, slotSize}});
+      drawSlot(
+        {{rightEdge - (i + 1) * (slotSize + 2) + 2, slotsY},
+         {slotSize, slotSize}});
     }
 
     drawFloatingInventory(
@@ -584,7 +591,8 @@ void HudRenderer::drawOverlayHud(
   {
     const auto collected = persistentPlayerState.collectedLetters();
     auto has = [&](data::CollectableLetterType t) {
-      return std::find(collected.begin(), collected.end(), t) != collected.end();
+      return std::find(collected.begin(), collected.end(), t) !=
+        collected.end();
     };
     using L = data::CollectableLetterType;
     const L letters[] = {L::N, L::U, L::K, L::E, L::M};
@@ -609,7 +617,8 @@ void HudRenderer::drawOverlayHud(
     // circle needs to be squashed vertically to look round on screen.
     constexpr auto radius = 16;
     constexpr auto radiusY = 13;
-    const auto radarPos = base::Vec2{margin + 2, mapHeightPx - margin - 2 * radius - 2};
+    const auto radarPos =
+      base::Vec2{margin + 2, mapHeightPx - margin - 2 * radius - 2};
     const auto center = radarPos + base::Vec2{radius, radius + 1};
 
     for (auto dy = -radiusY; dy <= radiusY; ++dy)
@@ -617,7 +626,8 @@ void HudRenderer::drawOverlayHud(
       const auto half = base::round(
         radius * std::sqrt(1.0f - float(dy * dy) / float(radiusY * radiusY)));
       mpRenderer->drawFilledRectangle(
-        {{center.x - half, center.y + dy}, {half * 2 + 1, 1}}, Color{0, 0, 0, 130});
+        {{center.x - half, center.y + dy}, {half * 2 + 1, 1}},
+        Color{0, 0, 0, 130});
     }
 
     drawRadar(radarPositions, radarPos);

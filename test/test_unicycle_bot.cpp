@@ -23,8 +23,8 @@
 #include <data/player_model.hpp>
 #include <engine/collision_checker.hpp>
 #include <engine/random_number_generator.hpp>
-#include <game_logic/entity_factory.hpp>
 #include <game_logic/enemies/unicycle_bot.hpp>
+#include <game_logic/entity_factory.hpp>
 #include <game_logic/global_dependencies.hpp>
 #include <game_logic/player.hpp>
 #include <game_logic/player/components.hpp>
@@ -53,7 +53,10 @@ struct UnicycleSpriteFactory : engine::ISpriteFactory
   {
     return {{}, {3, 3}};
   }
-  engine::SpriteFrame actorFrameData(data::ActorID, int) const override { return {}; }
+  engine::SpriteFrame actorFrameData(data::ActorID, int) const override
+  {
+    return {};
+  }
 };
 } // namespace
 
@@ -102,7 +105,8 @@ TEST_CASE("Unicycle bot orientation and acceleration", "[unicycle]")
       &entityFactory,
       &entityx.events,
       &randomGenerator};
-    auto botEntity = entityFactory.spawnActor(data::ActorID::Unicycle_bot, {10, 20});
+    auto botEntity =
+      entityFactory.spawnActor(data::ActorID::Unicycle_bot, {10, 20});
     auto& botPosition = *botEntity.component<WorldPosition>();
     base::Vec2 cameraPosition{};
     PerFrameState frameState;
@@ -120,16 +124,19 @@ TEST_CASE("Unicycle bot orientation and acceleration", "[unicycle]")
     {
       bot.update(dependencies, state, true, botEntity);
     }
-    const auto expectedOrientation = playerX > 10 ? Orientation::Right : Orientation::Left;
+    const auto expectedOrientation =
+      playerX > 10 ? Orientation::Right : Orientation::Left;
     CHECK(*botEntity.component<Orientation>() == expectedOrientation);
-    REQUIRE(std::holds_alternative<behaviors::UnicycleBot::Accelerating>(bot.mState));
+    REQUIRE(
+      std::holds_alternative<behaviors::UnicycleBot::Accelerating>(bot.mState));
     frameState.mIsOddFrame = false;
     bot.update(dependencies, state, true, botEntity);
     CHECK(botEntity.component<Sprite>()->mFramesToRender[0] == 2);
     if (blocked)
     {
       CHECK(botPosition.x == (playerX > 10 ? 9 : 11));
-      CHECK(std::holds_alternative<behaviors::UnicycleBot::Waiting>(bot.mState));
+      CHECK(
+        std::holds_alternative<behaviors::UnicycleBot::Waiting>(bot.mState));
     }
     else
     {
@@ -144,7 +151,8 @@ TEST_CASE("Unicycle bot orientation and acceleration", "[unicycle]")
         bot.update(dependencies, state, true, botEntity);
         CHECK(botPosition.x == 10);
       }
-      REQUIRE(std::holds_alternative<behaviors::UnicycleBot::Moving>(bot.mState));
+      REQUIRE(
+        std::holds_alternative<behaviors::UnicycleBot::Moving>(bot.mState));
       const auto direction = playerX > 10 ? 1 : -1;
       frameState.mIsOddFrame = false;
       bot.update(dependencies, state, true, botEntity);

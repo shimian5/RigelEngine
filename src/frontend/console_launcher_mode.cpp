@@ -79,7 +79,9 @@ std::string describeDn1Save(const std::string& slot)
   {
     return {};
   }
-  return "DN1   " + slotLabel(slot) + "   E" + std::to_string(oSave->mEpisode + 1) + " LEVEL " + std::to_string(oSave->mLevelIndex + 1) + "   " +
+  return "DN1   " + slotLabel(slot) + "   E" +
+    std::to_string(oSave->mEpisode + 1) + " LEVEL " +
+    std::to_string(oSave->mLevelIndex + 1) + "   " +
     ui::formatScoreWithCommas(oSave->mCarry.score);
 }
 
@@ -91,8 +93,10 @@ std::string describeDn2Save(const std::string& slot)
   {
     return {};
   }
-  return "DN2   " + slotLabel(slot) + "   E" + std::to_string(oSummary->mEpisode) + " L" +
-    std::to_string(oSummary->mLevel) + "   " + ui::formatScoreWithCommas(oSummary->mScore);
+  return "DN2   " + slotLabel(slot) + "   E" +
+    std::to_string(oSummary->mEpisode) + " L" +
+    std::to_string(oSummary->mLevel) + "   " +
+    ui::formatScoreWithCommas(oSummary->mScore);
 }
 
 } // namespace
@@ -106,7 +110,8 @@ ConsoleLauncherMode::ConsoleLauncherMode(Context context)
 }
 
 
-std::optional<ConsoleLauncherMode::SaveItem> ConsoleLauncherMode::newestSave() const
+std::optional<ConsoleLauncherMode::SaveItem>
+  ConsoleLauncherMode::newestSave() const
 {
   std::optional<SaveItem> newest;
   std::filesystem::file_time_type newestTime{};
@@ -118,7 +123,9 @@ std::optional<ConsoleLauncherMode::SaveItem> ConsoleLauncherMode::newestSave() c
     {
       return;
     }
-    if (isDn1 ? !readDuke1Save(slot).has_value() : !readSaveSummary(slot).has_value())
+    if (
+      isDn1 ? !readDuke1Save(slot).has_value()
+            : !readSaveSummary(slot).has_value())
     {
       return;
     }
@@ -195,76 +202,83 @@ void ConsoleLauncherMode::enter(const Screen screen)
       break;
 
     case Screen::Dn1Menu:
-    {
-      bool anySave = false;
-      for (const auto& slot : dn1SlotNames())
       {
-        anySave = anySave || readDuke1Save(slot).has_value();
-      }
-      mList.setItems({{"NEW GAME", true}, {"CONTINUE", anySave}, {"LOAD GAME", anySave}, {"BACK", true}});
-      break;
-    }
-
-    case Screen::Dn1Episodes:
-    {
-      const auto dir = Duke1Mode::findDataDir();
-      mDn1Episodes = dir ? Duke1Mode::availableEpisodes(*dir) : std::vector<int>{};
-      std::vector<ui::ConsoleMenuItem> items;
-      for (const auto episode : mDn1Episodes)
-        items.push_back({"EPISODE " + std::to_string(episode + 1), true});
-      items.push_back({"BACK", true});
-      mList.setItems(std::move(items));
-      break;
-    }
-
-    case Screen::Dn1Levels:
-    {
-      const auto dir = Duke1Mode::findDataDir();
-      const auto episode = dir ? duke1::ExeText::load(*dir, mDn1Episode) : std::nullopt;
-      mDn1LevelCount = episode ? episode->levels().size() : 0;
-      std::vector<ui::ConsoleMenuItem> items;
-      for (std::size_t i = 0; i < mDn1LevelCount; ++i)
-      {
-        items.push_back({"LEVEL " + std::to_string(i + 1), true});
-      }
-      items.push_back({"BACK", true});
-      mList.setItems(std::move(items));
-      break;
-    }
-
-    case Screen::LoadAll:
-    {
-      // Every save of both games, newest-first is not needed: grouped by game, quick/auto first
-      mSaveItems.clear();
-      std::vector<ui::ConsoleMenuItem> items;
-      if (Duke1Mode::findDataDir())
-      {
+        bool anySave = false;
         for (const auto& slot : dn1SlotNames())
         {
-          const auto text = describeDn1Save(slot);
+          anySave = anySave || readDuke1Save(slot).has_value();
+        }
+        mList.setItems(
+          {{"NEW GAME", true},
+           {"CONTINUE", anySave},
+           {"LOAD GAME", anySave},
+           {"BACK", true}});
+        break;
+      }
+
+    case Screen::Dn1Episodes:
+      {
+        const auto dir = Duke1Mode::findDataDir();
+        mDn1Episodes =
+          dir ? Duke1Mode::availableEpisodes(*dir) : std::vector<int>{};
+        std::vector<ui::ConsoleMenuItem> items;
+        for (const auto episode : mDn1Episodes)
+          items.push_back({"EPISODE " + std::to_string(episode + 1), true});
+        items.push_back({"BACK", true});
+        mList.setItems(std::move(items));
+        break;
+      }
+
+    case Screen::Dn1Levels:
+      {
+        const auto dir = Duke1Mode::findDataDir();
+        const auto episode =
+          dir ? duke1::ExeText::load(*dir, mDn1Episode) : std::nullopt;
+        mDn1LevelCount = episode ? episode->levels().size() : 0;
+        std::vector<ui::ConsoleMenuItem> items;
+        for (std::size_t i = 0; i < mDn1LevelCount; ++i)
+        {
+          items.push_back({"LEVEL " + std::to_string(i + 1), true});
+        }
+        items.push_back({"BACK", true});
+        mList.setItems(std::move(items));
+        break;
+      }
+
+    case Screen::LoadAll:
+      {
+        // Every save of both games, newest-first is not needed: grouped by
+        // game, quick/auto first
+        mSaveItems.clear();
+        std::vector<ui::ConsoleMenuItem> items;
+        if (Duke1Mode::findDataDir())
+        {
+          for (const auto& slot : dn1SlotNames())
+          {
+            const auto text = describeDn1Save(slot);
+            if (!text.empty())
+            {
+              mSaveItems.push_back({true, slot});
+              items.push_back({text, true});
+            }
+          }
+        }
+        for (const auto& slot : dn2SlotNames())
+        {
+          const auto text = describeDn2Save(slot);
           if (!text.empty())
           {
-            mSaveItems.push_back({true, slot});
+            mSaveItems.push_back({false, slot});
             items.push_back({text, true});
           }
         }
-      }
-      for (const auto& slot : dn2SlotNames())
-      {
-        const auto text = describeDn2Save(slot);
-        if (!text.empty())
+        if (items.empty())
         {
-          mSaveItems.push_back({false, slot});
-          items.push_back({text, true});
+          items.push_back({"NO SAVED GAMES", false});
         }
+        mList.setItems(std::move(items));
+        break;
       }
-      if (items.empty())
-      {
-        items.push_back({"NO SAVED GAMES", false});
-      }
-      mList.setItems(std::move(items));
-      break;
-    }
 
     case Screen::Credits:
       mList.setItems({{"BACK", true}});
@@ -316,7 +330,8 @@ std::unique_ptr<GameMode> ConsoleLauncherMode::activateSelected()
 
   if (mScreen == Screen::Dn1Episodes)
   {
-    if (std::size_t(selected) >= mDn1Episodes.size()) {
+    if (std::size_t(selected) >= mDn1Episodes.size())
+    {
       enter(Screen::Dn1Menu);
       return nullptr;
     }
@@ -467,11 +482,13 @@ std::unique_ptr<GameMode> ConsoleLauncherMode::updateAndRender(
         {
           if (mScreen == Screen::Dn1Levels)
           {
-            enter(mDn1Episodes.size() > 1 ? Screen::Dn1Episodes : Screen::Dn1Menu);
+            enter(
+              mDn1Episodes.size() > 1 ? Screen::Dn1Episodes : Screen::Dn1Menu);
           }
           else
           {
-            enter(mScreen == Screen::Dn1Episodes ? Screen::Dn1Menu : Screen::Games);
+            enter(
+              mScreen == Screen::Dn1Episodes ? Screen::Dn1Menu : Screen::Games);
           }
         }
         break;
@@ -519,8 +536,7 @@ void ConsoleLauncherMode::render()
     view.mBackLabel = "BACK";
     view.mConfirmLabel = "START";
     view.mInfoLines = {
-      {"NEW GAME", true},
-      {"START WITH DEFAULT EQUIPMENT", false}};
+      {"NEW GAME", true}, {"START WITH DEFAULT EQUIPMENT", false}};
   }
   else if (mScreen == Screen::LoadAll)
   {

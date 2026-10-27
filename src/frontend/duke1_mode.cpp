@@ -22,11 +22,11 @@
 #include "assets/resource_loader.hpp"
 #include "base/image.hpp"
 #include "frontend/game_service_provider.hpp"
+#include "frontend/user_profile.hpp"
 #include "renderer/texture.hpp"
 #include "renderer/upscaling.hpp"
 #include "ui/console_menu.hpp"
 #include "ui/overlay_hud.hpp"
-#include "frontend/user_profile.hpp"
 
 #include <imgui.h>
 #include <loguru.hpp>
@@ -49,8 +49,6 @@ constexpr int WIDE_VIEW_HEIGHT = 200;
 
 std::filesystem::path gGamePath;
 std::string gLookupProblem;
-
-
 
 
 } // namespace
@@ -76,18 +74,27 @@ std::optional<std::filesystem::path> Duke1Mode::findDataDir()
     return std::nullopt;
   }
 
-  LOG_F(INFO, "Looking for Duke 1 data relative to '%s'", gGamePath.u8string().c_str());
+  LOG_F(
+    INFO,
+    "Looking for Duke 1 data relative to '%s'",
+    gGamePath.u8string().c_str());
 
   // Accept a trailing separator in the stored path
-  const auto base = gGamePath.filename().empty() ? gGamePath.parent_path() : gGamePath;
+  const auto base =
+    gGamePath.filename().empty() ? gGamePath.parent_path() : gGamePath;
   std::optional<std::filesystem::path> found;
   std::size_t episodeCount = 0;
   for (const auto& candidate :
-       {base / "DN1", base / "dn1", base.parent_path() / "DN1",
-        base / "DN1-full" / "pc", base.parent_path() / "DN1-full" / "pc", base})
+       {base / "DN1",
+        base / "dn1",
+        base.parent_path() / "DN1",
+        base / "DN1-full" / "pc",
+        base.parent_path() / "DN1-full" / "pc",
+        base})
   {
     std::error_code error;
-    if (!std::filesystem::is_directory(candidate, error)) continue;
+    if (!std::filesystem::is_directory(candidate, error))
+      continue;
     const auto count = availableEpisodes(candidate).size();
     if (count > episodeCount)
     {
@@ -95,12 +102,14 @@ std::optional<std::filesystem::path> Duke1Mode::findDataDir()
       episodeCount = count;
     }
   }
-  if (found) {
+  if (found)
+  {
     gLookupProblem.clear();
     return found;
   }
 
-  gLookupProblem = "no supported episode EXE and map (looked under " + base.u8string() + ")";
+  gLookupProblem =
+    "no supported episode EXE and map (looked under " + base.u8string() + ")";
   return std::nullopt;
 }
 
@@ -108,10 +117,19 @@ std::optional<std::filesystem::path> Duke1Mode::findDataDir()
 namespace
 {
 
-// DN1 had no music; each level borrows a song from Duke Nukem II when that game's data is present
+// DN1 had no music; each level borrows a song from Duke Nukem II when that
+// game's data is present
 const char* const LEVEL_MUSIC[] = {
-  "RANGEA.IMF", "HESBACKA.IMF", "KICKBUTA.IMF", "BEGONEA.IMF", "SQUEAKA.IMF", "PROWLA.IMF",
-  "DUKINA.IMF", "UBDEADA.IMF", "FIGHTA.IMF", "KINGDUKA.IMF"};
+  "RANGEA.IMF",
+  "HESBACKA.IMF",
+  "KICKBUTA.IMF",
+  "BEGONEA.IMF",
+  "SQUEAKA.IMF",
+  "PROWLA.IMF",
+  "DUKINA.IMF",
+  "UBDEADA.IMF",
+  "FIGHTA.IMF",
+  "KINGDUKA.IMF"};
 
 
 struct DebugFeature
@@ -146,19 +164,26 @@ const DebugFeature DEBUG_FEATURES[] = {
 };
 
 
-
 } // namespace
 
 
-std::vector<int> Duke1Mode::availableEpisodes(const std::filesystem::path& dataDir)
+std::vector<int>
+  Duke1Mode::availableEpisodes(const std::filesystem::path& dataDir)
 {
   std::vector<int> episodes;
-  for (int episode = 0; episode < 3; ++episode) {
-    if (const auto executable = duke1::ExeText::load(dataDir, episode)) {
-      try {
-        duke1::parse_level(duke1::read_file(dataDir, executable->levels().front().filename));
+  for (int episode = 0; episode < 3; ++episode)
+  {
+    if (const auto executable = duke1::ExeText::load(dataDir, episode))
+    {
+      try
+      {
+        duke1::parse_level(
+          duke1::read_file(dataDir, executable->levels().front().filename));
         episodes.push_back(episode);
-      } catch (const std::exception&) {}
+      }
+      catch (const std::exception&)
+      {
+      }
     }
   }
   return episodes;
@@ -167,7 +192,8 @@ std::vector<int> Duke1Mode::availableEpisodes(const std::filesystem::path& dataD
 bool Duke1Mode::selectEpisode(const int episode)
 {
   auto text = duke1::ExeText::load(mDataDir, episode);
-  if (!text) return false;
+  if (!text)
+    return false;
   mText = std::move(text);
   mEpisode = episode;
   mpSpeaker = std::make_unique<Duke1Speaker>(mDataDir, episode);
@@ -175,7 +201,9 @@ bool Duke1Mode::selectEpisode(const int episode)
   return true;
 }
 
-void Duke1Mode::startLevel(const std::size_t index, const duke1::PlayWorld::Carry* pCarry)
+void Duke1Mode::startLevel(
+  const std::size_t index,
+  const duke1::PlayWorld::Carry* pCarry)
 {
   mInputLog.clear();
   mLevelStartCarry = pCarry ? *pCarry : duke1::PlayWorld::Carry{};
@@ -190,7 +218,8 @@ void Duke1Mode::startLevel(const std::size_t index, const duke1::PlayWorld::Carr
   mpWorld = std::move(next);
   try
   {
-    mContext.mpServiceProvider->playMusic(LEVEL_MUSIC[index % (sizeof(LEVEL_MUSIC) / sizeof(LEVEL_MUSIC[0]))]);
+    mContext.mpServiceProvider->playMusic(
+      LEVEL_MUSIC[index % (sizeof(LEVEL_MUSIC) / sizeof(LEVEL_MUSIC[0]))]);
   }
   catch (const std::exception&)
   {
@@ -227,7 +256,8 @@ Duke1Mode::Duke1Mode(
     if (initialLevel >= mText->levels().size())
       throw std::runtime_error("Duke 1 initial level is outside the episode");
     startLevel(initialLevel, nullptr);
-    mStartJinglePending = true;  // the "game start" jingle belongs to a new game only
+    mStartJinglePending =
+      true; // the "game start" jingle belongs to a new game only
     if (mpScreens && mpScreens->valid())
     {
       auto pages = mpScreens->introPages();
@@ -248,16 +278,29 @@ void Duke1Mode::handleEvent(const SDL_Event& event)
   auto setKey = [&](const SDL_Keycode key, const bool down) {
     switch (key)
     {
-      case SDLK_LEFT: mInput.left = down; break;
-      case SDLK_RIGHT: mInput.right = down; break;
-      case SDLK_UP: mInput.up = down; break;
-      case SDLK_DOWN: mInput.down = down; break;
+      case SDLK_LEFT:
+        mInput.left = down;
+        break;
+      case SDLK_RIGHT:
+        mInput.right = down;
+        break;
+      case SDLK_UP:
+        mInput.up = down;
+        break;
+      case SDLK_DOWN:
+        mInput.down = down;
+        break;
       case SDLK_SPACE:
       case SDLK_LCTRL:
-      case SDLK_z: mInput.jump = down; break;
+      case SDLK_z:
+        mInput.jump = down;
+        break;
       case SDLK_LALT:
-      case SDLK_x: mInput.fire = down; break;
-      default: break;
+      case SDLK_x:
+        mInput.fire = down;
+        break;
+      default:
+        break;
     }
   };
 
@@ -285,71 +328,82 @@ void Duke1Mode::handleEvent(const SDL_Event& event)
 
     case SDL_CONTROLLERBUTTONDOWN:
     case SDL_CONTROLLERBUTTONUP:
-    {
-      const auto down = event.type == SDL_CONTROLLERBUTTONDOWN;
-      switch (event.cbutton.button)
       {
-        case SDL_CONTROLLER_BUTTON_DPAD_LEFT: mDpad[0] = down; break;
-        case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: mDpad[1] = down; break;
-        case SDL_CONTROLLER_BUTTON_DPAD_UP: mDpad[2] = down; break;
-        case SDL_CONTROLLER_BUTTON_DPAD_DOWN: mDpad[3] = down; break;
-        case SDL_CONTROLLER_BUTTON_BACK: mBackHeld = down; break;
-        case SDL_CONTROLLER_BUTTON_A:
-        case SDL_CONTROLLER_BUTTON_B:
-        case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
-          if (mBackHeld && down)
-          {
-            mQuickLoadRequested = true;  // BACK + A/B loads, like in Duke II
-          }
-          else
-          {
-            mInput.jump = down;
-          }
-          break;
-        case SDL_CONTROLLER_BUTTON_X:
-        case SDL_CONTROLLER_BUTTON_Y:
-        case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
-          if (mBackHeld && down)
-          {
-            mQuickSaveRequested = true;  // BACK + X/Y saves
-          }
-          else
-          {
-            mInput.fire = down;
-          }
-          break;
-        case SDL_CONTROLLER_BUTTON_START:
-          if (down)
-          {
-            mPauseRequested = true;
-          }
-          break;
-        default: break;
+        const auto down = event.type == SDL_CONTROLLERBUTTONDOWN;
+        switch (event.cbutton.button)
+        {
+          case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+            mDpad[0] = down;
+            break;
+          case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+            mDpad[1] = down;
+            break;
+          case SDL_CONTROLLER_BUTTON_DPAD_UP:
+            mDpad[2] = down;
+            break;
+          case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+            mDpad[3] = down;
+            break;
+          case SDL_CONTROLLER_BUTTON_BACK:
+            mBackHeld = down;
+            break;
+          case SDL_CONTROLLER_BUTTON_A:
+          case SDL_CONTROLLER_BUTTON_B:
+          case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
+            if (mBackHeld && down)
+            {
+              mQuickLoadRequested = true; // BACK + A/B loads, like in Duke II
+            }
+            else
+            {
+              mInput.jump = down;
+            }
+            break;
+          case SDL_CONTROLLER_BUTTON_X:
+          case SDL_CONTROLLER_BUTTON_Y:
+          case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
+            if (mBackHeld && down)
+            {
+              mQuickSaveRequested = true; // BACK + X/Y saves
+            }
+            else
+            {
+              mInput.fire = down;
+            }
+            break;
+          case SDL_CONTROLLER_BUTTON_START:
+            if (down)
+            {
+              mPauseRequested = true;
+            }
+            break;
+          default:
+            break;
+        }
+        break;
       }
-      break;
-    }
 
     case SDL_CONTROLLERAXISMOTION:
-    {
-      const auto value = static_cast<float>(event.caxis.value) / 32767.0f;
-      if (event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTX)
       {
-        mStickX = value;
+        const auto value = static_cast<float>(event.caxis.value) / 32767.0f;
+        if (event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTX)
+        {
+          mStickX = value;
+        }
+        else if (event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTY)
+        {
+          mStickY = value;
+        }
+        else if (event.caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERLEFT)
+        {
+          mInput.jump = value > 0.5f;
+        }
+        else if (event.caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERRIGHT)
+        {
+          mInput.fire = value > 0.5f;
+        }
+        break;
       }
-      else if (event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTY)
-      {
-        mStickY = value;
-      }
-      else if (event.caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERLEFT)
-      {
-        mInput.jump = value > 0.5f;
-      }
-      else if (event.caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERRIGHT)
-      {
-        mInput.fire = value > 0.5f;
-      }
-      break;
-    }
 
     default:
       break;
@@ -367,14 +421,14 @@ void Duke1Mode::submitOverlayHud()
       mContext.mpRenderer, mContext.mpResources->gamePath(), tier);
     if (!mHudSkin && !mGeneratedHudSkin)
     {
-      mGeneratedHudSkin =
-        ui::HudSkin::generateDefault(mContext.mpRenderer, *mContext.mpResources);
+      mGeneratedHudSkin = ui::HudSkin::generateDefault(
+        mContext.mpRenderer, *mContext.mpResources);
     }
     mHudSkinTierTried = tier;
   }
 
-  const auto* pSkin = mHudSkin ? &*mHudSkin
-                               : (mGeneratedHudSkin ? &*mGeneratedHudSkin : nullptr);
+  const auto* pSkin =
+    mHudSkin ? &*mHudSkin : (mGeneratedHudSkin ? &*mGeneratedHudSkin : nullptr);
   if (!pSkin)
   {
     return;
@@ -426,7 +480,7 @@ bool Duke1Mode::saveTo(const std::string& slot)
 {
   if (mDebugUsed)
   {
-    return false;  // a debug jump can't be replayed from the input log
+    return false; // a debug jump can't be replayed from the input log
   }
   Duke1Save save;
   save.mLevelIndex = static_cast<int>(mLevelIndex);
@@ -441,14 +495,17 @@ bool Duke1Mode::saveTo(const std::string& slot)
 bool Duke1Mode::loadFrom(const std::string& slot)
 {
   const auto oSave = readDuke1Save(slot);
-  const auto executable = oSave ? duke1::ExeText::load(mDataDir, oSave->mEpisode) : std::nullopt;
-  if (!oSave || !executable || oSave->mLevelIndex < 0 ||
-      std::size_t(oSave->mLevelIndex) >= executable->levels().size())
+  const auto executable =
+    oSave ? duke1::ExeText::load(mDataDir, oSave->mEpisode) : std::nullopt;
+  if (
+    !oSave || !executable || oSave->mLevelIndex < 0 ||
+    std::size_t(oSave->mLevelIndex) >= executable->levels().size())
   {
     return false;
   }
 
-  if (oSave->mEpisode != mEpisode && !selectEpisode(oSave->mEpisode)) return false;
+  if (oSave->mEpisode != mEpisode && !selectEpisode(oSave->mEpisode))
+    return false;
   mEpisodeFinished = false;
   mAutosaveOnStart = false;
   mWide = oSave->mWide;
@@ -460,7 +517,7 @@ bool Duke1Mode::loadFrom(const std::string& slot)
   {
     mpWorld->update(unpackDuke1Input(packed));
   }
-  mpWorld->takeSounds();  // nothing of the replay should be heard
+  mpWorld->takeSounds(); // nothing of the replay should be heard
   mInputLog = oSave->mInputs;
   mTimerRemainder = 0.0;
   mSinceUpdate = 0.0;
@@ -487,18 +544,26 @@ void Duke1Mode::enterPauseScreen(const PauseScreen screen)
         {"QUIT TO MENU", true}};
       break;
 
-    case PauseScreen::Stats: items = {{"CONTINUE", true}}; break;
+    case PauseScreen::Stats:
+      items = {{"CONTINUE", true}};
+      break;
 
     case PauseScreen::Debug:
-      items = {{"SKIP TO LEVEL", true}, {"GO TO FEATURE", true}, {"GIVE ALL ITEMS", true}, {"FINISH LEVEL", true}};
+      items = {
+        {"SKIP TO LEVEL", true},
+        {"GO TO FEATURE", true},
+        {"GIVE ALL ITEMS", true},
+        {"FINISH LEVEL", true}};
       break;
 
     case PauseScreen::DebugLevels:
-      for (std::size_t i = 0; i < mText->levels().size(); ++i) items.push_back({levelLabel(i), true});
+      for (std::size_t i = 0; i < mText->levels().size(); ++i)
+        items.push_back({levelLabel(i), true});
       break;
 
     case PauseScreen::DebugFeatures:
-      for (const auto& f : DEBUG_FEATURES) items.push_back({f.mName, mEpisode == 0});
+      for (const auto& f : DEBUG_FEATURES)
+        items.push_back({f.mName, mEpisode == 0});
       break;
 
     case PauseScreen::SaveSlots:
@@ -507,12 +572,12 @@ void Duke1Mode::enterPauseScreen(const PauseScreen screen)
       {
         const auto oSave = readDuke1Save(duke1SlotName(i));
         std::string label = "SLOT " + std::to_string(i + 1) + "   ";
-        label += oSave
-          ? "E" + std::to_string(oSave->mEpisode + 1) + " " +
+        label += oSave ? "E" + std::to_string(oSave->mEpisode + 1) + " " +
             levelLabel(std::size_t(std::max(0, oSave->mLevelIndex))) + "   " +
             ui::formatScoreWithCommas(oSave->mCarry.score)
-          : "EMPTY";
-        items.push_back({label, screen == PauseScreen::SaveSlots || oSave.has_value()});
+                       : "EMPTY";
+        items.push_back(
+          {label, screen == PauseScreen::SaveSlots || oSave.has_value()});
       }
       break;
 
@@ -537,7 +602,9 @@ void Duke1Mode::activatePauseSelection()
     case PauseScreen::Main:
       switch (selected)
       {
-        case 0: mPause = PauseScreen::None; break;
+        case 0:
+          mPause = PauseScreen::None;
+          break;
         case 1:
           mToast = saveTo("dn1_quicksave") ? "QUICK SAVED" : "SAVE FAILED";
           mToastSeconds = 1.5;
@@ -550,46 +617,61 @@ void Duke1Mode::activatePauseSelection()
             mToastSeconds = 1.5;
           }
           break;
-        case 3: enterPauseScreen(PauseScreen::SaveSlots); break;
-        case 4: enterPauseScreen(PauseScreen::LoadSlots); break;
-        case 5: enterPauseScreen(PauseScreen::Debug); break;
-        case 6: mQuitRequested = true; break;
-        default: break;
+        case 3:
+          enterPauseScreen(PauseScreen::SaveSlots);
+          break;
+        case 4:
+          enterPauseScreen(PauseScreen::LoadSlots);
+          break;
+        case 5:
+          enterPauseScreen(PauseScreen::Debug);
+          break;
+        case 6:
+          mQuitRequested = true;
+          break;
+        default:
+          break;
       }
       break;
 
     case PauseScreen::Stats:
-    {
-      if (mpResults && !mpResults->confirm())
       {
-        break;  // the first press only finishes the tally
-      }
-      mpResults.reset();
-      mPause = PauseScreen::None;
-      mContext.mpServiceProvider->fadeOutScreen();
-      if (mLevelIndex + 1 >= mText->levels().size()) {
-        mEpisodeFinished = true;
-        if (mpScreens && mpScreens->valid()) showPages(mpScreens->endingPages());
+        if (mpResults && !mpResults->confirm())
+        {
+          break; // the first press only finishes the tally
+        }
+        mpResults.reset();
+        mPause = PauseScreen::None;
+        mContext.mpServiceProvider->fadeOutScreen();
+        if (mLevelIndex + 1 >= mText->levels().size())
+        {
+          mEpisodeFinished = true;
+          if (mpScreens && mpScreens->valid())
+            showPages(mpScreens->endingPages());
+          break;
+        }
+        const auto message = mText->levels()[mLevelIndex].intermissionMessage;
+        startLevel(mLevelIndex + 1, &mStatsCarry);
+        mFadeInPending = true;
+        if (mpScreens && mpScreens->valid())
+        {
+          if (auto page = mpScreens->hallwayMessage(message); !page.empty())
+          {
+            showPages({std::move(page)});
+          }
+        }
         break;
       }
-      const auto message = mText->levels()[mLevelIndex].intermissionMessage;
-      startLevel(mLevelIndex + 1, &mStatsCarry);
-      mFadeInPending = true;
-      if (mpScreens && mpScreens->valid())
-      {
-        if (auto page = mpScreens->hallwayMessage(message); !page.empty())
-        {
-          showPages({std::move(page)});
-        }
-      }
-      break;
-    }
 
     case PauseScreen::Debug:
       switch (selected)
       {
-        case 0: enterPauseScreen(PauseScreen::DebugLevels); break;
-        case 1: enterPauseScreen(PauseScreen::DebugFeatures); break;
+        case 0:
+          enterPauseScreen(PauseScreen::DebugLevels);
+          break;
+        case 1:
+          enterPauseScreen(PauseScreen::DebugFeatures);
+          break;
         case 2:
           mpWorld->grantAll();
           mDebugUsed = true;
@@ -601,35 +683,39 @@ void Duke1Mode::activatePauseSelection()
           mpWorld->debugFinishLevel();
           mPause = PauseScreen::None;
           break;
-        default: break;
+        default:
+          break;
       }
       break;
 
     case PauseScreen::DebugLevels:
-    {
-      const auto carry = mpWorld->carry();
-      mPause = PauseScreen::None;
-      startLevel(std::size_t(selected), &carry);
-      mDebugUsed = true;
-      mFadeInPending = true;
-      break;
-    }
+      {
+        const auto carry = mpWorld->carry();
+        mPause = PauseScreen::None;
+        startLevel(std::size_t(selected), &carry);
+        mDebugUsed = true;
+        mFadeInPending = true;
+        break;
+      }
 
     case PauseScreen::DebugFeatures:
-    {
-      const auto& feature = DEBUG_FEATURES[std::size_t(selected)];
-      auto carry = mpWorld->carry();
-      mPause = PauseScreen::None;
-      std::size_t index = 0;
-      for (std::size_t i = 0; i < mText->levels().size(); ++i)
-        if (std::filesystem::path(mText->levels()[i].filename).stem() == feature.mLevel) index = i;
-      startLevel(index, &carry);
-      mpWorld->teleportToCell(feature.mCol, feature.mRow);
-      mpWorld->grantAll();
-      mDebugUsed = true;
-      mFadeInPending = true;
-      break;
-    }
+      {
+        const auto& feature = DEBUG_FEATURES[std::size_t(selected)];
+        auto carry = mpWorld->carry();
+        mPause = PauseScreen::None;
+        std::size_t index = 0;
+        for (std::size_t i = 0; i < mText->levels().size(); ++i)
+          if (
+            std::filesystem::path(mText->levels()[i].filename).stem() ==
+            feature.mLevel)
+            index = i;
+        startLevel(index, &carry);
+        mpWorld->teleportToCell(feature.mCol, feature.mRow);
+        mpWorld->grantAll();
+        mDebugUsed = true;
+        mFadeInPending = true;
+        break;
+      }
 
     case PauseScreen::SaveSlots:
       mToast = saveTo(duke1SlotName(selected)) ? "GAME SAVED" : "SAVE FAILED";
@@ -638,7 +724,8 @@ void Duke1Mode::activatePauseSelection()
       break;
 
     case PauseScreen::LoadSlots:
-      mToast = loadFrom(duke1SlotName(selected)) ? "GAME LOADED" : "LOAD FAILED";
+      mToast =
+        loadFrom(duke1SlotName(selected)) ? "GAME LOADED" : "LOAD FAILED";
       mToastSeconds = 1.5;
       break;
 
@@ -698,7 +785,6 @@ void Duke1Mode::drawPauseMenu()
 }
 
 
-
 bool Duke1Mode::showPages(std::vector<std::vector<std::uint8_t>> pages)
 {
   mPages = std::move(pages);
@@ -717,10 +803,14 @@ void Duke1Mode::drawPicture(const std::vector<std::uint8_t>& rgba)
   }
   const renderer::Texture picture{
     mContext.mpRenderer,
-    data::Image{std::move(pixels), std::size_t(DUKE1_SCREEN_W), std::size_t(DUKE1_SCREEN_H)}};
+    data::Image{
+      std::move(pixels),
+      std::size_t(DUKE1_SCREEN_W),
+      std::size_t(DUKE1_SCREEN_H)}};
   if (mWide)
   {
-    // One picture pixel per buffer pixel, centered: the engine's upscaler then scales it like the game
+    // One picture pixel per buffer pixel, centered: the engine's upscaler then
+    // scales it like the game
     mContext.mpServiceProvider->markCurrentFrameAsWidescreen();
     const auto target = mContext.mpRenderer->currentRenderTargetSize();
     const auto saved = renderer::saveState(mContext.mpRenderer);
@@ -728,7 +818,8 @@ void Duke1Mode::drawPicture(const std::vector<std::uint8_t>& rgba)
     picture.render(
       base::Rect<int>{{0, 0}, {DUKE1_SCREEN_W, DUKE1_SCREEN_H}},
       base::Rect<int>{
-        {(target.width - DUKE1_SCREEN_W) / 2, (target.height - DUKE1_SCREEN_H) / 2},
+        {(target.width - DUKE1_SCREEN_W) / 2,
+         (target.height - DUKE1_SCREEN_H) / 2},
         {DUKE1_SCREEN_W, DUKE1_SCREEN_H}});
   }
   else
@@ -744,15 +835,19 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
 {
   if (!mPages.empty())
   {
-    // Story and message pages: A/Enter/Space turn the page, START/Esc skip them all
+    // Story and message pages: A/Enter/Space turn the page, START/Esc skip them
+    // all
     for (const auto& event : events)
     {
-      const bool start = (event.type == SDL_CONTROLLERBUTTONDOWN &&
-                          event.cbutton.button == SDL_CONTROLLER_BUTTON_START) ||
-        (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE && !event.key.repeat);
+      const bool start =
+        (event.type == SDL_CONTROLLERBUTTONDOWN &&
+         event.cbutton.button == SDL_CONTROLLER_BUTTON_START) ||
+        (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE &&
+         !event.key.repeat);
       const bool next = ui::isMenuConfirmButton(event) ||
         (event.type == SDL_KEYDOWN && !event.key.repeat &&
-         (event.key.keysym.sym == SDLK_RETURN || event.key.keysym.sym == SDLK_SPACE));
+         (event.key.keysym.sym == SDLK_RETURN ||
+          event.key.keysym.sym == SDLK_SPACE));
       if (start)
       {
         mPages.clear();
@@ -796,7 +891,8 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
     }
     if (startPressed || escPressed)
     {
-      mPause = mPause == PauseScreen::Main ? PauseScreen::None : PauseScreen::Main;
+      mPause =
+        mPause == PauseScreen::Main ? PauseScreen::None : PauseScreen::Main;
       if (mPause == PauseScreen::Main)
       {
         enterPauseScreen(PauseScreen::Main);
@@ -806,9 +902,15 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
 
     switch (mNavigation.convert(event))
     {
-      case ui::NavigationEvent::NavigateUp: mPauseList.move(-1); break;
-      case ui::NavigationEvent::NavigateDown: mPauseList.move(1); break;
-      case ui::NavigationEvent::Confirm: activatePauseSelection(); break;
+      case ui::NavigationEvent::NavigateUp:
+        mPauseList.move(-1);
+        break;
+      case ui::NavigationEvent::NavigateDown:
+        mPauseList.move(1);
+        break;
+      case ui::NavigationEvent::Confirm:
+        activatePauseSelection();
+        break;
       case ui::NavigationEvent::Cancel:
         if (mPause == PauseScreen::Stats)
         {
@@ -818,7 +920,9 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
         {
           mPause = PauseScreen::None;
         }
-        else if (mPause == PauseScreen::DebugLevels || mPause == PauseScreen::DebugFeatures)
+        else if (
+          mPause == PauseScreen::DebugLevels ||
+          mPause == PauseScreen::DebugFeatures)
         {
           enterPauseScreen(PauseScreen::Debug);
         }
@@ -827,7 +931,8 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
           enterPauseScreen(PauseScreen::Main);
         }
         break;
-      default: break;
+      default:
+        break;
     }
   }
 
@@ -871,13 +976,15 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
 
   {
     const auto& soundOptions = mContext.mpUserProfile->mOptions;
-    mpSpeaker->setVolume(soundOptions.mSoundOn ? soundOptions.mSoundVolume : 0.0f);
+    mpSpeaker->setVolume(
+      soundOptions.mSoundOn ? soundOptions.mSoundVolume : 0.0f);
   }
   if (mStartJinglePending)
   {
     // Played from the first frame on: mode changes stop all sounds
     mStartJinglePending = false;
-    mpSpeaker->play(26);  // STARTGAME: four descending sweeps (index 25 is the cheat-mode beeps)
+    mpSpeaker->play(26); // STARTGAME: four descending sweeps (index 25 is the
+                         // cheat-mode beeps)
   }
 
   // Drive the original timer-callback gate from real time
@@ -900,7 +1007,8 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
     }
     if (mpWorld->takeDiscontinuity())
     {
-      mCamInitialized = false; // snap the camera instead of gliding across the level
+      mCamInitialized =
+        false; // snap the camera instead of gliding across the level
     }
     mInputLog.push_back(packDuke1Input(input));
     if (mpWorld->dead())
@@ -918,9 +1026,16 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
       const auto carry = mpWorld->carry();
       mStatsCarry = carry;
       {
-        // Secret bonuses are paid when the level is left: 10,000 for each one that was earned
+        // Secret bonuses are paid when the level is left: 10,000 for each one
+        // that was earned
         static const char* const NAMES[] = {
-          "CAMERAS", "ACME SIGNS", "ROCKETS", "SNAKE BOTS", "BUNNY BOTS", "NO DAMAGE", "D-U-K-E"};
+          "CAMERAS",
+          "ACME SIGNS",
+          "ROCKETS",
+          "SNAKE BOTS",
+          "BUNNY BOTS",
+          "NO DAMAGE",
+          "D-U-K-E"};
         const auto report = mpWorld->bonusReport();
         std::vector<ui::ConsoleResultsScreen::Row> rows;
         for (int i = 0; i < duke1::PlayWorld::NUM_BONUSES; ++i)
@@ -931,13 +1046,19 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
           }
         }
         const auto seconds = mpWorld->updateCount() / 16;
-        const auto time = std::to_string(seconds / 60) + ":" + (seconds % 60 < 10 ? "0" : "") +
-          std::to_string(seconds % 60);
+        const auto time = std::to_string(seconds / 60) + ":" +
+          (seconds % 60 < 10 ? "0" : "") + std::to_string(seconds % 60);
 
         ui::ConsoleResultsScreen::Sounds sounds;
-        sounds.mRowEarned = [this] { mpSpeaker->play(37); };  // GETDUKESND
-        sounds.mScoreTick = [this] { mpSpeaker->play(16); };  // GETBONUSOBJ
-        sounds.mTotal = [this] { mpSpeaker->play(19); };      // LEVELDONE
+        sounds.mRowEarned = [this] {
+          mpSpeaker->play(37);
+        }; // GETDUKESND
+        sounds.mScoreTick = [this] {
+          mpSpeaker->play(16);
+        }; // GETBONUSOBJ
+        sounds.mTotal = [this] {
+          mpSpeaker->play(19);
+        }; // LEVELDONE
         mpResults = std::make_unique<ui::ConsoleResultsScreen>(
           levelLabel(mLevelIndex) + " COMPLETE",
           time,
@@ -953,10 +1074,12 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
       enterPauseScreen(PauseScreen::Stats);
       return nullptr;
     }
-    // Keep the sub-tick remainder so the blend phase doesn't restart at every update
+    // Keep the sub-tick remainder so the blend phase doesn't restart at every
+    // update
     const auto measured = std::clamp(mSinceUpdate, 0.02, 0.25);
     mUpdateInterval += (measured - mUpdateInterval) * 0.1;
-    mSinceUpdate = std::clamp(mSinceUpdate - mUpdateInterval, 0.0, mUpdateInterval);
+    mSinceUpdate =
+      std::clamp(mSinceUpdate - mUpdateInterval, 0.0, mUpdateInterval);
     mPrevCamX = mCamX;
     mPrevCamY = mCamY;
     mCamStepPending = true;
@@ -966,9 +1089,11 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
   // drawn position in between so scrolling and movement look smooth.
   const auto blendFactor = std::clamp(mSinceUpdate / mUpdateInterval, 0.0, 1.0);
   const auto drawX = static_cast<int>(std::lround(
-    mpWorld->prevWorldX() + (mpWorld->worldX() - mpWorld->prevWorldX()) * blendFactor));
+    mpWorld->prevWorldX() +
+    (mpWorld->worldX() - mpWorld->prevWorldX()) * blendFactor));
   const auto drawY = static_cast<int>(std::lround(
-    mpWorld->prevWorldY() + (mpWorld->worldY() - mpWorld->prevWorldY()) * blendFactor));
+    mpWorld->prevWorldY() +
+    (mpWorld->worldY() - mpWorld->prevWorldY()) * blendFactor));
 
   mpWorld->setRenderBlend(blendFactor);
   std::vector<std::uint8_t> rgba;
@@ -1006,7 +1131,9 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
       0.0,
       2048.0 - frameWidth);
     const auto targetY = std::clamp(
-      static_cast<double>(mpWorld->worldY()) - 132.0, 0.0, 1440.0 - frameHeight);
+      static_cast<double>(mpWorld->worldY()) - 132.0,
+      0.0,
+      1440.0 - frameHeight);
     if (!mCamInitialized)
     {
       mCamX = mPrevCamX = targetX;
@@ -1021,19 +1148,13 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
       mCamY += (targetY - mCamY) * step;
       mCamStepPending = false;
     }
-    const auto camX = static_cast<int>(std::lround(
-      mPrevCamX + (mCamX - mPrevCamX) * blendFactor));
-    const auto camY = static_cast<int>(std::lround(
-      mPrevCamY + (mCamY - mPrevCamY) * blendFactor));
+    const auto camX = static_cast<int>(
+      std::lround(mPrevCamX + (mCamX - mPrevCamX) * blendFactor));
+    const auto camY = static_cast<int>(
+      std::lround(mPrevCamY + (mCamY - mPrevCamY) * blendFactor));
 
     mpWorld->renderWorld(
-      rgba,
-      frameWidth,
-      frameHeight,
-      camX,
-      camY,
-      drawX,
-      drawY);
+      rgba, frameWidth, frameHeight, camX, camY, drawX, drawY);
 
     submitOverlayHud();
   }
@@ -1050,7 +1171,8 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
   }
   const renderer::Texture frame{
     mContext.mpRenderer,
-    data::Image{std::move(pixels), std::size_t(frameWidth), std::size_t(frameHeight)}};
+    data::Image{
+      std::move(pixels), std::size_t(frameWidth), std::size_t(frameHeight)}};
   if (wide)
   {
     const auto saved = renderer::saveState(mContext.mpRenderer);

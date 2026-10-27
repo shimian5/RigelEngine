@@ -17,15 +17,15 @@
 
 #pragma once
 
-#include "ui/console_results.hpp"
 #include "duke1/core.hpp"
 #include "duke1/play.hpp"
+#include "frontend/duke1_saves.hpp"
 #include "frontend/duke1_sound.hpp"
 #include "frontend/duke1_story.hpp"
 #include "frontend/game_mode.hpp"
 #include "renderer/texture.hpp"
-#include "frontend/duke1_saves.hpp"
 #include "ui/console_menu.hpp"
+#include "ui/console_results.hpp"
 #include "ui/hud_skin.hpp"
 #include "ui/menu_navigation.hpp"
 
@@ -66,7 +66,8 @@ public:
 
   /** Human readable reason for the most recent findDataDir() failure */
   static const std::string& lastLookupProblem();
-  static std::vector<int> availableEpisodes(const std::filesystem::path& dataDir);
+  static std::vector<int>
+    availableEpisodes(const std::filesystem::path& dataDir);
 
 private:
   void handleEvent(const SDL_Event& event);
@@ -78,7 +79,8 @@ private:
   std::unique_ptr<Duke1Speaker> mpSpeaker;
   std::optional<duke1::ExeText> mText;
   std::unique_ptr<Duke1Screens> mpScreens;
-  std::vector<std::vector<std::uint8_t>> mPages; // story/message pictures being shown, 320x200 RGBA
+  std::vector<std::vector<std::uint8_t>>
+    mPages; // story/message pictures being shown, 320x200 RGBA
   std::size_t mPageIndex = 0;
   bool showPages(std::vector<std::vector<std::uint8_t>> pages);
   void drawPicture(const std::vector<std::uint8_t>& rgba);
@@ -119,7 +121,8 @@ private:
   duke1::PlayWorld::Carry mLevelStartCarry;
   bool mPauseRequested = false;
   bool mDebugUsed = false;
-  bool mWide = false; // simulation setting: wide active window (saved with the game)
+  bool mWide =
+    false; // simulation setting: wide active window (saved with the game)
   bool mStartJinglePending = false;
   duke1::PlayWorld::Carry mStatsCarry;
   std::unique_ptr<ui::ConsoleResultsScreen> mpResults;

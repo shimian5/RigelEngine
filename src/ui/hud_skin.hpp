@@ -182,7 +182,10 @@ public:
   HudTier tier() const { return mTier; }
   HudSkinSource source() const { return mSource; }
   const renderer::Texture& atlas() const { return mAtlas; }
-  const HudSpriteRect& rect(int index) const { return mRects[std::size_t(index)]; }
+  const HudSpriteRect& rect(int index) const
+  {
+    return mRects[std::size_t(index)];
+  }
 
 private:
   using RectArray = std::array<HudSpriteRect, hud_sprite::CountWithExtra>;

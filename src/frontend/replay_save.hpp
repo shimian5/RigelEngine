@@ -72,8 +72,7 @@ std::optional<ReplaySave>
   deserializeReplaySave(const std::vector<std::uint8_t>& bytes);
 
 /** Where save files live, e.g. <prefs>/saves/duke2/quicksave.dn2 */
-std::optional<std::filesystem::path> saveFilePath(
-  const std::string& slotName);
+std::optional<std::filesystem::path> saveFilePath(const std::string& slotName);
 
 bool writeReplaySaveFile(const std::string& slotName, const ReplaySave& save);
 

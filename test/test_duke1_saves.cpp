@@ -2,7 +2,9 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-TEST_CASE("DN1 replay saves retain episode and accept legacy episode one", "[duke1]")
+TEST_CASE(
+  "DN1 replay saves retain episode and accept legacy episode one",
+  "[duke1]")
 {
   rigel::Duke1Save save;
   save.mLevelIndex = 7;
@@ -22,7 +24,8 @@ TEST_CASE("DN1 replay saves retain episode and accept legacy episode one", "[duk
     CHECK(restored->mInputs == save.mInputs);
     for (std::size_t i = 0; i < bytes.size(); ++i)
     {
-      CHECK_FALSE(rigel::deserializeDuke1Save({bytes.begin(), bytes.begin() + i}));
+      CHECK_FALSE(
+        rigel::deserializeDuke1Save({bytes.begin(), bytes.begin() + i}));
     }
   }
 

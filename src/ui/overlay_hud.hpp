@@ -47,7 +47,8 @@ struct OverlayHudState
   bool rapidFire = false;
   std::vector<data::InventoryItemType> inventory;
 
-  // Extra icons for games with their own items (Duke Nukem 1 keys), drawn after the regular inventory
+  // Extra icons for games with their own items (Duke Nukem 1 keys), drawn after
+  // the regular inventory
   std::vector<std::shared_ptr<renderer::Texture>> customIcons;
   std::vector<data::CollectableLetterType> letters;
 

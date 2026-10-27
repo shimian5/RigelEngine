@@ -121,7 +121,8 @@ public:
       const auto a = int(alphaLeft + (alphaRight - alphaLeft) * t);
       for (auto y = 0; y < r.h; ++y)
       {
-        blend(r.x + x, r.y + y, Color{color.r, color.g, color.b, std::uint8_t(a)});
+        blend(
+          r.x + x, r.y + y, Color{color.r, color.g, color.b, std::uint8_t(a)});
       }
     }
   }
@@ -153,10 +154,7 @@ public:
 
   /** Radial shape; alpha function takes normalized distance in [0, 1] */
   template <typename F>
-  void radial(
-    const HudSpriteRect& r,
-    const Color& color,
-    F&& alphaAt)
+  void radial(const HudSpriteRect& r, const Color& color, F&& alphaAt)
   {
     const auto cx = r.x + r.w / 2.0f - 0.5f;
     const auto cy = r.y + r.h / 2.0f - 0.5f;
@@ -189,9 +187,7 @@ public:
     }
 
     const auto scale = std::max(
-      1,
-      std::min(
-        r.w / int(image.width()), r.h / int(image.height())));
+      1, std::min(r.w / int(image.width()), r.h / int(image.height())));
     const auto w = int(image.width()) * scale;
     const auto h = int(image.height()) * scale;
     const auto ox = r.x + (r.w - w) / 2;
@@ -241,7 +237,8 @@ public:
         // Treat the color of the crop's top-left pixel as the background
         if (skipBackground)
         {
-          const auto bg = image.pixelData()[std::size_t(srcY) * image.width() + srcX];
+          const auto bg =
+            image.pixelData()[std::size_t(srcY) * image.width() + srcX];
           if (pixel.r == bg.r && pixel.g == bg.g && pixel.b == bg.b)
           {
             continue;
@@ -254,7 +251,8 @@ public:
 
   data::Image toImage() &&
   {
-    return data::Image{std::move(mPixels), std::size_t(mWidth), std::size_t(mHeight)};
+    return data::Image{
+      std::move(mPixels), std::size_t(mWidth), std::size_t(mHeight)};
   }
 
 private:
@@ -269,17 +267,88 @@ const char* glyphFor(const char c)
 {
   switch (c)
   {
-    case 'N': return "X...X" "XX..X" "X.X.X" "X..XX" "X...X" "X...X" "X...X";
-    case 'U': return "X...X" "X...X" "X...X" "X...X" "X...X" "X...X" ".XXX.";
-    case 'K': return "X...X" "X..X." "X.X.." "XX..." "X.X.." "X..X." "X...X";
-    case 'E': return "XXXXX" "X...." "X...." "XXXX." "X...." "X...." "XXXXX";
-    case 'M': return "X...X" "XX.XX" "X.X.X" "X.X.X" "X...X" "X...X" "X...X";
-    case 'S': return ".XXXX" "X...." "X...." ".XXX." "....X" "....X" "XXXX.";
-    case 'C': return ".XXX." "X...X" "X...." "X...." "X...." "X...X" ".XXX.";
-    case 'O': return ".XXX." "X...X" "X...X" "X...X" "X...X" "X...X" ".XXX.";
-    case 'B': return "XXXX." "X...X" "X...X" "XXXX." "X...X" "X...X" "XXXX.";
-    case 'R': return "XXXX." "X...X" "X...X" "XXXX." "X.X.." "X..X." "X...X";
-    default: return ".....................................";
+    case 'N':
+      return "X...X"
+             "XX..X"
+             "X.X.X"
+             "X..XX"
+             "X...X"
+             "X...X"
+             "X...X";
+    case 'U':
+      return "X...X"
+             "X...X"
+             "X...X"
+             "X...X"
+             "X...X"
+             "X...X"
+             ".XXX.";
+    case 'K':
+      return "X...X"
+             "X..X."
+             "X.X.."
+             "XX..."
+             "X.X.."
+             "X..X."
+             "X...X";
+    case 'E':
+      return "XXXXX"
+             "X...."
+             "X...."
+             "XXXX."
+             "X...."
+             "X...."
+             "XXXXX";
+    case 'M':
+      return "X...X"
+             "XX.XX"
+             "X.X.X"
+             "X.X.X"
+             "X...X"
+             "X...X"
+             "X...X";
+    case 'S':
+      return ".XXXX"
+             "X...."
+             "X...."
+             ".XXX."
+             "....X"
+             "....X"
+             "XXXX.";
+    case 'C':
+      return ".XXX."
+             "X...X"
+             "X...."
+             "X...."
+             "X...."
+             "X...X"
+             ".XXX.";
+    case 'O':
+      return ".XXX."
+             "X...X"
+             "X...X"
+             "X...X"
+             "X...X"
+             "X...X"
+             ".XXX.";
+    case 'B':
+      return "XXXX."
+             "X...X"
+             "X...X"
+             "XXXX."
+             "X...X"
+             "X...X"
+             "XXXX.";
+    case 'R':
+      return "XXXX."
+             "X...X"
+             "X...X"
+             "XXXX."
+             "X.X.."
+             "X..X."
+             "X...X";
+    default:
+      return ".....................................";
   }
 }
 
@@ -345,8 +414,7 @@ void drawBigLetter(
   }
   drawGlyph(canvas, c, ox, oy, scale, fill);
   // simple highlight on the upper half
-  drawGlyph(
-    canvas, c, ox, oy, scale, Color{255, 255, 255, 45});
+  drawGlyph(canvas, c, ox, oy, scale, Color{255, 255, 255, 45});
 }
 
 
@@ -366,7 +434,8 @@ data::Image cropTiles(
     for (auto x = 0; x < w; ++x)
     {
       pixels.push_back(
-        sheet.pixelData()[std::size_t(tileY * 8 + y) * sheet.width() + tileX * 8 + x]);
+        sheet.pixelData()
+          [std::size_t(tileY * 8 + y) * sheet.width() + tileX * 8 + x]);
     }
   }
   return data::Image{std::move(pixels), std::size_t(w), std::size_t(h)};
@@ -375,7 +444,8 @@ data::Image cropTiles(
 } // namespace
 
 
-GeneratedHudAtlas generateDefaultHudAtlas(const assets::ResourceLoader& resources)
+GeneratedHudAtlas
+  generateDefaultHudAtlas(const assets::ResourceLoader& resources)
 {
   int numRects = 0;
   const auto* pRects = hudAtlasRects(HudTier::P1080, &numRects);
@@ -395,7 +465,9 @@ GeneratedHudAtlas generateDefaultHudAtlas(const assets::ResourceLoader& resource
     rects[std::size_t(ProjectileNormal + i)] = {4 + i * 108, 364, 100, 48};
   }
 
-  auto R = [&](const int index) { return rects[std::size_t(index)]; };
+  auto R = [&](const int index) {
+    return rects[std::size_t(index)];
+  };
 
   Canvas c{ATLAS_WIDTH, ATLAS_HEIGHT};
 
@@ -410,7 +482,10 @@ GeneratedHudAtlas generateDefaultHudAtlas(const assets::ResourceLoader& resource
     {
       const auto t = float(y) / full.h;
       c.fillRect(
-        full.x, full.y + y, full.w, 1,
+        full.x,
+        full.y + y,
+        full.w,
+        1,
         Color{255, std::uint8_t(175 - 40 * t), 10, 255});
     }
     c.rectOutline(full, Color{255, 220, 150, 140}, 2);
@@ -420,7 +495,8 @@ GeneratedHudAtlas generateDefaultHudAtlas(const assets::ResourceLoader& resource
       const auto& r = R(PipLowHealthFirst + i);
       const auto t = float(i) / 4.0f;
       c.fillRect(
-        r, Color{std::uint8_t(110 + 145 * t), std::uint8_t(20 + 40 * t), 30, 235});
+        r,
+        Color{std::uint8_t(110 + 145 * t), std::uint8_t(20 + 40 * t), 30, 235});
       c.rectOutline(r, Color{255, 255, 255, 60}, 2);
     }
 
@@ -428,7 +504,8 @@ GeneratedHudAtlas generateDefaultHudAtlas(const assets::ResourceLoader& resource
     c.fillRect(bg, Color{0, 0, 0, 130});
     c.rectOutline(bg, Color{255, 255, 255, 60}, 2);
 
-    c.radial(R(PipGlow), ORANGE, [](float d) { return (1.0f - d) * (1.0f - d); });
+    c.radial(
+      R(PipGlow), ORANGE, [](float d) { return (1.0f - d) * (1.0f - d); });
   }
 
   // -- Ammo bar and boss bar pieces ------------------------------------
@@ -446,7 +523,8 @@ GeneratedHudAtlas generateDefaultHudAtlas(const assets::ResourceLoader& resource
     drawText(c, "BOSS", boss.x + 12, boss.y + 17, 3, Color{235, 235, 235, 255});
     // The dark track the health fill is drawn into (see overlay_hud.cpp)
     c.fillRect(boss.x + 94, boss.y + 18, 1083, 20, Color{0, 0, 0, 170});
-    c.rectOutline({boss.x + 94, boss.y + 18, 1083, 20}, Color{255, 255, 255, 60}, 1);
+    c.rectOutline(
+      {boss.x + 94, boss.y + 18, 1083, 20}, Color{255, 255, 255, 60}, 1);
   }
 
   // -- Panels -----------------------------------------------------------
@@ -465,7 +543,13 @@ GeneratedHudAtlas generateDefaultHudAtlas(const assets::ResourceLoader& resource
     // Top right: score and letters
     const auto& p = R(ScorePanel);
     c.gradientPanel(p, Color{8, 8, 12, 255}, 20, 200);
-    drawText(c, "SCORE", p.x + p.w - 20 - 5 * 6 * 3, p.y + 6, 3, Color{190, 190, 190, 230});
+    drawText(
+      c,
+      "SCORE",
+      p.x + p.w - 20 - 5 * 6 * 3,
+      p.y + 6,
+      3,
+      Color{190, 190, 190, 230});
     for (auto i = 0; i < 5; ++i)
     {
       c.slot({p.x + 21 + 46 * i, p.y + 83, 40, 40}, 8);
@@ -488,14 +572,12 @@ GeneratedHudAtlas generateDefaultHudAtlas(const assets::ResourceLoader& resource
     const auto center = HudSpriteRect{p.x + 200, p.y, 220, 220};
     c.radial(center, Color{0, 0, 0, 255}, [](float) { return 0.5f; });
     c.radial(center, ORANGE, [](float d) { return d > 0.955f ? 1.0f : 0.0f; });
-    c.radial(
-      {center.x + 40, center.y + 40, 140, 140},
-      ORANGE,
-      [](float d) { return (d > 0.97f && d < 1.0f) ? 0.45f : 0.0f; });
-    c.radial(
-      {center.x + 75, center.y + 75, 70, 70},
-      ORANGE,
-      [](float d) { return (d > 0.94f && d < 1.0f) ? 0.45f : 0.0f; });
+    c.radial({center.x + 40, center.y + 40, 140, 140}, ORANGE, [](float d) {
+      return (d > 0.97f && d < 1.0f) ? 0.45f : 0.0f;
+    });
+    c.radial({center.x + 75, center.y + 75, 70, 70}, ORANGE, [](float d) {
+      return (d > 0.94f && d < 1.0f) ? 0.45f : 0.0f;
+    });
     c.fillRect(center.x + 10, center.y + 109, 200, 2, Color{255, 255, 255, 25});
     c.fillRect(center.x + 109, center.y + 10, 2, 200, Color{255, 255, 255, 25});
   }
@@ -559,7 +641,9 @@ GeneratedHudAtlas generateDefaultHudAtlas(const assets::ResourceLoader& resource
           for (auto x = 12; x < int(img.width()); ++x)
           {
             const auto px = img.pixelData()[std::size_t(y) * img.width() + x];
-            if (px.a > 0 && px.g > px.r + 40 && px.g > px.b + 40 && int(px.g) > best)
+            if (
+              px.a > 0 && px.g > px.r + 40 && px.g > px.b + 40 &&
+              int(px.g) > best)
             {
               best = px.g;
               green = px;
@@ -591,7 +675,12 @@ GeneratedHudAtlas generateDefaultHudAtlas(const assets::ResourceLoader& resource
 
         Canvas g{gridW, gridH};
         const Color black{0, 0, 0, 255};
-        auto part = [&](const int x, const int y, const int w, const int h, const Color& fill) {
+        auto part = [&](
+                      const int x,
+                      const int y,
+                      const int w,
+                      const int h,
+                      const Color& fill) {
           g.fillRect(x - 1, y - 1, w + 2, h + 2, black);
           g.fillRect(x, y, w, h, fill);
         };
@@ -617,14 +706,15 @@ GeneratedHudAtlas generateDefaultHudAtlas(const assets::ResourceLoader& resource
         if (!duke.mFrames.empty())
         {
           g.blitCropScaled(
-            duke.mFrames.front().mFrameImage,
-            17, 16, 15, 7,
-            13, 1, 1, true);
+            duke.mFrames.front().mFrameImage, 17, 16, 15, 7, 13, 1, 1, true);
         }
 
         c.blitCropScaled(
           std::move(g).toImage(),
-          0, 0, gridW, gridH,
+          0,
+          0,
+          gridW,
+          gridH,
           r.x + (r.w - gridW * scale) / 2,
           r.y + (r.h - gridH * scale) / 2,
           scale);
@@ -643,13 +733,23 @@ GeneratedHudAtlas generateDefaultHudAtlas(const assets::ResourceLoader& resource
       const auto& r = R(ProjectileNormal + i);
       c.blitCropScaled(
         cropTiles(sheet, tileIndex % 40, tileIndex / 40, 4, 2),
-        0, 0, 32, 16,
-        r.x + (r.w - 96) / 2, r.y + (r.h - 48) / 2, 3, false, true);
+        0,
+        0,
+        32,
+        16,
+        r.x + (r.w - 96) / 2,
+        r.y + (r.h - 48) / 2,
+        3,
+        false,
+        true);
     }
 
     const auto& rapid = R(ProjectileRapid);
     c.fillRect(
-      rapid.x + (rapid.w - 70) / 2, rapid.y + (rapid.h - 14) / 2, 70, 14,
+      rapid.x + (rapid.w - 70) / 2,
+      rapid.y + (rapid.h - 14) / 2,
+      70,
+      14,
       Color{255, 220, 60, 255});
   }
 

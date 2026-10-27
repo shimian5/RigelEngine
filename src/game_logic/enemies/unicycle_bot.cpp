@@ -88,7 +88,8 @@ void UnicycleBot::update(
       // bot one step away from the obstacle.
       const auto movement = engine::orientation::toMovement(orientation);
       const auto positionBefore = position;
-      auto& mutablePosition = *entity.component<engine::components::WorldPosition>();
+      auto& mutablePosition =
+        *entity.component<engine::components::WorldPosition>();
       const auto probe = engine::moveHorizontallyWithStairStepping(
         *d.mpCollisionChecker, entity, movement);
       mutablePosition = positionBefore;

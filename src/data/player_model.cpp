@@ -277,7 +277,10 @@ void putU32(std::vector<std::uint8_t>& out, const std::uint32_t value)
 }
 
 
-bool getU32(const std::uint8_t*& pData, const std::uint8_t* pEnd, std::uint32_t& value)
+bool getU32(
+  const std::uint8_t*& pData,
+  const std::uint8_t* pEnd,
+  std::uint32_t& value)
 {
   if (pEnd - pData < 4)
   {
@@ -362,7 +365,8 @@ std::optional<PersistentPlayerState> PersistentPlayerState::deserialize(
     {
       return std::nullopt;
     }
-    result.mCollectedLetters.push_back(static_cast<CollectableLetterType>(letter));
+    result.mCollectedLetters.push_back(
+      static_cast<CollectableLetterType>(letter));
   }
 
   return result;

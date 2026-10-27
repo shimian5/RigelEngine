@@ -16,10 +16,10 @@
 
 #pragma once
 
-#include "ui/console_results.hpp"
 #include "data/player_model.hpp"
 #include "frontend/game_mode.hpp"
 #include "ui/bonus_screen.hpp"
+#include "ui/console_results.hpp"
 #include "ui/episode_end_sequence.hpp"
 
 #include "game_runner.hpp"

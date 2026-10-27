@@ -43,6 +43,7 @@ struct GeneratedHudAtlas
   std::array<HudSpriteRect, hud_sprite::CountWithExtra> mRects;
 };
 
-GeneratedHudAtlas generateDefaultHudAtlas(const assets::ResourceLoader& resources);
+GeneratedHudAtlas
+  generateDefaultHudAtlas(const assets::ResourceLoader& resources);
 
 } // namespace rigel::ui

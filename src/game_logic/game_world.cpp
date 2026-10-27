@@ -360,12 +360,18 @@ std::set<data::Bonus> GameWorld::availableBonuses() const
 {
   const auto& info = mpState->mBonusInfo;
   std::set<data::Bonus> result{data::Bonus::NoDamageTaken};
-  if (info.mInitialCameraCount > 0) result.insert(data::Bonus::DestroyedAllCameras);
-  if (info.mInitialWeaponCount > 0) result.insert(data::Bonus::CollectedEveryWeapon);
-  if (info.mInitialMerchandiseCount > 0) result.insert(data::Bonus::CollectedAllMerchandise);
-  if (info.mInitialLaserTurretCount > 0) result.insert(data::Bonus::DestroyedAllSpinningLaserTurrets);
-  if (info.mInitialFireBombCount > 0) result.insert(data::Bonus::DestroyedAllFireBombs);
-  if (info.mInitialBonusGlobeCount > 0) result.insert(data::Bonus::ShotAllBonusGlobes);
+  if (info.mInitialCameraCount > 0)
+    result.insert(data::Bonus::DestroyedAllCameras);
+  if (info.mInitialWeaponCount > 0)
+    result.insert(data::Bonus::CollectedEveryWeapon);
+  if (info.mInitialMerchandiseCount > 0)
+    result.insert(data::Bonus::CollectedAllMerchandise);
+  if (info.mInitialLaserTurretCount > 0)
+    result.insert(data::Bonus::DestroyedAllSpinningLaserTurrets);
+  if (info.mInitialFireBombCount > 0)
+    result.insert(data::Bonus::DestroyedAllFireBombs);
+  if (info.mInitialBonusGlobeCount > 0)
+    result.insert(data::Bonus::ShotAllBonusGlobes);
   return result;
 }
 
@@ -895,7 +901,8 @@ bool GameWorld::submitOverlayHud(const std::vector<base::Vec2>& radarDots)
     mHudSkinTierTried = tier;
   }
 
-  const auto* pSkin = mHudSkin ? &*mHudSkin : (mGeneratedHudSkin ? &*mGeneratedHudSkin : nullptr);
+  const auto* pSkin =
+    mHudSkin ? &*mHudSkin : (mGeneratedHudSkin ? &*mGeneratedHudSkin : nullptr);
   if (!pSkin)
   {
     return false;
@@ -934,8 +941,9 @@ bool GameWorld::submitOverlayHud(const std::vector<base::Vec2>& radarDots)
   state.timeSeconds = double(SDL_GetTicks()) / 1000.0;
 
   mpServiceProvider->setNativeOverlay(
-    [pRenderer = mpRenderer, pSkin, state = std::move(state)](
-      const int alpha) { ui::drawOverlayHud(pRenderer, *pSkin, state, alpha); });
+    [pRenderer = mpRenderer, pSkin, state = std::move(state)](const int alpha) {
+      ui::drawOverlayHud(pRenderer, *pSkin, state, alpha);
+    });
   return true;
 }
 

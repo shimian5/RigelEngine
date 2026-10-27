@@ -862,7 +862,8 @@ void OptionsMenu::updateAndRender(engine::TimeDelta dt)
 
       ImGui::Checkbox("Quick saving", &mpOptions->mQuickSavingEnabled);
       ImGui::Checkbox("Console-style pause menu", &mpOptions->mConsoleMenus);
-      ImGui::Checkbox("Show level timer (overlay HUD)", &mpOptions->mShowLevelTimer);
+      ImGui::Checkbox(
+        "Show level timer (overlay HUD)", &mpOptions->mShowLevelTimer);
       ImGui::Checkbox("Skip intro sequence", &mpOptions->mSkipIntro);
 
       if (mpOptions->mGameplayStyle == data::GameplayStyle::Classic)

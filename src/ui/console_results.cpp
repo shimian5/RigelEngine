@@ -106,7 +106,8 @@ bool ConsoleResultsScreen::confirm()
     mRowsPlayed = int(mRows.size());
     mTicksPlayed = int(COUNT_DURATION / TICK_INTERVAL);
     mTotalPlayed = true;
-    mElapsed = START_DELAY + double(mRows.size()) * ROW_INTERVAL + COUNT_DURATION;
+    mElapsed =
+      START_DELAY + double(mRows.size()) * ROW_INTERVAL + COUNT_DURATION;
     return false;
   }
   return true;
