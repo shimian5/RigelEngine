@@ -207,9 +207,6 @@ first, and then place the files into that directory.
 For more information, see https://github.com/lethal-guitar/RigelEngine/wiki/Modding-support
 
 You can find some mods to get you started at https://github.com/lethal-guitar/RigelEngine/wiki/List-of-mods
-
-You've made a mod and would like to share it with the community?
-Stop by the 'modding' channel on the RigelEngine Discord: https://discord.gg/dtJQPFYD
 )";
 
   LOG_F(INFO, "Created empty 'mods' directory and instructions.txt");

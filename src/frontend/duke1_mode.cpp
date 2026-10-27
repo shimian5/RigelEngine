@@ -99,8 +99,10 @@ std::optional<std::filesystem::path> Duke1Mode::findDataDir()
   std::optional<std::filesystem::path> found;
   std::size_t episodeCount = 0;
   for (const auto& candidate :
-       {base / "DN1",
+       {base / "Duke1",
+        base / "DN1",
         base / "dn1",
+        base.parent_path() / "Duke1",
         base.parent_path() / "DN1",
         base / "DN1-full" / "pc",
         base.parent_path() / "DN1-full" / "pc",

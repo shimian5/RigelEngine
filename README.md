@@ -1,4 +1,4 @@
-# Rigel Engine [![CI](https://github.com/shimian5/RigelEngine/actions/workflows/ci.yml/badge.svg?branch=dn1-snapshot-2026-10-26)](https://github.com/shimian5/RigelEngine/actions/workflows/ci.yml) [![Discord](https://img.shields.io/discord/798281609437642752?color=7289DA&label=Discord&logo=discord&logoColor=white)](https://discord.gg/QKYB6u4Kew)
+# Rigel Engine [![CI](https://github.com/shimian5/RigelEngine/actions/workflows/ci.yml/badge.svg?branch=dn1-snapshot-2026-10-26)](https://github.com/shimian5/RigelEngine/actions/workflows/ci.yml)
 
 ## What is Rigel Engine?
 
@@ -88,37 +88,37 @@ You only need the files for the game or games you want to play. Duke Nukem I doe
 need any Duke Nukem II data, and Duke Nukem II does not need Duke Nukem I's. If a game's
 files are missing, its entry in the launcher is greyed out.
 
-For **Duke Nukem I**, place its episode EXEs and matching data files together in a directory.
-For **Duke Nukem II**, use the directory containing `NUKEM2.CMP`. At first launch (or via
-Options > Choose game data folder) select the folder that holds the games. The launcher
-looks for Duke Nukem I files in a `DN1` folder inside it or beside it, in `DN1-full/pc` in
-either location, or directly in the selected folder.
-
-For example, with both games installed:
+Put each game in its own folder and select one folder at first launch (or later via
+Options > Choose game data folder). A simple layout:
 
 ```text
 Games/
-  DN1/
-    DN1.EXE
-    WORLDAL1.DN1
-    ...            (all other episode 1 data files)
-    DN2.EXE
+  Duke1/
+    DN1.EXE         (Duke Nukem I episode 1 program)
+    WORLDAL1.DN1    (episode 1 data, and so on)
+    DN2.EXE         (Duke Nukem I episode 2 program)
     WORLDAL1.DN2
-    ...            (all other episode 2 data files)
-    DN3.EXE
+    DN3.EXE         (Duke Nukem I episode 3 program)
     WORLDAL1.DN3
-    ...            (all other episode 3 data files)
+    ...
   Duke2/
     NUKEM2.CMP
     NUKEM2.F1       (optional intro movies, through .F5)
 ```
 
-Choose `Games/Duke2` (or `Games`) in the file browser; the launcher finds `DN1` beside it.
-To play only Duke Nukem I, choose the folder that contains `DN1`, or the `DN1` folder
-itself. Without Duke Nukem II's data there is no Duke Nukem II menu music, since Duke
-Nukem I's level songs are borrowed from it; Duke Nukem I's own sound effects are unaffected.
-The selected path is saved in your user profile. Desktop builds also accept it on the
-command line. On Android, store the files in a location accessible to the app.
+Note that `DN1.EXE`, `DN2.EXE` and `DN3.EXE` are the three *episodes of Duke Nukem I*; they
+have nothing to do with Duke Nukem II, which uses `NUKEM2.CMP`.
+
+* **Both games:** select `Games/Duke2`. The launcher finds `Duke1` next to it.
+* **Duke Nukem I only:** select `Games/Duke1`.
+* **Duke Nukem II only:** select `Games/Duke2`.
+
+The launcher looks for the Duke Nukem I files in a folder named `Duke1` or `DN1`, inside
+the selected folder or next to it, and also in the selected folder itself. Without Duke
+Nukem II's data there is no Duke Nukem II menu music, since Duke Nukem I's level songs are
+borrowed from it; Duke Nukem I's own sound effects are unaffected. The selected path is
+saved in your user profile. Desktop builds also accept it on the command line. On Android,
+store the files in a location accessible to the app.
 
 ### Acquiring the game data
 
