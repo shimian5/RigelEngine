@@ -211,7 +211,8 @@ Duke1Mode::Duke1Mode(
   Context context,
   const std::filesystem::path& dataDir,
   std::optional<std::string> loadSlot,
-  const int episode)
+  const int episode,
+  const std::size_t initialLevel)
   : mContext(context)
   , mDataDir(dataDir)
 {
@@ -223,11 +224,20 @@ Duke1Mode::Duke1Mode(
     throw std::runtime_error("Duke 1 episode executable or data is not usable");
   if (!loadSlot || !loadFrom(*loadSlot))
   {
-    startLevel(0, nullptr);
+    if (initialLevel >= mText->levels().size())
+      throw std::runtime_error("Duke 1 initial level is outside the episode");
+    startLevel(initialLevel, nullptr);
     mStartJinglePending = true;  // the "game start" jingle belongs to a new game only
     if (mpScreens && mpScreens->valid())
     {
-      showPages(mpScreens->introPages());
+      auto pages = mpScreens->introPages();
+      if (initialLevel != 0 && !pages.empty())
+      {
+        auto ready = std::move(pages.back());
+        pages.clear();
+        pages.push_back(std::move(ready));
+      }
+      showPages(std::move(pages));
     }
   }
 }

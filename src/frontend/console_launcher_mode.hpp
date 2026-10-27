@@ -46,6 +46,7 @@ private:
     Games,
     Dn1Menu,
     Dn1Episodes,
+    Dn1Levels,
     LoadAll,
     Credits,
     QuitConfirm
@@ -66,6 +67,8 @@ private:
 
   std::vector<SaveItem> mSaveItems;
   std::vector<int> mDn1Episodes;
+  int mDn1Episode = 0;
+  std::size_t mDn1LevelCount = 0;
   bool mDn1DataAvailable = false;
   Context mContext;
   ui::MenuNavigationHelper mNavigationHelper;

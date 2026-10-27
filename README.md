@@ -34,7 +34,10 @@ original episode EXE and matching loose data files: `DN1.EXE` with `*.DN1`, `DN2
 `*.DN2`, and/or `DN3.EXE` with `*.DN3`. Case does not matter. Keep each episode's files together
 in the `DN1` directory beside the Duke Nukem II data directory; the launcher also recognizes a
 `DN1-full/pc` directory there. It offers the episodes whose EXEs and first maps are present.
-The current launcher still requires the normal Duke Nukem II setup.
+The current launcher still requires the normal Duke Nukem II setup. New Game lets you choose an
+episode and any main level from its EXE table. With only one episode installed, it goes directly to
+level selection. Each start uses default equipment; level 1 shows the full introduction and later
+levels show the ready screen.
 
 Campaign order, backdrops, and displayed story/dialogue text come from the supplied EXE;
 no original game files or text are included here. Full `DROP3.DN1` loads normally. The known
@@ -47,6 +50,9 @@ game data. Optional `DN1_DATA_DIR` enables the boss regression using your own ep
 `DN1_RESEARCH_ROOT` enables local trace comparisons. The existing pixel comparison requires the
 original uppercase shareware research fixture. `dn1_episode_info DATA EPISODE --worlds` loads
 and briefly simulates every main map without opening a window or playing audio.
+The optional test target dn1_episode_exercise can be run with DATA EPISODE arguments for paired
+deterministic runs at each level start and a location for every distinct active ID in the main maps.
+This stress check does not prove complete actor coverage or original-game parity.
 
 ## Current state
 

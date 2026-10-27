@@ -51,7 +51,8 @@ public:
     Context context,
     const std::filesystem::path& dataDir,
     std::optional<std::string> loadSlot = std::nullopt,
-    int episode = 0);
+    int episode = 0,
+    std::size_t initialLevel = 0);
 
   std::unique_ptr<GameMode> updateAndRender(
     engine::TimeDelta dt,

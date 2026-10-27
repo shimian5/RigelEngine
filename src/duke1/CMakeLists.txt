@@ -59,3 +59,8 @@ if(BUILD_TESTING)
   add_test(NAME duke1_episode_screens COMMAND dn1_episode_screens "${DN1_DATA_DIR}" 1)
  endif()
 endif()
+
+if(BUILD_TESTING)
+ add_executable(dn1_episode_exercise tests/exercise_episodes.cpp)
+ target_link_libraries(dn1_episode_exercise PRIVATE dn1_play)
+endif()
