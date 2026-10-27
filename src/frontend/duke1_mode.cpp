@@ -490,8 +490,22 @@ ui::HudArt Duke1Mode::duke1HudArt() const
     }
   }
 
+  // The shot is drawn as a green wave, centered in the 32x16 projectile icon
+  const auto& wave = mpWorld->shotIcon();
+  data::PixelBuffer shot(32 * 16, base::Color{0, 0, 0, 0});
+  for (int y = 0; y < 16; ++y)
+  {
+    for (int x = 0; x < 16; ++x)
+    {
+      const auto k = (std::size_t(y) * 16 + std::size_t(x)) * 4;
+      shot[std::size_t(y) * 32 + std::size_t(8 + x)] =
+        base::Color{wave[k], wave[k + 1], wave[k + 2], wave[k + 3]};
+    }
+  }
+
   ui::HudArt art;
   art.mGun = data::Image{std::move(pixels), GRID_W, GRID_H};
+  art.mProjectiles[0] = data::Image{std::move(shot), 32, 16};
   return art;
 }
 

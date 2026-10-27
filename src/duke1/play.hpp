@@ -159,6 +159,11 @@ public:
                      [static_cast<std::size_t>(kPiece[i - 4] % 50)];
     return sprites_[8][static_cast<std::size_t>(24 + i)];
   }
+  // 16x16 RGBA picture of the green wave that Duke's shots are drawn as
+  const std::vector<std::uint8_t>& shotIcon() const
+  {
+    return sprites_[6][6];
+  }
   // 32x32 RGBA picture of Duke standing and facing right
   std::vector<std::uint8_t> standingPortrait() const;
   // Draws the collected keys into the given area of an RGBA frame (inventory)
