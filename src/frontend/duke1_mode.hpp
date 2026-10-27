@@ -80,6 +80,7 @@ private:
   friend struct Duke1ModeTestAccess;
 
   void handleEvent(const SDL_Event& event);
+  void handleEvents(const std::vector<SDL_Event>& events);
   void submitOverlayHud();
   void renderFrame(double dt, bool paused);
   ui::HudArt duke1HudArt() const;

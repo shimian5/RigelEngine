@@ -251,6 +251,8 @@ std::unique_ptr<GameMode> ConsoleMenuMode::activateSelected()
           mScreen = Screen::Story;
           mIntroMovie.emplace(mContext);
           mIntroMovie->startWithLogoOnly();
+          mIntroMovie->updateAndRender(0.0);
+          mContext.mpServiceProvider->fadeInScreen();
           return nullptr;
         }
         return std::make_unique<GameSessionMode>(sessionId, mContext);

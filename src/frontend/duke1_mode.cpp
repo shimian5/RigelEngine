@@ -661,9 +661,7 @@ void Duke1Mode::renderFrame(const double dt, const bool paused)
 }
 
 
-std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
-  const engine::TimeDelta dt,
-  const std::vector<SDL_Event>& events)
+void Duke1Mode::handleEvents(const std::vector<SDL_Event>& events)
 {
   if (!mPages.empty())
   {
@@ -693,15 +691,9 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
         break;
       }
     }
-    if (!mPages.empty())
-    {
-      drawPicture(mPages[mPageIndex]);
-      return nullptr;
-    }
+    // The whole batch belongs to the pages, including the press that exits.
+    return;
   }
-
-  if (mEpisodeFinished && mPages.empty())
-    return std::make_unique<ConsoleLauncherMode>(mContext);
 
   for (const auto& event : events)
   {
@@ -765,6 +757,22 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
         break;
     }
   }
+}
+
+
+std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
+  const engine::TimeDelta dt,
+  const std::vector<SDL_Event>& events)
+{
+  handleEvents(events);
+  if (!mPages.empty())
+  {
+    drawPicture(mPages[mPageIndex]);
+    return nullptr;
+  }
+
+  if (mEpisodeFinished)
+    return std::make_unique<ConsoleLauncherMode>(mContext);
 
   if (mQuitRequested)
   {

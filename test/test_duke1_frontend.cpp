@@ -13,6 +13,20 @@ struct Duke1ModeTestAccess
   static const auto& log(const Duke1Mode& mode) { return mode.mInputLog; }
   static bool finished(const Duke1Mode& mode) { return mode.mEpisodeFinished; }
   static const auto& pages(const Duke1Mode& mode) { return mode.mPages; }
+  static void events(Duke1Mode& mode, const std::vector<SDL_Event>& events)
+  {
+    mode.handleEvents(events);
+  }
+  static bool pauseRequested(const Duke1Mode& mode)
+  {
+    return mode.mPauseRequested;
+  }
+  static const auto& input(const Duke1Mode& mode) { return mode.mInput; }
+  static void onePage(Duke1Mode& mode)
+  {
+    mode.mPages.resize(1);
+    mode.mPageIndex = 0;
+  }
   static bool inResults(const Duke1Mode& mode)
   {
     return mode.mPause == Duke1Mode::PauseScreen::Stats;
@@ -283,4 +297,41 @@ TEST_CASE(
   CHECK(Access::level(mode) == 1);
   CHECK(Access::pages(mode).empty());
   checkCarry(Access::world(mode).carry(), CARRY);
+}
+
+TEST_CASE(
+  "DN1 page exit consumes its input batch before gameplay",
+  "[duke1][flow]")
+{
+  const int skip = GENERATE(0, 1, 2, 3);
+  Duke1Fixture fixture;
+  rigel::Duke1Mode mode(fixture.context(), fixture.mData, std::nullopt, 0);
+  Access::onePage(mode);
+
+  SDL_Event exit{};
+  if (skip < 2)
+  {
+    exit.type = SDL_CONTROLLERBUTTONDOWN;
+    exit.cbutton.button =
+      skip == 0 ? SDL_CONTROLLER_BUTTON_START : SDL_CONTROLLER_BUTTON_A;
+  }
+  else
+  {
+    exit.type = SDL_KEYDOWN;
+    exit.key.keysym.sym = skip == 2 ? SDLK_ESCAPE : SDLK_SPACE;
+  }
+  SDL_Event fire{};
+  fire.type = SDL_KEYDOWN;
+  fire.key.keysym.sym = SDLK_x;
+  Access::events(mode, {exit, fire});
+  CHECK(Access::pages(mode).empty());
+  CHECK_FALSE(Access::pauseRequested(mode));
+  CHECK_FALSE(Access::input(mode).fire);
+  CHECK_FALSE(Access::input(mode).jump);
+
+  SDL_Event start{};
+  start.type = SDL_CONTROLLERBUTTONDOWN;
+  start.cbutton.button = SDL_CONTROLLER_BUTTON_START;
+  Access::events(mode, {start});
+  CHECK(Access::pauseRequested(mode));
 }
