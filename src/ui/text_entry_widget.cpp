@@ -16,6 +16,8 @@
 
 #include "text_entry_widget.hpp"
 
+#include <string_view>
+
 #include "base/color.hpp"
 #include "ui/menu_element_renderer.hpp"
 
@@ -62,6 +64,55 @@ void TextEntryWidget::handleEvent(const SDL_Event& event)
     !mText.empty())
   {
     mText.pop_back();
+  }
+
+  // Gamepad entry, arcade style: up/down cycles the last letter, right adds
+  // a letter, left removes one
+  if (event.type == SDL_CONTROLLERBUTTONDOWN)
+  {
+    static constexpr std::string_view LETTERS =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -";
+    const auto capacity = static_cast<size_t>(mMaxTextLength);
+
+    switch (event.cbutton.button)
+    {
+      case SDL_CONTROLLER_BUTTON_DPAD_UP:
+      case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+      {
+        if (mText.empty() && capacity > 0)
+        {
+          mText += 'A';
+          break;
+        }
+        if (!mText.empty())
+        {
+          const auto step =
+            event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_UP ? 1 : -1;
+          const auto pos = LETTERS.find(mText.back());
+          const auto size = static_cast<int>(LETTERS.size());
+          const auto current = pos == std::string_view::npos ? 0 : int(pos);
+          mText.back() = LETTERS[size_t((current + step + size) % size)];
+        }
+        break;
+      }
+
+      case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+        if (mText.size() < capacity)
+        {
+          mText += mText.empty() ? 'A' : mText.back();
+        }
+        break;
+
+      case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+        if (!mText.empty())
+        {
+          mText.pop_back();
+        }
+        break;
+
+      default:
+        break;
+    }
   }
 
   if (event.type == SDL_TEXTINPUT)

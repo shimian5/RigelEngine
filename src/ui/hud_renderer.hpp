@@ -91,7 +91,8 @@ public:
     engine::TiledTexture* pStatusSpriteSheetRenderer,
     renderer::Texture wideHudFrameTexture,
     renderer::Texture ultrawideHudFrameTexture,
-    const engine::SpriteFactory* pSpriteFactory);
+    const engine::SpriteFactory* pSpriteFactory,
+    const MenuElementRenderer* pTextRenderer);
 
   void updateAnimation();
 
@@ -110,6 +111,10 @@ private:
     int viewportWidth,
     const data::PersistentPlayerState& persistentPlayerState,
     base::ArrayView<base::Vec2> radarPositions);
+  void drawOverlayHud(
+    int viewportWidth,
+    const data::PersistentPlayerState& persistentPlayerState,
+    base::ArrayView<base::Vec2> radarPositions);
   void drawUltrawideHud(
     int viewportWidth,
     const data::PersistentPlayerState& persistentPlayerState,
@@ -120,7 +125,9 @@ private:
     const base::Vec2& position) const;
   void drawFloatingInventory(
     const std::vector<data::InventoryItemType>& inventory,
-    const base::Vec2& position) const;
+    const base::Vec2& position,
+    bool drawBackground = true,
+    int slotStepPx = 16) const;
   void drawHealthBar(
     const data::PersistentPlayerState& persistentPlayerState,
     const base::Vec2& position) const;
@@ -142,6 +149,7 @@ private:
   renderer::Texture mUltrawideHudFrameTexture;
   engine::TiledTexture* mpStatusSpriteSheetRenderer;
   const engine::SpriteFactory* mpSpriteFactory;
+  const MenuElementRenderer* mpTextRenderer;
   mutable renderer::RenderTargetTexture mRadarSurface;
 };
 

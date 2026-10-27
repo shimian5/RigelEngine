@@ -129,6 +129,11 @@ private:
     mCurrentFrameIsWidescreen = true;
   }
 
+  void setNativeOverlay(std::function<void(int alpha)> draw) override
+  {
+    mNativeOverlay = std::move(draw);
+  }
+
   bool isSharewareVersion() const override { return mIsShareWareVersion; }
 
   const CommandLineOptions& commandLineOptions() const override
@@ -151,6 +156,7 @@ private:
   std::optional<renderer::FpsLimiter> mFpsLimiter;
   renderer::UpscalingBuffer mUpscalingBuffer;
   bool mCurrentFrameIsWidescreen = false;
+  std::function<void(int)> mNativeOverlay;
 
   std::unique_ptr<GameMode> mpCurrentGameMode;
 

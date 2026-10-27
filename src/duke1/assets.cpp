@@ -16,7 +16,7 @@ namespace duke1 {
     std::filesystem::path p(n);
     need(!p.is_absolute()&&p.parent_path().empty()&&n.find(':')==n.npos,"unsafe path");
     auto q=r;
-    for(auto&c:p){
+    for(const auto&c:p){
       need(std::filesystem::is_directory(q),"missing directory");
       auto w=c.string();
       std::filesystem::path f;

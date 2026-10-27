@@ -70,6 +70,14 @@ public:
   void markAsShown(TutorialMessageId id);
   bool hasBeenShown(TutorialMessageId id) const;
 
+  unsigned long long toBits() const { return mMessagesShownMask.to_ullong(); }
+  static TutorialMessageState fromBits(unsigned long long bits)
+  {
+    TutorialMessageState result;
+    result.mMessagesShownMask = std::bitset<NUM_TUTORIAL_MESSAGES>(bits);
+    return result;
+  }
+
 private:
   std::bitset<NUM_TUTORIAL_MESSAGES> mMessagesShownMask;
 };

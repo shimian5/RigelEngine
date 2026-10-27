@@ -90,6 +90,7 @@ enum class WidescreenHudStyle : std::uint8_t
   Classic,
   Modern,
   Ultrawide,
+  Overlay,
 };
 
 
@@ -127,7 +128,11 @@ struct GameOptions
   bool mEnableVsync = ENABLE_VSYNC_DEFAULT;
   bool mEnableFpsLimit = true; // Only relevant when mEnableVsync == false
   int mMaxFps = 60; // Only relevant when mEnableFpsLimit == true
+#ifdef __ANDROID__
+  bool mShowFpsCounter = true; // dev builds only
+#else
   bool mShowFpsCounter = false;
+#endif
   bool mEnableScreenFlashes = true;
   UpscalingFilter mUpscalingFilter = UpscalingFilter::None;
   bool mAspectRatioCorrectionEnabled = true;
@@ -157,12 +162,35 @@ struct GameOptions
   GameplayStyle mGameplayStyle = GameplayStyle::Enhanced;
 
   // Enhancements
+#ifdef __ANDROID__
+  bool mWidescreenModeOn = true;
+  WidescreenHudStyle mWidescreenHudStyle = WidescreenHudStyle::Overlay;
+#else
   bool mWidescreenModeOn = false;
   WidescreenHudStyle mWidescreenHudStyle = WidescreenHudStyle::Classic;
+#endif
   bool mShowRadarInModernHud = true;
+#ifdef __ANDROID__
+  bool mQuickSavingEnabled = true;
+#else
   bool mQuickSavingEnabled = false;
+#endif
   bool mSkipIntro = false;
+#ifdef __ANDROID__
+  bool mShowLevelTimer = true;
+#else
+  bool mShowLevelTimer = false;
+#endif
+#ifdef __ANDROID__
+  bool mConsoleMenus = true;
+#else
+  bool mConsoleMenus = false;
+#endif
+#ifdef __ANDROID__
+  bool mMotionSmoothing = true;
+#else
   bool mMotionSmoothing = false;
+#endif
 
   // Internal options
   //

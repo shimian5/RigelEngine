@@ -268,7 +268,9 @@ namespace duke1 {
   }
   bool Sandbox::culled(int x8,int yWords) const {
     const auto&p=player;
-    return x8<p.cameraX8||x8>=p.cameraX8+29||yWords<p.cameraYWords-64||yWords>=p.cameraYWords+1280;
+    int x0=p.cameraX8,x1=p.cameraX8+29,y0=p.cameraYWords-64,y1=p.cameraYWords+1280;
+    if(wideCull){x0=std::min(x0,cullX0);x1=std::max(x1,cullX1);y0=std::min(y0,cullY0);y1=std::max(y1,cullY1);}
+    return x8<x0||x8>=x1||yWords<y0||yWords>=y1;
   }
   void Sandbox::moveBullets(bool checkWorld,bool cull){
     if(player.capacity<1||player.capacity>4)throw std::invalid_argument("bullet capacity must be1..4");
@@ -287,7 +289,7 @@ namespace duke1 {
           else if(index+128<11520&&world.at(index+128)==0x1800)broken=index+128;
         }
         if(broken>=0){
-          world.cells[broken]=0x17e0;
+          world.cells[broken]=0x17e0; events.push_back({Event::Break,broken});
           events.push_back({
             Event::Sound,42
           }

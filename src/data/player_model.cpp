@@ -260,3 +260,112 @@ const TutorialMessageState& PersistentPlayerState::tutorialMessages() const
 }
 
 } // namespace rigel::data
+
+
+namespace rigel::data
+{
+
+namespace
+{
+
+void putU32(std::vector<std::uint8_t>& out, const std::uint32_t value)
+{
+  for (auto i = 0; i < 4; ++i)
+  {
+    out.push_back(std::uint8_t((value >> (8 * i)) & 0xFF));
+  }
+}
+
+
+bool getU32(const std::uint8_t*& pData, const std::uint8_t* pEnd, std::uint32_t& value)
+{
+  if (pEnd - pData < 4)
+  {
+    return false;
+  }
+
+  value = 0;
+  for (auto i = 0; i < 4; ++i)
+  {
+    value |= std::uint32_t(pData[i]) << (8 * i);
+  }
+  pData += 4;
+  return true;
+}
+
+} // namespace
+
+
+void PersistentPlayerState::serialize(std::vector<std::uint8_t>& out) const
+{
+  putU32(out, std::uint32_t(mScore));
+  putU32(out, std::uint32_t(mAmmo));
+  putU32(out, std::uint32_t(mHealth));
+  putU32(out, std::uint32_t(mWeapon));
+  putU32(out, std::uint32_t(mTutorialMessages.toBits() & 0xFFFFFFFFu));
+  putU32(out, std::uint32_t(mInventory.size()));
+  for (const auto item : mInventory)
+  {
+    putU32(out, std::uint32_t(item));
+  }
+  putU32(out, std::uint32_t(mCollectedLetters.size()));
+  for (const auto letter : mCollectedLetters)
+  {
+    putU32(out, std::uint32_t(letter));
+  }
+}
+
+
+std::optional<PersistentPlayerState> PersistentPlayerState::deserialize(
+  const std::uint8_t*& pData,
+  const std::uint8_t* pEnd)
+{
+  PersistentPlayerState result;
+
+  std::uint32_t score, ammo, health, weapon, tutorialBits, numItems, numLetters;
+  if (
+    !getU32(pData, pEnd, score) || !getU32(pData, pEnd, ammo) ||
+    !getU32(pData, pEnd, health) || !getU32(pData, pEnd, weapon) ||
+    !getU32(pData, pEnd, tutorialBits) || !getU32(pData, pEnd, numItems) ||
+    numItems > 16)
+  {
+    return std::nullopt;
+  }
+
+  result.mScore = int(score);
+  result.mAmmo = int(ammo);
+  result.mHealth = int(health);
+  result.mWeapon = static_cast<WeaponType>(weapon);
+  result.mTutorialMessages = TutorialMessageState::fromBits(tutorialBits);
+
+  result.mInventory.clear();
+  for (auto i = 0u; i < numItems; ++i)
+  {
+    std::uint32_t item;
+    if (!getU32(pData, pEnd, item))
+    {
+      return std::nullopt;
+    }
+    result.mInventory.push_back(static_cast<InventoryItemType>(item));
+  }
+
+  if (!getU32(pData, pEnd, numLetters) || numLetters > 5)
+  {
+    return std::nullopt;
+  }
+
+  result.mCollectedLetters.clear();
+  for (auto i = 0u; i < numLetters; ++i)
+  {
+    std::uint32_t letter;
+    if (!getU32(pData, pEnd, letter))
+    {
+      return std::nullopt;
+    }
+    result.mCollectedLetters.push_back(static_cast<CollectableLetterType>(letter));
+  }
+
+  return result;
+}
+
+} // namespace rigel::data

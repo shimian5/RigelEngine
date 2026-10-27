@@ -133,6 +133,7 @@ NLOHMANN_JSON_SERIALIZE_ENUM(
     {WidescreenHudStyle::Classic, "Classic"},
     {WidescreenHudStyle::Ultrawide, "Ultrawide"},
     {WidescreenHudStyle::Modern, "Modern"},
+    {WidescreenHudStyle::Overlay, "Overlay"},
   })
 
 
@@ -443,6 +444,8 @@ nlohmann::ordered_json serialize(const data::GameOptions& options)
   serialized["widescreenHudStyle"] = options.mWidescreenHudStyle;
   serialized["showRadarInModernHud"] = options.mShowRadarInModernHud;
   serialized["quickSavingEnabled"] = options.mQuickSavingEnabled;
+  serialized["consoleMenus"] = options.mConsoleMenus;
+  serialized["showLevelTimer"] = options.mShowLevelTimer;
   serialized["skipIntro"] = options.mSkipIntro;
   serialized["motionSmoothing"] = options.mMotionSmoothing;
   return serialized;
@@ -663,6 +666,8 @@ data::GameOptions deserialize<data::GameOptions>(const nlohmann::json& json)
   extractValueIfExists(
     "showRadarInModernHud", result.mShowRadarInModernHud, json);
   extractValueIfExists("quickSavingEnabled", result.mQuickSavingEnabled, json);
+  extractValueIfExists("consoleMenus", result.mConsoleMenus, json);
+  extractValueIfExists("showLevelTimer", result.mShowLevelTimer, json);
   extractValueIfExists("skipIntro", result.mSkipIntro, json);
   extractValueIfExists("motionSmoothing", result.mMotionSmoothing, json);
 

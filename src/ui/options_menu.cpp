@@ -836,7 +836,7 @@ void OptionsMenu::updateAndRender(engine::TimeDelta dt)
           ImGui::Combo(
             "HUD style",
             &hudStyleIndex,
-            "Classic\0Remixed 1 (bottom + overlays)\0Remixed 2 (bottom only)\0");
+            "Classic\0Remixed 1 (bottom + overlays)\0Remixed 2 (bottom only)\0Overlay (panels over map)\0");
           mpOptions->mWidescreenHudStyle =
             static_cast<data::WidescreenHudStyle>(hudStyleIndex);
         });
@@ -861,6 +861,8 @@ void OptionsMenu::updateAndRender(engine::TimeDelta dt)
       }
 
       ImGui::Checkbox("Quick saving", &mpOptions->mQuickSavingEnabled);
+      ImGui::Checkbox("Console-style pause menu", &mpOptions->mConsoleMenus);
+      ImGui::Checkbox("Show level timer (overlay HUD)", &mpOptions->mShowLevelTimer);
       ImGui::Checkbox("Skip intro sequence", &mpOptions->mSkipIntro);
 
       if (mpOptions->mGameplayStyle == data::GameplayStyle::Classic)

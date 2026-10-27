@@ -43,6 +43,7 @@ public:
     std::optional<base::Vec2> playerPositionOverride = std::nullopt);
 
   GameSessionMode(const data::SavedGame& save, Context context);
+  GameSessionMode(const ReplaySave& replay, Context context);
 
   std::unique_ptr<GameMode> updateAndRender(
     engine::TimeDelta dt,

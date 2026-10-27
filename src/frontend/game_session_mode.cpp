@@ -16,7 +16,10 @@
 
 #include "game_session_mode.hpp"
 
+#include "console_launcher_mode.hpp"
+
 // TODO: Remove this cyclic include
+#include "console_menu_mode.hpp"
 #include "menu_mode.hpp"
 
 #include "base/match.hpp"
@@ -59,6 +62,18 @@ GameSessionMode::GameSessionMode(const data::SavedGame& save, Context context)
   , mEpisode(save.mSessionId.mEpisode)
   , mCurrentLevelNr(save.mSessionId.mLevel)
   , mDifficulty(save.mSessionId.mDifficulty)
+  , mContext(context)
+{
+}
+
+
+GameSessionMode::GameSessionMode(const ReplaySave& replay, Context context)
+  : mPersistentPlayerState(replay.mPlayerStateAtStart)
+  , mCurrentStage(
+      std::make_unique<GameRunner>(&mPersistentPlayerState, replay, context))
+  , mEpisode(replay.mSessionId.mEpisode)
+  , mCurrentLevelNr(replay.mSessionId.mLevel)
+  , mDifficulty(replay.mSessionId.mDifficulty)
   , mContext(context)
 {
 }
@@ -140,6 +155,14 @@ std::unique_ptr<GameMode> GameSessionMode::updateAndRender(
 
       if (pIngameMode->gameQuit())
       {
+        if (mContext.mpUserProfile->mOptions.mConsoleMenus)
+        {
+          // The console-style menus return to the game selection when quitting
+          mContext.mpServiceProvider->stopMusic();
+          mContext.mpServiceProvider->fadeOutScreen();
+          return std::make_unique<ConsoleLauncherMode>(mContext);
+        }
+
         finishGameSession();
         return nullptr;
       }
@@ -148,6 +171,12 @@ std::unique_ptr<GameMode> GameSessionMode::updateAndRender(
       {
         mContext.mpServiceProvider->fadeOutScreen();
         return std::make_unique<GameSessionMode>(*maybeSavedGame, mContext);
+      }
+
+      if (auto maybeReplay = pIngameMode->requestedReplayToLoad())
+      {
+        mContext.mpServiceProvider->fadeOutScreen();
+        return std::make_unique<GameSessionMode>(*maybeReplay, mContext);
       }
 
       if (pIngameMode->levelFinished())
@@ -234,7 +263,7 @@ std::unique_ptr<GameMode> GameSessionMode::updateAndRender(
       if (mContext.mpScriptRunner->hasFinishedExecution())
       {
         mContext.mpServiceProvider->fadeOutScreen();
-        return std::make_unique<MenuMode>(mContext);
+        return createMainMenuMode(mContext);
       }
 
       return nullptr;

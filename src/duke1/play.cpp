@@ -1,0 +1,505 @@
+#include "play.hpp"
+
+#include <cmath>
+#include <algorithm>
+#include <map>
+#include <stdexcept>
+
+namespace duke1 {
+
+namespace {
+
+#include "actor_table.inc"
+
+
+constexpr int VIEW_X = 16, VIEW_Y = 16, VIEW_W = 208, VIEW_H = 160;
+
+struct Placement { int x, y, tile; };
+
+// Tiles of BORDER.DN1 forming the grey frame and panel titles around the 13x10 play area.
+// Layout read from an unscaled capture of the original game; contains no pixel data.
+const Placement CHROME[] = {
+    {0, 0, 4},   {16, 0, 16},  {32, 0, 2},   {40, 0, 2},   {48, 0, 2},   {56, 0, 2},   {64, 0, 2},   {72, 0, 2},
+    {80, 0, 2},  {88, 0, 2},   {96, 0, 2},   {104, 0, 2},  {112, 0, 2},  {120, 0, 2},  {128, 0, 2},  {136, 0, 2},
+    {144, 0, 2}, {152, 0, 2},  {160, 0, 2},  {168, 0, 2},  {176, 0, 2},  {184, 0, 2},  {192, 0, 2},  {200, 0, 2},
+    {208, 0, 2}, {224, 0, 5},  {240, 0, 8},  {256, 0, 38}, {272, 0, 39}, {288, 0, 8},  {296, 0, 8},  {304, 0, 9},
+    {224, 40, 14}, {240, 40, 8}, {256, 40, 36}, {272, 40, 37}, {288, 40, 8}, {304, 40, 15},
+    {224, 80, 14}, {248, 80, 33}, {264, 80, 34}, {280, 80, 35}, {304, 80, 15},
+    {224, 128, 14}, {248, 128, 30}, {264, 128, 31}, {280, 128, 32}, {304, 128, 15},
+    {0, 176, 7},   {16, 176, 3}, {24, 176, 3}, {32, 176, 3}, {40, 176, 3}, {48, 176, 3}, {56, 176, 3}, {64, 176, 3},
+    {72, 176, 3}, {88, 176, 26}, {104, 176, 27}, {120, 176, 28}, {136, 176, 29}, {152, 176, 3}, {160, 176, 3},
+    {168, 176, 3}, {176, 176, 3}, {184, 176, 3}, {192, 176, 3}, {200, 176, 3}, {208, 176, 3}, {224, 176, 6},
+    {240, 176, 8}, {248, 176, 8}, {256, 176, 8}, {264, 176, 8}, {272, 176, 8}, {280, 176, 8}, {288, 176, 8},
+    {296, 176, 8}, {304, 176, 11},
+};
+
+struct Box { int x0, y0, x1, y1; };
+const Box PANELS[] = {{239, 16, 306, 42}, {239, 54, 306, 82}, {239, 94, 306, 130}, {239, 144, 306, 178}};
+
+const std::map<std::string, std::array<const char*, 2>>& pairs() {
+  static const std::map<std::string, std::array<const char*, 2>> p = {
+      {"WORLDAL1", {"DROP0.DN1", "DROP3.DN1"}}, {"WORLDAL3", {"DROP0.DN1", "DROP3.DN1"}},
+      {"WORLDAL4", {"DROP7.DN1", "DROP3.DN1"}}, {"WORLDAL5", {"DROP3.DN1", "DROP5.DN1"}},
+      {"WORLDAL6", {"DROP7.DN1", "DROP7.DN1"}}, {"WORLDAL7", {"DROP2.DN1", "DROP2.DN1"}},
+      {"WORLDAL8", {"DROP1.DN1", "DROP2.DN1"}}, {"WORLDAL9", {"DROP3.DN1", "DROP3.DN1"}},
+      {"WORLDALA", {"DROP5.DN1", "DROP2.DN1"}}, {"WORLDALB", {"DROP0.DN1", "DROP11.DN1"}},
+      {"WORLDALC", {"DROP13.DN1", "DROP9.DN1"}},
+  };
+  return p;
+}
+
+void fillRect(std::vector<std::uint8_t>& img, int x0, int y0, int x1, int y1, std::uint8_t r, std::uint8_t g,
+              std::uint8_t b) {
+  for (int y = std::max(0, y0); y < std::min(SCREEN_H, y1); ++y)
+    for (int x = std::max(0, x0); x < std::min(SCREEN_W, x1); ++x) {
+      auto* p = &img[(static_cast<std::size_t>(y) * SCREEN_W + x) * 4];
+      p[0] = r; p[1] = g; p[2] = b; p[3] = 255;
+    }
+}
+
+}  // namespace
+
+void PlayWorld::blit(std::vector<std::uint8_t>& dst, int dx, int dy, const std::uint8_t* src, int srcStride, int sx,
+                     int sy, int w, int h, int cx0, int cy0, int cx1, int cy1, int dstW, int dstH) const {
+  (void)dstH;
+  for (int y = 0; y < h; ++y) {
+    const int ty = dy + y;
+    if (ty < cy0 || ty >= cy1) continue;
+    for (int x = 0; x < w; ++x) {
+      const int tx = dx + x;
+      if (tx < cx0 || tx >= cx1) continue;
+      const auto* s = src + (static_cast<std::size_t>(sy + y) * srcStride + (sx + x)) * 4;
+      if (s[3] == 0) continue;
+      auto* d = &dst[(static_cast<std::size_t>(ty) * dstW + tx) * 4];
+      d[0] = s[0]; d[1] = s[1]; d[2] = s[2]; d[3] = 255;
+    }
+  }
+}
+
+void PlayWorld::drawTile(std::vector<std::uint8_t>& dst, const Tile& tile, int x, int y) const {
+  const auto px = tile.rgba();
+  blit(dst, x, y, px.data(), 16, 0, 0, 16, 16, 0, 0, SCREEN_W, SCREEN_H);
+}
+
+PlayWorld::PlayWorld(const std::filesystem::path& dir, const std::string& levelName, const std::array<std::string, 2>* context) {
+  const auto level = parse_level(read_file(dir, levelName + ".DN1"));
+  sandbox_.world = CollisionWorld(0);
+  std::copy(level.cells.begin(), level.cells.end(), sandbox_.world.cells.begin());
+
+  // Player start marker: place camera and player like the original loader does.
+  int startCol = -1, startRow = -1;
+  for (std::size_t i = 0; i < sandbox_.world.cells.size(); ++i)
+    if (sandbox_.world.cells[i] == 0x3032) { startCol = static_cast<int>(i % 128); startRow = static_cast<int>(i / 128); }
+  if (startCol >= 0) {
+    auto& cells = sandbox_.world.cells;
+    const auto idx = static_cast<std::size_t>(startRow * 128 + startCol);
+    cells[idx] = startCol > 0 ? cells[idx - 1] : 0;
+    auto& p = sandbox_.player;
+    p.cameraX8 = std::clamp(2 * startCol - 14, 0, 230);
+    p.x8 = 2 * startCol - p.cameraX8;
+    p.cameraYWords = std::max(0, 128 * startRow - 384);
+    p.y = 16 * startRow + 16 - p.cameraYWords / 8;
+  }
+
+  // Replace active IDs with the cell value the original loader leaves behind, and remember the actors
+  // so their sprites can be drawn on top.
+  auto& cells = sandbox_.world.cells;
+  for (std::size_t i = 0; i < cells.size(); ++i) {
+    const auto v = cells[i];
+    if (v < 0x3000 || v == 0x3032) continue;
+    for (const auto& a : kActors) {
+      if (a.id != v) continue;
+      const bool keepSolid = v == 0x302B;  // the column stays a solid cell
+      int row = static_cast<int>(i / 128);
+      const int col = static_cast<int>(i % 128);
+      // The loader leaves a copy of a neighbouring cell (or a fixed tile) behind the actor.
+      std::uint16_t under = a.cell;
+      if (a.copyMode == 1) under = col > 0 ? cells[i - 1] : 0;
+      else if (a.copyMode == 2) under = col < 127 ? cells[i + 1] : 0;
+      else if (a.copyMode == 3) under = i + 128 < cells.size() ? cells[i + 128] : 0;
+      else if (a.copyMode == 4) under = i >= 128 ? cells[i - 128] : 0;
+      if (under >= 0x3000) under = col > 0 && cells[i - 1] < 0x3000 ? cells[i - 1] : 0;
+      if (!keepSolid) cells[i] = under;
+      actors_.push_back({v, col, row, true, false, a.hits, under, i});
+      initPorted(actors_.back());
+      const bool fallsOnScreen = v == 0x3015 || v == 0x3052 || v == 0x3018 || v == 0x3051 || v == 0x3000;
+      if (a.settle && actors_.back().ported && !fallsOnScreen) {
+        // These start out resting; plain boxes, crates and food fall visibly once they come on screen
+        int r = row;
+        while (r < 89 && cells[static_cast<std::size_t>((r + 1) * 128 + col)] < 0x1800) ++r;
+        actors_.back().row = r;
+        actors_.back().yw += (r - row) * 128;
+        actors_.back().prevYw = actors_.back().yw;
+      }
+      break;
+    }
+  }
+
+  // Active IDs and anything not yet understood render as empty space; the sandbox treats them as map values.
+  for (int solid = 0; solid < 2; ++solid)
+    for (int n = 0; n < 4; ++n) {
+      const auto set = parse_tiles(read_file(dir, std::string(solid ? "SOLID" : "BACK") + std::to_string(n) + ".DN1"));
+      auto& dst = banks_[static_cast<std::size_t>(solid * 4 + n)].rgba;
+      dst.assign(96 * 128 * 4, 0);
+      for (int j = 0; j < 48 && j < static_cast<int>(set.tiles.size()); ++j) {
+        // Map tiles are drawn as solid blocks: the mask is ignored (it only matters for sprites)
+        const auto px = set.tiles[static_cast<std::size_t>(j)].rgba();
+        for (int y = 0; y < 16; ++y)
+          for (int x = 0; x < 16; ++x) {
+            auto* d = &dst[(static_cast<std::size_t>((j / 6) * 16 + y) * 96 + (j % 6) * 16 + x) * 4];
+            std::copy_n(&px[(static_cast<std::size_t>(y) * 16 + x) * 4], 3, d);
+            d[3] = 255;
+          }
+      }
+    }
+
+  const auto it = pairs().find(levelName);
+  for (auto& b : backdrops_) b.assign(VIEW_W * VIEW_H * 4, 0);
+  if (it != pairs().end()) pair_ = {it->second[0], it->second[1]};
+  else if (context) pair_ = *context;
+  if (!pair_[0].empty()) {
+    for (int i = 0; i < 2; ++i) {
+      const auto bd = parse_backdrop_compat(read_file(dir, pair_[static_cast<std::size_t>(i)]), pair_[static_cast<std::size_t>(i)]);
+      if (!bd.warning.empty()) warnings_.push_back(bd.warning);
+      for (unsigned y = 0; y < std::min(160u, bd.image.height); ++y)
+        for (unsigned x = 0; x < std::min(208u, bd.image.width); ++x)
+          std::copy_n(&bd.image.rgba[(static_cast<std::size_t>(y) * bd.image.width + x) * 4], 4,
+                      &backdrops_[static_cast<std::size_t>(i)][(static_cast<std::size_t>(y) * VIEW_W + x) * 4]);
+    }
+  } else {
+    warnings_.push_back("Flat backdrop: map-to-pair relationship unverified");
+  }
+  // De-duplicate warnings (both pair members can report the same condition)
+  std::sort(warnings_.begin(), warnings_.end());
+  warnings_.erase(std::unique(warnings_.begin(), warnings_.end()), warnings_.end());
+
+  {
+    static const char* names[9] = {"ANIM0", "ANIM1", "ANIM2", "ANIM3", "ANIM4", "ANIM5", "OBJECT0", "OBJECT1", "OBJECT2"};
+    for (int b = 0; b < 9; ++b) {
+      const auto set = parse_tiles(read_file(dir, std::string(names[b]) + ".DN1"));
+      for (const auto& t : set.tiles) sprites_[static_cast<std::size_t>(b)].push_back(t.rgba());
+    }
+  }
+  {
+    const auto set = parse_tiles(read_file(dir, "NUMBERS.DN1"));
+    for (const auto& t : set.tiles) numbers_.push_back(t.rgba());
+  }
+  for (int i = 0; i < 5; ++i) man_[static_cast<std::size_t>(i)] = parse_tiles(read_file(dir, "MAN" + std::to_string(i) + ".DN1"));
+  border_ = parse_tiles(read_file(dir, "BORDER.DN1"));
+  buildFrame();
+  prevX_ = worldX();
+  prevY_ = worldY();
+}
+
+void PlayWorld::buildFrame() {
+  frame_.assign(static_cast<std::size_t>(SCREEN_W) * SCREEN_H * 4, 255);
+  fillRect(frame_, 0, 0, SCREEN_W, SCREEN_H, 170, 170, 170);
+  for (const auto& p : CHROME) {
+    if (p.tile < static_cast<int>(border_.tiles.size()))
+      drawTile(frame_, border_.tiles[static_cast<std::size_t>(p.tile)], p.x, p.y);
+  }
+  for (const auto& b : PANELS) fillRect(frame_, b.x0, b.y0, b.x1, b.y1, 0, 0, 0);
+  fillRect(frame_, 0, 192, SCREEN_W, SCREEN_H, 0, 0, 0);
+  fillRect(frame_, VIEW_X, VIEW_Y, VIEW_X + VIEW_W, VIEW_Y + VIEW_H, 0, 0, 0);
+}
+
+std::array<std::string, 2> PlayWorld::backdropPairFor(const std::string& levelName) {
+  const auto it = pairs().find(levelName);
+  if (it == pairs().end()) return {};
+  return {it->second[0], it->second[1]};
+}
+
+PlayWorld::Carry PlayWorld::carry() const {
+  const auto& p = sandbox_.player;
+  return {score_, p.health, p.boost, p.claw, p.capacity};
+}
+
+void PlayWorld::applyCarry(const Carry& c) {
+  auto& p = sandbox_.player;
+  score_ = c.score;
+  p.health = c.health;
+  p.boost = c.boost;
+  p.claw = c.claw;
+  p.capacity = c.capacity;
+}
+
+void PlayWorld::update(const Input& input) {
+  prevX_ = worldX();
+  prevY_ = worldY();
+  ++phase_;
+  ++updates_;
+  if (sandbox_.player.health <= 0) {
+    // Duke is gone for a moment: a burst of sparks around him for about 30 updates, then the level restarts
+    sandbox_.player.pendingHit = false;
+    if (++dyingTick_ == 1) sound(0);
+    if (dyingTick_ >= 2) {
+      const auto& p = sandbox_.player;
+      const int px = p.x8 + p.cameraX8;
+      const int rowWords = ((p.y - 16) >> 4) * 0x80;
+      const int a = rowWords + p.cameraYWords;
+      const int b = 0x80 - rowWords + p.cameraYWords;
+      struct Burst { int dx, yKind, yAdd; };  // yKind 0: a, 1: b
+      static const std::vector<Burst> kBurst[19] = {
+          {{0, 0, 0}, {0, 0, 0x80}}, {{0, 0, 0x80}}, {{-2, 1, 0}, {2, 1, 0}}, {{2, 1, 0}},
+          {{-3, 0, 0}, {3, 0, 0}}, {{3, 0, 0}}, {{0, 0, 0x80}}, {{0, 0, 0}},
+          {{0, 1, 0}}, {{-2, 1, 0}, {3, 1, 0}}, {{3, 1, 0}}, {{-3, 0, 0}},
+          {{2, 0, 0}, {0, 1, 0}}, {{0, 1, 0}}, {{-2, 1, 0}, {3, 1, 0}}, {{3, 1, 0}},
+          {{-3, 0, 0}}, {{2, 0, 0}, {0, 1, 0}}, {{0, 1, 0}}};
+      const auto idx = static_cast<std::size_t>(dyingTick_ - 1);
+      if (idx < 19)
+        for (const auto& s : kBurst[idx]) spawnSparks((s.yKind ? b : a) + s.yAdd, px + s.dx);
+    }
+    updatePorted();
+    updatePools();
+    return;
+  }
+  sandbox_.input = frozen_ ? Input{} : input;
+  const int immunityBefore = sandbox_.player.immunity;
+  sandbox_.tick();
+  if (sandbox_.player.immunity > immunityBefore) hitFlash_ = 1;  // just hit: the original shows the skeleton for a single update
+  else if (hitFlash_ > 0) --hitFlash_;
+  for (const auto& e : sandbox_.events)
+    if (e.kind == Event::Score) score_ += e.value;
+    else if (e.kind == Event::Break) spawnDebris((e.value / 128) * 128, (e.value % 128) * 2 + 2);
+    else if (e.kind == Event::Sound) sound(e.value);
+  sandbox_.events.clear();
+  for (auto& pop : popups_) ++pop.age;
+  popups_.erase(std::remove_if(popups_.begin(), popups_.end(), [](const Popup& q) { return q.age > 40; }), popups_.end());
+  airTicks_ = (sandbox_.player.grounded || sandbox_.player.cling) ? 0 : airTicks_ + 1;
+  updatePorted();
+  updatePools();
+  interact();
+}
+
+void PlayWorld::render(std::vector<std::uint8_t>& out) const {
+  out = frame_;
+  const auto& p = sandbox_.player;
+  std::vector<std::uint8_t> view;
+  renderWorld(view, VIEW_W, VIEW_H, p.cameraX8 * 8, p.cameraYWords / 8, worldX(), worldY());
+  for (int y = 0; y < VIEW_H; ++y)
+    std::copy_n(&view[static_cast<std::size_t>(y) * VIEW_W * 4], VIEW_W * 4,
+                &out[(static_cast<std::size_t>(VIEW_Y + y) * SCREEN_W + VIEW_X) * 4]);
+
+  drawInventory(out, SCREEN_W, SCREEN_H, 244, 150);
+
+  // Health: nine green blocks in the health panel.
+  for (int i = 0; i < 9; ++i)
+    fillRect(out, 242 + i * 7, 60, 247 + i * 7, 74, i < p.health ? 0 : 40, i < p.health ? 170 : 40, 0);
+}
+
+void PlayWorld::addScore(int value, int x, int y) {
+  score_ += value;
+  popups_.push_back({x, y, value, 0});
+}
+
+void PlayWorld::interact() {
+  const auto entryFor = [](std::uint16_t id) -> const ActorEntry* {
+    for (const auto& a : kActors)
+      if (a.id == id) return &a;
+    return nullptr;
+  };
+  auto& p = sandbox_.player;
+  const int playerX8 = p.x8 + p.cameraX8;
+  const int playerYWords = (p.y / 16) * 128 + p.cameraYWords;
+
+  for (auto& actor : actors_) {
+    if (!actor.alive || actor.ported) continue;
+    const auto* entry = entryFor(actor.id);
+    if (!entry) continue;
+    // Boxes and items fall a row per update while they are on screen and nothing solid is below them
+    // They start falling a little before they are in view (8 rows above it), so the end of a fall is seen
+    if (entry->settle && actor.row < 89 && !offscreen(actor.row * 128 + 8 * 128, actor.col * 2 + 2)) {
+      const auto below = sandbox_.world.cells[static_cast<std::size_t>((actor.row + 1) * 128 + actor.col)];
+      if (below < 0x1800) ++actor.row;
+    }
+    const int ax8 = actor.col * 2 + 2;  // the loader adds two units (the frame border)
+    const int ayWords = actor.row * 128;
+
+    // Shots (shared bullet predicate: horizontal distance < 2 units, vertical within one row)
+    const bool plainCrate = false;
+    if (entry->shotScore > 0 || plainCrate || (entry->isContainer && !actor.open)) {
+      for (auto& b : sandbox_.bullets) {
+        if (b.kind == 0) continue;
+        const int dx = b.x8 - ax8, dy = b.yWords - ayWords;
+        if (dx > -2 && dx < 2 && dy >= -128 && dy < 128) {
+          b.kind = 0;
+          if (plainCrate) {
+            actor.alive = false;
+            sandbox_.world.cells[actor.cellIndex] = actor.under;
+          } else if (entry->isContainer) {
+            actor.open = true;
+            spawnSparks(actor.row * 128, actor.col * 2 + 2);
+          } else if (--actor.hits <= 0) {
+            actor.alive = false;
+            sandbox_.world.cells[actor.cellIndex] = actor.under;
+            addScore(static_cast<int>(entry->shotScore), actor.col * 16, actor.row * 16);
+          }
+          break;
+        }
+      }
+      if (!actor.alive) continue;
+    }
+
+    // Touch: items that are out in the open, or containers that have been shot open
+    const bool collectable = (entry->isPickup && entry->touchScore > 0) || (entry->isContainer && actor.open);
+    if (collectable) {
+      const int dx = playerX8 - ax8;
+      const int dy = playerYWords - ayWords + 2;
+      if (dx > -2 && dx < 2 && dy > -128 && dy < 384) {
+        actor.alive = false;
+        sandbox_.world.cells[actor.cellIndex] = actor.under;
+        int award = static_cast<int>(entry->isContainer ? entry->openScore : entry->touchScore);
+        // Flag and radio items pay 100, 500, 2000 or 5000 depending on the shared animation phase.
+        if (actor.id == 0x302D || actor.id == 0x302E || actor.id == 0x3055 || actor.id == 0x3056) {
+          static const int kPhasePay[4] = {100, 500, 2000, 5000};
+          award = kPhasePay[phase_ % 4];
+        }
+        addScore(award, actor.col * 16, actor.row * 16);
+        if (entry->heal && p.health < 9) ++p.health;
+        switch (actor.id) {
+          case 0x3006: case 0x3008: case 0x300F: case 0x3020: case 0x3033: sound(12); break;
+          default: sound(entry->heal ? 1 : 16); break;
+        }
+        switch (actor.id) {
+          case 0x3020: hasItem_ = true; break;                   // item that powers the wall machines
+          case 0x3033: hasCard_ = true; break;                   // access card
+          case 0x3006: p.boost = 1; break;                       // boots: higher jump
+          case 0x3008: p.claw = 1; break;                        // claw: ceiling cling
+          case 0x300F: p.capacity = std::min(4, p.capacity + 1); break;  // gun: more shots at once
+          default: break;
+        }
+      }
+    }
+  }
+}
+
+void PlayWorld::renderWorld(std::vector<std::uint8_t>& out, int w, int h, int left, int top, int playerX, int playerY) const {
+  out.assign(static_cast<std::size_t>(w) * h * 4, 0);
+  for (std::size_t i = 3; i < out.size(); i += 4) out[i] = 255;
+
+  const int col0 = std::max(0, left / 16 - (left < 0 ? 1 : 0)), col1 = std::min(127, (left + w) / 16);
+  const int row0 = std::max(0, top / 16 - (top < 0 ? 1 : 0)), row1 = std::min(89, (top + h) / 16);
+  for (int row = row0; row <= row1; ++row) {
+    for (int col = col0; col <= col1; ++col) {
+      unsigned v = sandbox_.world.cells[static_cast<std::size_t>(row * 128 + col)];
+      if (v > 0x20 && v < 0x5E0) v += 32 * (phase_ % 4);  // animated tiles cycle through four images
+      const int sx = col * 16 - left, sy = row * 16 - top;
+      if (v == 0 || v == 0x20) {
+        // Backdrops are fixed to the screen and repeat across the wider view.
+        const auto& bd = backdrops_[v == 0 ? 0 : 1];
+        for (int y = 0; y < 16; ++y) {
+          const int ty = sy + y;
+          if (ty < 0 || ty >= h) continue;
+          for (int x = 0; x < 16; ++x) {
+            const int tx = sx + x;
+            if (tx < 0 || tx >= w) continue;
+            // In a taller view the picture is stretched to cover the whole height (it repeats only sideways)
+            const int by = h > VIEW_H ? std::min(VIEW_H - 1, ty * VIEW_H / h) : ((ty % VIEW_H) + VIEW_H) % VIEW_H;
+            const auto* s = &bd[(static_cast<std::size_t>(by) * VIEW_W + ((tx % VIEW_W) + VIEW_W) % VIEW_W) * 4];
+            if (s[3] == 0) continue;
+            auto* d = &out[(static_cast<std::size_t>(ty) * w + tx) * 4];
+            d[0] = s[0]; d[1] = s[1]; d[2] = s[2];
+          }
+        }
+      } else if (v < 0x3000 && v % 32 == 0) {
+        const int group = v < 0x1800 ? static_cast<int>(v / 0x600) : 4 + static_cast<int>((v - 0x1800) / 0x600);
+        const int index = static_cast<int>((v % 0x600) / 32);
+        if (group < 8)
+          blit(out, sx, sy, banks_[static_cast<std::size_t>(group)].rgba.data(), 96, (index % 6) * 16, (index / 6) * 16, 16,
+               16, 0, 0, w, h, w, h);
+      }
+    }
+  }
+
+  for (const auto& actor : actors_) {
+    if (!actor.alive || actor.ported) continue;
+    const ActorEntry* entry = nullptr;
+    for (const auto& a : kActors)
+      if (a.id == actor.id) { entry = &a; break; }
+    if (!entry) continue;
+    ActorUpdate upd{0, 0};
+    if (actor.open && entry->exposedId) {
+      for (const auto& e2 : kActors)
+        if (e2.id == entry->exposedId && e2.updateCount) {
+          upd = kActorUpdates[e2.firstUpdate + phase_ % e2.updateCount];
+          if (upd.count == 0) upd = kActorUpdates[e2.firstUpdate];
+        }
+    } else if (actor.open && entry->openUpdate != 0xFFFF) {
+      upd = kActorUpdates[entry->openUpdate];
+    } else if (entry->updateCount != 0) {
+      upd = kActorUpdates[entry->firstUpdate + phase_ % entry->updateCount];
+      if (upd.count == 0) upd = kActorUpdates[entry->firstUpdate];  // drawn once and then left in place
+    }
+    const int ax = actor.col * 16, ay = actor.row * 16;
+    if (ax + 48 < left || ax - 48 > left + w || ay + 48 < top || ay - 48 > top + h) continue;
+    for (int k = 0; k < upd.count; ++k) {
+      const auto& dr = kActorDraws[upd.first + k];
+      const auto& bank = sprites_[dr.bank];
+      if (dr.frame >= bank.size()) continue;
+      blit(out, ax + dr.dx - left, ay + dr.dy - top, bank[dr.frame].data(), 16, 0, 0, 16, 16, 0, 0, w, h, w, h);
+    }
+  }
+
+  drawPorted(out, w, h, left, top);
+  drawPools(out, w, h, left, top);
+
+  // Score sprites: a two-colour picture of the value, rising and then gone
+  for (const auto& pop : popups_) {
+    int base = -1;
+    switch (pop.value) {
+      case 100: base = 0; break;
+      case 200: base = 2; break;
+      case 500: base = 4; break;
+      case 1000: base = 6; break;
+      case 2000: base = 8; break;
+      case 5000: base = 10; break;
+      default: break;
+    }
+    if (base < 0) continue;
+    const std::size_t idx = static_cast<std::size_t>(base + pop.age % 2);
+    if (idx >= numbers_.size()) continue;
+    blit(out, pop.x - left, pop.y - top - pop.age, numbers_[idx].data(), 16, 0, 0, 16, 16, 0, 0, w, h, w, h);
+  }
+
+  // Shots: the wave piece (OBJECT0 pieces 6..9) cycles while the bullet travels.
+  for (const auto& b : sandbox_.bullets) {
+    if (b.kind == 0) continue;
+    const auto& bank = sprites_[6];
+    const std::size_t frame = b.newFlag ? 46 : 6 + phase_ % 2;  // muzzle flash on the first frame, then two frames
+    if (frame >= bank.size()) continue;
+    // Shots travel 16 px per update; draw them where they were that far back along the path
+    const int shotShift = b.newFlag ? 0 : static_cast<int>(std::lround(16 * (1.0 - blend_))) * (b.kind == 1 ? 1 : -1);
+    blit(out, b.x8 * 8 - left + shotShift, b.yWords / 8 + 3 - top, bank[frame].data(), 16, 0, 0, 16, 16, 0, 0, w, h, w, h);
+  }
+
+  const auto& p = sandbox_.player;
+  const bool blink = p.immunity > 0 && (p.immunity % 2) == 0 && hitFlash_ == 0;
+  if (!blink && exitState_ < 2 && p.health > 0) {
+    const bool leftFacing = p.facing == 0;
+    // MAN0 groups 0-3: walking left, 4-7: walking right; MAN1 groups 0/1: standing left/right
+    const bool standing = p.grounded && p.walkFrame == 0;
+    const Tileset* pSet = standing ? &man_[1] : &man_[0];
+    int base = standing ? (leftFacing ? 0 : 4) : 4 * ((leftFacing ? 0 : 4) + p.walkFrame % 4);
+    if (!p.grounded && !p.cling) {
+      // Jump poses (identified from an original DOS capture): MAN0 groups 8/9 while rising, 10/11 while falling
+      const bool rising = worldY() < prevY_ || (worldY() == prevY_ && airTicks_ <= 4);
+      base = 4 * ((rising ? 8 : 10) + (leftFacing ? 0 : 1));
+      pSet = &man_[0];
+    }
+    if (hitFlash_ > 0) {  // Duke is hit: his skeleton flashes (MAN3 pieces 0x20-0x27)
+      pSet = &man_[3];
+      base = leftFacing ? 32 : 36;
+    }
+    const auto& set = *pSet;
+    const int px = playerX - left, py = playerY - top;
+    const int offs[4][2] = {{-16, -32}, {0, -32}, {-16, -16}, {0, -16}};
+    for (int i = 0; i < 4; ++i) {
+      const auto idx = static_cast<std::size_t>(base + i);
+      if (idx >= set.tiles.size()) continue;
+      const auto rgba = set.tiles[idx].rgba();
+      blit(out, px + offs[i][0], py + offs[i][1], rgba.data(), 16, 0, 0, 16, 16, 0, 0, w, h, w, h);
+    }
+  }
+}
+
+}  // namespace duke1

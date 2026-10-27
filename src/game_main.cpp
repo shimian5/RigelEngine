@@ -117,6 +117,23 @@ void setupForFirstLaunch(
     }
   }
 
+#ifdef __ANDROID__
+  // Android: look for the game files in the app's external storage directory,
+  // i.e. /sdcard/Android/data/<package>/files, which can be populated via adb
+  // or a file manager without needing any special permissions.
+  if (gamePath.empty())
+  {
+    if (const auto pExternalPath = SDL_AndroidGetExternalStoragePath())
+    {
+      const auto externalPath = fs::u8path(pExternalPath);
+      if (isValidGamePath(externalPath))
+      {
+        gamePath = externalPath;
+      }
+    }
+  }
+#endif
+
   // Case 3: Neither case 1 nor case 2 apply. Show a folder browser to let
   // the user select their Duke Nukem II installation.
   if (gamePath.empty())

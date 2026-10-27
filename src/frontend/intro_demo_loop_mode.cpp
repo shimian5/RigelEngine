@@ -16,6 +16,7 @@
 
 #include "intro_demo_loop_mode.hpp"
 
+#include "console_menu_mode.hpp"
 #include "menu_mode.hpp"
 
 #include "assets/resource_loader.hpp"
@@ -134,7 +135,7 @@ std::unique_ptr<GameMode> IntroDemoLoopMode::updateAndRender(
     {
       updateCurrentStep(0.0);
       mContext.mpServiceProvider->fadeOutScreen();
-      return std::make_unique<MenuMode>(mContext);
+      return createMainMenuMode(mContext);
     }
   }
 

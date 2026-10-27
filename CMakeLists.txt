@@ -22,6 +22,7 @@ option(USE_GL_ES "Use OpenGL ES instead of regular OpenGL" OFF)
 option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(BUILD_BENCHMARKS "Build benchmarks" OFF)
 option(BUILD_TESTS "Build tests" OFF)
+option(RIGEL_DEV_SCREENSHOT "Dev only: RIGEL_SCREENSHOT=<png> env var saves a frame" OFF)
 
 include("${CMAKE_SOURCE_DIR}/cmake/rigel_sanitizers.cmake")
 

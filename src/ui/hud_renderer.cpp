@@ -26,6 +26,7 @@
 #include "renderer/viewport_utils.hpp"
 #include "ui/menu_element_renderer.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <string>
 
@@ -262,7 +263,8 @@ HudRenderer::HudRenderer(
   engine::TiledTexture* pStatusSpriteSheet,
   renderer::Texture wideHudFrameTexture,
   renderer::Texture ultrawideHudFrameTexture,
-  const engine::SpriteFactory* pSpriteFactory)
+  const engine::SpriteFactory* pSpriteFactory,
+  const MenuElementRenderer* pTextRenderer)
   : mLevelNumber(levelNumber)
   , mpRenderer(pRenderer)
   , mpOptions(pOptions)
@@ -270,6 +272,7 @@ HudRenderer::HudRenderer(
   , mUltrawideHudFrameTexture(std::move(ultrawideHudFrameTexture))
   , mpStatusSpriteSheetRenderer(pStatusSpriteSheet)
   , mpSpriteFactory(pSpriteFactory)
+  , mpTextRenderer(pTextRenderer)
   , mRadarSurface(pRenderer, RADAR_SIZE_PX, RADAR_SIZE_PX)
 {
 }
@@ -369,6 +372,10 @@ void HudRenderer::renderWidescreenHud(
     case data::WidescreenHudStyle::Ultrawide:
       drawUltrawideHud(viewportWidth, persistentPlayerState, radarPositions);
       break;
+
+    case data::WidescreenHudStyle::Overlay:
+      drawOverlayHud(viewportWidth, persistentPlayerState, radarPositions);
+      break;
   }
 }
 
@@ -442,6 +449,190 @@ void HudRenderer::drawModernHud(
       *mpStatusSpriteSheetRenderer,
       {GameTraits::mapViewportSize.width + 2,
        GameTraits::mapViewportSize.height + 1});
+  }
+}
+
+
+void HudRenderer::drawOverlayHud(
+  int viewportWidth,
+  const data::PersistentPlayerState& persistentPlayerState,
+  base::ArrayView<base::Vec2> radarPositions)
+{
+  using base::Color;
+
+  constexpr auto ORANGE = Color{255, 153, 0, 255};
+  constexpr auto ORANGE_DIM = Color{110, 66, 0, 170};
+  constexpr auto RED = Color{230, 30, 20, 255};
+  constexpr auto BRACKET = Color{235, 235, 235, 230};
+  constexpr auto GREEN = Color{120, 205, 0, 255};
+  constexpr auto SLOT_BG = Color{0, 0, 0, 90};
+  constexpr auto WHITE = Color{255, 255, 255, 255};
+  constexpr auto LETTER_OFF = Color{150, 150, 150, 235};
+  constexpr auto PLATE = Color{0, 0, 0, 120};
+
+  constexpr auto margin = 4;
+  constexpr auto tile = data::GameTraits::tileSize;
+  // Use the viewport width, since the low-res buffer can be wider than the
+  // area that's actually visible/clipped.
+  const auto screenWidth = data::tilesToPixels(viewportWidth);
+  const auto mapHeightPx =
+    data::tilesToPixels(data::GameTraits::viewportHeightTiles - 1);
+
+  // Corner brackets around a slot
+  auto drawBrackets = [&, this](const base::Rect<int>& r) {
+    constexpr auto arm = 3;
+    const auto x0 = r.topLeft.x;
+    const auto y0 = r.topLeft.y;
+    const auto x1 = r.topLeft.x + r.size.width - 1;
+    const auto y1 = r.topLeft.y + r.size.height - 1;
+    for (const auto& corner : {base::Vec2{x0, y0}, base::Vec2{x1, y0},
+                                base::Vec2{x0, y1}, base::Vec2{x1, y1}})
+    {
+      const auto left = corner.x == x0;
+      const auto top = corner.y == y0;
+      mpRenderer->drawFilledRectangle(
+        {{left ? corner.x : corner.x - (arm - 1), corner.y}, {arm, 1}},
+        BRACKET);
+      mpRenderer->drawFilledRectangle(
+        {{corner.x, top ? corner.y : corner.y - (arm - 1)}, {1, arm}},
+        BRACKET);
+    }
+  };
+
+  auto drawSlot = [&](const base::Rect<int>& r) {
+    mpRenderer->drawFilledRectangle(r, SLOT_BG);
+    drawBrackets(r);
+  };
+
+  auto drawText = [&](const base::Vec2& pxPos, std::string_view text, const Color& color) {
+    auto guard = renderer::saveState(mpRenderer);
+    renderer::setLocalTranslation(mpRenderer, pxPos);
+    mpTextRenderer->drawBigText(0, 1, text, color);
+  };
+
+  // Top left: health pips
+  {
+    constexpr auto pipSize = 6;
+    constexpr auto pipStep = tile;
+    const auto numFull = persistentPlayerState.health() - 1;
+    const auto lowHealthBlink = (mElapsedFrames / 4) % 2 == 0;
+
+    mpRenderer->drawFilledRectangle(
+      {{margin - 2, margin - 2}, {NUM_HEALTH_SLICES * pipStep + 2, pipSize + 4}},
+      PLATE);
+
+    for (auto i = 0; i < NUM_HEALTH_SLICES; ++i)
+    {
+      const auto color = numFull > 0 ? (i < numFull ? ORANGE : ORANGE_DIM)
+                                     : (lowHealthBlink ? RED : ORANGE_DIM);
+      mpRenderer->drawFilledRectangle(
+        {{margin + i * pipStep, margin}, {pipSize, pipSize}}, color);
+    }
+  }
+
+  // Top left: weapon and ammo
+  {
+    const auto box = base::Rect<int>{{margin, margin + 10}, {NUM_HEALTH_SLICES * tile - 2, 20}};
+    drawSlot(box);
+
+    {
+      auto guard = renderer::saveState(mpRenderer);
+      renderer::setLocalTranslation(
+        mpRenderer, {box.topLeft.x + 1, box.topLeft.y + 2});
+      drawWeaponIcon(
+        persistentPlayerState.weapon(), *mpStatusSpriteSheetRenderer, {0, 0});
+    }
+
+    constexpr auto barWidth = 38;
+    const auto barX = box.topLeft.x + 20;
+    const auto barY = box.topLeft.y + 14;
+    const auto maxAmmo = std::max(1, persistentPlayerState.currentMaxAmmo());
+    const auto filled =
+      base::round(float(persistentPlayerState.ammo()) / maxAmmo * barWidth);
+    mpRenderer->drawFilledRectangle(
+      {{barX, barY}, {barWidth, 3}}, Color{0, 0, 0, 150});
+    mpRenderer->drawFilledRectangle({{barX, barY}, {filled, 3}}, GREEN);
+  }
+
+  // Top right: score and inventory slots
+  const auto rightEdge = screenWidth - margin;
+  {
+    const auto scoreText = std::to_string(persistentPlayerState.score());
+    const auto textWidthPx = int(scoreText.size()) * tile;
+    mpRenderer->drawFilledRectangle(
+      {{rightEdge - 5 * tile - 3, margin - 3}, {5 * tile + 6, 2 * tile + 8}},
+      PLATE);
+    drawText({rightEdge - 5 * tile, margin - 1}, "SCORE", LETTER_OFF);
+    drawText({rightEdge - textWidthPx, margin + 8}, scoreText, WHITE);
+
+    constexpr auto numSlots = 5;
+    constexpr auto slotSize = 2 * tile;
+    const auto slotsY = margin + 22;
+    for (auto i = 0; i < numSlots; ++i)
+    {
+      drawSlot({{rightEdge - (i + 1) * (slotSize + 2) + 2, slotsY}, {slotSize, slotSize}});
+    }
+
+    drawFloatingInventory(
+      persistentPlayerState.inventory(),
+      {rightEdge - (2 + 0) + 0, slotsY},
+      false,
+      slotSize + 2);
+  }
+
+  // Bottom right: collected N U K E M letters
+  {
+    const auto collected = persistentPlayerState.collectedLetters();
+    auto has = [&](data::CollectableLetterType t) {
+      return std::find(collected.begin(), collected.end(), t) != collected.end();
+    };
+    using L = data::CollectableLetterType;
+    const L letters[] = {L::N, L::U, L::K, L::E, L::M};
+    const char names[] = {'N', 'U', 'K', 'E', 'M'};
+    mpRenderer->drawFilledRectangle(
+      {{rightEdge - 5 * tile - 3, mapHeightPx - margin - tile - 8},
+       {5 * tile + 6, tile + 6}},
+      PLATE);
+    for (auto i = 0; i < 5; ++i)
+    {
+      drawText(
+        {rightEdge - (5 - i) * tile, mapHeightPx - margin - tile - 7},
+        std::string(1, names[i]),
+        has(letters[i]) ? ORANGE : LETTER_OFF);
+    }
+  }
+
+  // Bottom left: round radar
+  if (mpOptions->mShowRadarInModernHud)
+  {
+    // Pixels are taller than wide with aspect ratio correction (x1.2), so the
+    // circle needs to be squashed vertically to look round on screen.
+    constexpr auto radius = 16;
+    constexpr auto radiusY = 13;
+    const auto radarPos = base::Vec2{margin + 2, mapHeightPx - margin - 2 * radius - 2};
+    const auto center = radarPos + base::Vec2{radius, radius + 1};
+
+    for (auto dy = -radiusY; dy <= radiusY; ++dy)
+    {
+      const auto half = base::round(
+        radius * std::sqrt(1.0f - float(dy * dy) / float(radiusY * radiusY)));
+      mpRenderer->drawFilledRectangle(
+        {{center.x - half, center.y + dy}, {half * 2 + 1, 1}}, Color{0, 0, 0, 130});
+    }
+
+    drawRadar(radarPositions, radarPos);
+
+    for (auto step = 0; step < 120; ++step)
+    {
+      const auto angle = float(step) / 120.0f * 6.2831853f;
+      for (const auto shrink : {0.0f, 1.0f})
+      {
+        mpRenderer->drawPoint(
+          {center.x + base::round(std::cos(angle) * (radius - shrink)),
+           center.y + base::round(std::sin(angle) * (radiusY - shrink))},
+          ORANGE);
+      }
+    }
   }
 }
 
@@ -564,16 +755,21 @@ void HudRenderer::drawInventory(
 
 void HudRenderer::drawFloatingInventory(
   const std::vector<data::InventoryItemType>& inventory,
-  const base::Vec2& position) const
+  const base::Vec2& position,
+  const bool drawBackground,
+  const int slotStepPx) const
 {
-  const auto numItems = int(inventory.size());
-  const auto numItemSlots =
-    mpOptions->mShowRadarInModernHud ? std::max(numItems, 2) : numItems;
-  const auto backgroundSize =
-    data::tilesToPixels(base::Size{numItemSlots * 2, 2});
-  mpRenderer->drawFilledRectangle(
-    {position - base::Vec2{backgroundSize.width, 0}, backgroundSize},
-    OVERLAY_BACKGROUND_COLOR);
+  if (drawBackground)
+  {
+    const auto numItems = int(inventory.size());
+    const auto numItemSlots =
+      mpOptions->mShowRadarInModernHud ? std::max(numItems, 2) : numItems;
+    const auto backgroundSize =
+      data::tilesToPixels(base::Size{numItemSlots * 2, 2});
+    mpRenderer->drawFilledRectangle(
+      {position - base::Vec2{backgroundSize.width, 0}, backgroundSize},
+      OVERLAY_BACKGROUND_COLOR);
+  }
 
   auto drawPos = position - base::Vec2{data::tilesToPixels(2), 0};
 
@@ -602,7 +798,7 @@ void HudRenderer::drawFloatingInventory(
         break;
     }
 
-    drawPos.x -= data::tilesToPixels(2);
+    drawPos.x -= slotStepPx;
   }
 }
 

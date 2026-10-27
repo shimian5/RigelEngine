@@ -12,7 +12,7 @@ namespace duke1 {
   ;
   struct Event {
     enum Kind {
-      Sound, MapContact, Score
+      Sound, MapContact, Score, Break
     }
     kind;
     int value;
@@ -70,6 +70,9 @@ namespace duke1 {
     bool spawn(int facing,int yWords,int x8);
     void moveBullets(bool checkWorld=true,bool cull=true);
     bool culled(int x8,int yWords) const;
+    // Optional larger active window for wide presentation (union with the original 13x10 tile window)
+    bool wideCull=false;
+    int cullX0=0,cullX1=0,cullY0=0,cullY1=0;
     private: bool clear(Sensor s);
     void contact();
     void alignY();

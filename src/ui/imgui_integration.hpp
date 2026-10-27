@@ -39,4 +39,7 @@ bool handleEvent(const SDL_Event& event);
 void beginFrame(SDL_Window* pWindow);
 void endFrame();
 
+/** Returns the ImFont* for the overlay HUD font (Russo One), or nullptr */
+void* hudFont();
+
 } // namespace rigel::ui::imgui_integration

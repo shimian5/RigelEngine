@@ -30,6 +30,13 @@ RIGEL_DISABLE_WARNINGS
 #include <glm/mat4x4.hpp>
 RIGEL_RESTORE_WARNINGS
 
+#ifdef RIGEL_DEV_SCREENSHOT
+#include <loguru.hpp>
+#include <stb_image_write.h>
+#include <cstdlib>
+#include <vector>
+#endif
+
 #include <algorithm>
 #include <array>
 #include <iterator>
@@ -701,11 +708,70 @@ struct Renderer::Impl
   }
 
 
+#ifdef RIGEL_DEV_SCREENSHOT
+  // Dev-only: RIGEL_SCREENSHOT=<file.png> [RIGEL_SCREENSHOT_FRAME=<n>]
+  // [RIGEL_SCREENSHOT_EXIT=1]. Saves the back buffer of frame n and exits.
+  void devScreenshotHook()
+  {
+    static const char* pPath = std::getenv("RIGEL_SCREENSHOT");
+    static const auto targetFrame = std::getenv("RIGEL_SCREENSHOT_FRAME")
+      ? std::atoi(std::getenv("RIGEL_SCREENSHOT_FRAME"))
+      : 300;
+    static int frame = 0;
+
+    if (!pPath || ++frame != targetFrame)
+    {
+      return;
+    }
+
+    base::Size size;
+    SDL_GL_GetDrawableSize(mpWindow, &size.width, &size.height);
+    std::vector<std::uint8_t> pixels(size_t(size.width) * size.height * 4);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    glFinish();
+    std::vector<std::uint8_t> flipped(pixels.size());
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(
+      0, 0, size.width, size.height, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+    {
+      auto nonZero = 0u;
+      for (auto b : pixels) { nonZero += (b != 0 && b != 255) ? 1u : 0u; }
+      LOG_F(INFO, "devScreenshot %dx%d glError=%d nonZeroBytes=%u", size.width, size.height, int(glGetError()), nonZero);
+      GLint drawBuf = 0, readBuf = 0, fbo = 0;
+      glGetIntegerv(GL_READ_BUFFER, &readBuf);
+      glGetIntegerv(GL_DRAW_BUFFER0, &drawBuf);
+      glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &fbo);
+      LOG_F(INFO, "readBuf=0x%x drawBuf=0x%x readFbo=%d", readBuf, drawBuf, fbo);
+    }
+    const auto rowBytes = size_t(size.width) * 4;
+    for (int y = 0; y < size.height; ++y)
+    {
+      std::copy_n(
+        pixels.data() + y * rowBytes,
+        rowBytes,
+        flipped.data() + (size.height - 1 - y) * rowBytes);
+    }
+    stbi_write_png(
+      pPath, size.width, size.height, 4, flipped.data(), int(rowBytes));
+
+    if (std::getenv("RIGEL_SCREENSHOT_EXIT"))
+    {
+      std::_Exit(0);
+    }
+  }
+#endif
+
+
   void swapBuffers()
   {
     assert(mStateStack.back().mRenderTargetTexture == 0);
 
     submitBatch();
+
+#ifdef RIGEL_DEV_SCREENSHOT
+    devScreenshotHook();
+#endif
+
     SDL_GL_SwapWindow(mpWindow);
 
     const auto actualWindowSize = getSize(mpWindow);

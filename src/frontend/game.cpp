@@ -30,6 +30,9 @@
 #include "demo_player.hpp"
 #include "game_session_mode.hpp"
 #include "intro_demo_loop_mode.hpp"
+#include "console_menu_mode.hpp"
+#include "console_title_mode.hpp"
+#include "duke1_mode.hpp"
 #include "menu_mode.hpp"
 #include "platform.hpp"
 
@@ -129,7 +132,15 @@ std::unique_ptr<GameMode> createInitialGameMode(
   }
   else if (commandLineOptions.mSkipIntro)
   {
-    return std::make_unique<MenuMode>(context);
+    return createMainMenuMode(context);
+  }
+  else if (
+    context.mpUserProfile->mOptions.mConsoleMenus &&
+    !commandLineOptions.mPlayDemo)
+  {
+    // The console-style menus replace the original intro (Apogee logo and
+    // intro movie) with a simple title screen.
+    return std::make_unique<ConsoleTitleMode>(context);
   }
   else if (commandLineOptions.mPlayDemo)
   {
@@ -212,6 +223,7 @@ Game::Game(
       pUserProfile->mOptions.mEnableTopLevelMods,
       pUserProfile->mModLibrary.enabledModPaths())
   , mpSoundSystem([&]() -> std::unique_ptr<audio::SoundSystem> {
+    Duke1Mode::setGamePath(effectiveGamePath(commandLineOptions, *pUserProfile));
     if (commandLineOptions.mDisableAudio)
     {
       return nullptr;
@@ -392,6 +404,13 @@ void Game::updateAndRender(const entityx::TimeDelta elapsed)
   mUpscalingBuffer.present(
     mCurrentFrameIsWidescreen,
     mpUserProfile->mOptions.mPerElementUpscalingEnabled);
+
+  if (mNativeOverlay)
+  {
+    auto overlay = std::move(mNativeOverlay);
+    mNativeOverlay = nullptr;
+    overlay(mUpscalingBuffer.alphaMod());
+  }
 
   if (mpUserProfile->mOptions.mShowFpsCounter)
   {

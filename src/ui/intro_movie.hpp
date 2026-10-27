@@ -34,6 +34,9 @@ public:
 
   void start();
 
+  /** Start with the final movie only (title and logo), skipping the rest */
+  void startWithLogoOnly();
+
   void updateAndRender(engine::TimeDelta dt);
 
   bool isFinished() const;

@@ -17,11 +17,14 @@
 #pragma once
 
 
+#include "base/spatial_types.hpp"
 #include "data/bonus.hpp"
 #include "engine/timing.hpp"
 #include "game_logic_common/input.hpp"
 
+#include <cstdint>
 #include <iosfwd>
+#include <optional>
 #include <set>
 
 
@@ -60,6 +63,16 @@ struct IGameWorld
   virtual void quickSave() = 0;
   virtual void quickLoad() = 0;
   virtual bool canQuickLoad() const = 0;
+
+  // Replay save support: see frontend/replay_save.hpp
+  /** The viewport (in tiles) the game logic currently simulates with */
+  virtual base::Size simulationViewport() const = 0;
+  /** Force a viewport for game logic, e.g. to reproduce a recorded session */
+  virtual void
+    setSimulationViewportOverride(const std::optional<base::Size>& size) = 0;
+  /** Hash of the gameplay-relevant state, for verifying determinism */
+  virtual std::uint64_t debugStateHash() const = 0;
+
   virtual void debugToggleBoundingBoxDisplay() = 0;
   virtual void debugToggleWorldCollisionDataDisplay() = 0;
   virtual void debugToggleGridDisplay() = 0;

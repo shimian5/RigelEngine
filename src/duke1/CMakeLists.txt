@@ -31,3 +31,8 @@ if(BUILD_TESTING AND DN1_RESEARCH_ROOT AND DN1_DATA_DIR)
  add_test(NAME duke1_asset_pixel_parity COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/validate_assets.py" "$<TARGET_FILE:dn1_scene>" "${DN1_DATA_DIR}" "${DN1_RESEARCH_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/parity")
  set_tests_properties(duke1_core_original_trace_parity duke1_asset_pixel_parity PROPERTIES TIMEOUT 90)
 endif()
+
+add_library(dn1_play STATIC play.cpp actors.cpp)
+target_link_libraries(dn1_play PUBLIC dn1_core dn1_assets)
+add_executable(dn1_play_shot play_shot_main.cpp)
+target_link_libraries(dn1_play_shot PRIVATE dn1_play)

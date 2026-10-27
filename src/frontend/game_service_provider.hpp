@@ -24,6 +24,7 @@
 #include <SDL_gamecontroller.h>
 
 #include <filesystem>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -75,6 +76,14 @@ struct IGameServiceProvider
   virtual void scheduleGameQuit() = 0;
   virtual void switchGamePath(const std::filesystem::path& newGamePath) = 0;
   virtual void markCurrentFrameAsWidescreen() = 0;
+
+  /** Submit drawing to be executed after the game image has been upscaled
+   *
+   * The callback is invoked once, at native window resolution, on top of the
+   * final image. It receives the current fade alpha (0-255). Needs to be
+   * called every frame that should show the overlay.
+   */
+  virtual void setNativeOverlay(std::function<void(int alpha)> draw) = 0;
   virtual bool isSharewareVersion() const = 0;
   virtual const CommandLineOptions& commandLineOptions() const = 0;
   virtual const GameControllerInfo& gameControllerInfo() const = 0;
