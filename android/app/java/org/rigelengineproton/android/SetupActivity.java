@@ -29,6 +29,8 @@ public class SetupActivity extends Activity {
     private Button refresh;
     private Button play;
     private boolean importing;
+    private boolean gameStarted;
+    private boolean leftForGame;
 
     private File storage() {
         return new File(getNoBackupFilesDir(), "game-data");
@@ -77,10 +79,42 @@ public class SetupActivity extends Activity {
                 importFolder(Uri.parse(uri));
             }
         });
-        play = button(layout, "Play", v -> {
-            startActivity(new Intent(this, RigelActivity.class));
-        });
+        play = button(layout, "Play", v -> startGame());
         setContentView(layout);
+        updateStatus(null);
+        if (state == null && !getIntent().getBooleanExtra("manage", false)
+                && play.isEnabled()) {
+            startGame();
+        }
+    }
+
+    private void startGame() {
+        gameStarted = true;
+        startActivity(new Intent(this, RigelActivity.class));
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (gameStarted) {
+            leftForGame = true;
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (leftForGame) {
+            finish();
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        gameStarted = false;
+        leftForGame = false;
         updateStatus(null);
     }
 

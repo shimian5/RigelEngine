@@ -4,6 +4,10 @@
 
 Nikolai Wuttke ([@lethal-guitar](https://github.com/lethal-guitar))
 
+## RigelEngine: Proton
+
+* [@shimian5](https://github.com/shimian5): Duke Nukem I implementation and Proton fork
+
 ## Major contributors
 
 * Alain Martin ([@McMartin](https://github.com/McMartin)): Help with OS X port, clang-tidy, compiler upgrades and lots of other things

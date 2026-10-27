@@ -98,8 +98,10 @@ interrupted directory swap is recovered on next startup. Imports have 64 MiB/fil
 Detection is based on filenames and nonempty episode EXE/first map pairs or the CMP;
 native loaders still validate actual file contents when used.
 
-The setup screen appears on launch, offers Reimport for source-folder changes, and
-starts SDL only after Play. Imported data is excluded from Android backups and is
+On the first launch, the setup screen offers a folder picker and starts SDL after
+the player imports files and chooses Play. Later launches start the game automatically.
+Choose GAME FILES from the launcher to reopen setup and reimport or
+select a different folder. Imported data is excluded from Android backups and is
 removed on uninstall. The user keeps the original shared-storage folder.
 Older private package org.rigelengine.android is separate; no settings migration.
 

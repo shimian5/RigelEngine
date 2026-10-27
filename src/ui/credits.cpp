@@ -55,6 +55,7 @@ void drawCredits(const float creditsBoxWidth)
   ImGui::NewLine();
 
   centeredText("Created by Nikolai Wuttke (https://github.com/lethal_guitar)");
+  centeredText("Duke Nukem I implementation in Proton: shimian5");
 
   ImGui::NewLine();
   ImGui::NewLine();

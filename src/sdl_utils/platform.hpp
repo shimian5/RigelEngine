@@ -22,4 +22,8 @@ namespace rigel::sdl_utils
 
 bool isRunningInDesktopEnvironment();
 
-}
+#ifdef __ANDROID__
+void openAndroidGameDataSetup();
+#endif
+
+} // namespace rigel::sdl_utils

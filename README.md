@@ -143,8 +143,9 @@ its three episodes; DN2 holds Duke II. Avoid multiple copies of the same game fi
 in the chosen root and subfolders.
 
 The setup screen imports recognized DOS files into the app and shows the detected
-games before you press **Play**. Originals are unchanged. After adding or replacing
-source files, choose **Reimport selected folder** on the next launch. No ADB, broad
+games before you press **Play**. Later launches go straight to the game. Originals
+are unchanged. To add or replace files, open **GAME FILES** in the
+launcher, then choose **Reimport selected folder** or pick a different folder. No ADB, broad
 storage permission or access to `Android/data` is required. Cancellation and failed
 imports keep the previous library. Importing uses additional storage; uninstalling
 the app removes its imported library and saves, while your original folder remains.

@@ -10,7 +10,7 @@ Downloads:
 **Supply your own DOS game files.** No game data is included. On Android select a
 normal folder using Choose game folder. Files may be mixed together or inside DN1/
 DN2 subfolders. The app imports recognized data without changing your originals;
-use Reimport after updating the source folder. No ADB setup is needed.
+use GAME FILES to reimport after updating the source folder. No ADB setup is needed.
 Desktop builds prompt for the data path. See README for required episode files.
 Either game works independently. The Android package is org.rigelengineproton.android;
 it installs separately from earlier private test builds.

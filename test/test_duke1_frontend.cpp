@@ -351,9 +351,10 @@ TEST_CASE("Desktop discovers both games from a chosen folder", "[duke1][flow]")
   fs::create_directory(child);
   rigel::test::writeBytes(child / "nukem2.cmp", {1});
   CHECK(rigel::findDuke2DataDir(root) == child);
-  CHECK(
-    rigel::assets::findFileIgnoringCase(child, "NUKEM2.CMP") ==
-    child / "nukem2.cmp");
+  const auto resolved =
+    rigel::assets::findFileIgnoringCase(child, "NUKEM2.CMP");
+  REQUIRE(resolved);
+  CHECK(fs::equivalent(*resolved, child / "nukem2.cmp"));
 
   const auto firstGame = root / "DN1";
   fs::create_directory(firstGame);
@@ -372,8 +373,12 @@ TEST_CASE("Desktop discovers both games from a chosen folder", "[duke1][flow]")
   fs::copy_file(root / "DN1.EXE", mixedCaseDn1 / "DN1.EXE");
   fs::copy_file(root / "WORLDAL1.DN1", mixedCaseDn1 / "WORLDAL1.DN1");
   rigel::test::writeBytes(mixedCaseDn2 / "NUKEM2.CMP", {3});
-  CHECK(rigel::Duke1Mode::findDataDirIn(layout) == mixedCaseDn1);
-  CHECK(rigel::Duke1Mode::findDataDirIn(mixedCaseDn2) == mixedCaseDn1);
+  const auto dn1FromParent = rigel::Duke1Mode::findDataDirIn(layout);
+  const auto dn1FromSibling = rigel::Duke1Mode::findDataDirIn(mixedCaseDn2);
+  REQUIRE(dn1FromParent);
+  REQUIRE(dn1FromSibling);
+  CHECK(fs::equivalent(*dn1FromParent, mixedCaseDn1));
+  CHECK(fs::equivalent(*dn1FromSibling, mixedCaseDn1));
   CHECK(rigel::findDuke2DataDir(layout) == mixedCaseDn2);
 
   const auto unrelated = root / "other";

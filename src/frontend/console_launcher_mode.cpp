@@ -26,6 +26,7 @@
 #include "frontend/replay_save.hpp"
 #include "frontend/user_profile.hpp"
 #include "game_session_mode.hpp"
+#include "sdl_utils/platform.hpp"
 
 #include <filesystem>
 
@@ -199,6 +200,9 @@ void ConsoleLauncherMode::enter(const Screen screen)
          {"DUKE NUKEM II", duke2Available()},
          {"LOAD GAME", newestSave().has_value()},
          {"OPTIONS", true},
+#ifdef __ANDROID__
+         {"GAME FILES", true},
+#endif
          {"CREDITS", true},
          {"QUIT", true}});
       if (!mList.selectedIsEnabled())
@@ -445,11 +449,23 @@ std::unique_ptr<GameMode> ConsoleLauncherMode::activateSelected()
         ui::OptionsMenu::Type::Main);
       break;
 
+#ifdef __ANDROID__
     case 5:
-      enter(Screen::Credits);
+      sdl_utils::openAndroidGameDataSetup();
       break;
 
     case 6:
+#else
+    case 5:
+#endif
+      enter(Screen::Credits);
+      break;
+
+#ifdef __ANDROID__
+    case 7:
+#else
+    case 6:
+#endif
       enter(Screen::QuitConfirm);
       break;
   }
@@ -564,13 +580,14 @@ void ConsoleLauncherMode::render()
     view.mTitle = "CREDITS";
     view.mBackLabel = "BACK";
     view.mInfoLines = {
-      {"ENGINE", true},
-      {"RIGELENGINE BY NIKOLAI WUTTKE AND CONTRIBUTORS", false},
-      {"LICENSED UNDER THE GNU GPL", false},
+      {"RIGELENGINE", true},
+      {"NIKOLAI WUTTKE", false},
+      {"AND CONTRIBUTORS", false},
+      {"DUKE NUKEM I ENGINE", true},
+      {"SHIMIAN5", false},
       {"ORIGINAL GAMES", true},
-      {"DUKE NUKEM AND DUKE NUKEM II", false},
-      {"COPYRIGHT APOGEE / 3D REALMS", false},
-      {"GAME DATA IS SUPPLIED BY THE PLAYER", false}};
+      {"APOGEE / 3D REALMS", false},
+      {"GAME DATA SUPPLIED BY PLAYER", false}};
   }
   else
   {

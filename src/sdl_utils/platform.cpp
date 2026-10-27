@@ -18,6 +18,12 @@
 
 #include <SDL_video.h>
 
+#ifdef __ANDROID__
+  #include <SDL_log.h>
+  #include <SDL_system.h>
+  #include <jni.h>
+#endif
+
 #include <string_view>
 
 
@@ -36,5 +42,34 @@ bool isRunningInDesktopEnvironment()
     sdlVideoDriver == "x11";
   // clang-format on
 }
+
+#ifdef __ANDROID__
+void openAndroidGameDataSetup()
+{
+  auto* env = static_cast<JNIEnv*>(SDL_AndroidGetJNIEnv());
+  auto activity = static_cast<jobject>(SDL_AndroidGetActivity());
+  if (!env || !activity)
+  {
+    SDL_Log("Unable to open game-data setup");
+    return;
+  }
+
+  auto activityClass = env->GetObjectClass(activity);
+  auto method = activityClass
+    ? env->GetMethodID(activityClass, "openGameDataSetup", "()V")
+    : nullptr;
+  if (method)
+    env->CallVoidMethod(activity, method);
+
+  if (env->ExceptionCheck())
+  {
+    env->ExceptionClear();
+    SDL_Log("Unable to open game-data setup");
+  }
+  if (activityClass)
+    env->DeleteLocalRef(activityClass);
+  env->DeleteLocalRef(activity);
+}
+#endif
 
 } // namespace rigel::sdl_utils
