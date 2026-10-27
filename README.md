@@ -130,7 +130,7 @@ level order, backdrops and story text, so it is required as well as the data fil
 The known incomplete shareware `DROP3.DN1` is supported with a visible compatibility warning;
 a complete file loads normally.
 
-For **Duke Nukem II**, the required file is `NUKEM2.CMP`. Include `NUKEM2.F1` through
+For **Duke Nukem II** (needed only if you want to play it), the required file is `NUKEM2.CMP`. Include `NUKEM2.F1` through
 `NUKEM2.F5` for the optional intro movies; missing movies are skipped.
 Existing original Duke Nukem II saves, high scores and settings can be imported into
 RigelEngine's user profile on first use. The upstream
@@ -139,7 +139,7 @@ background for Duke Nukem II.
 
 ### Launcher, menus and saves
 
-The shared launcher lets you choose Duke Nukem I or Duke Nukem II, start a new game,
+The shared launcher lets you choose Duke Nukem I or Duke Nukem II (whichever you have files for), start a new game,
 continue your most recent save, or load a saved game. Both games use controller-friendly
 menus and an overlay HUD. In Duke Nukem I, New Game offers the installed episodes and
 their main levels. Starting directly at a later level gives Duke default equipment.

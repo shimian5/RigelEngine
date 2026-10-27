@@ -490,16 +490,38 @@ ui::HudArt Duke1Mode::duke1HudArt() const
     }
   }
 
-  // The shot is drawn as a green wave, centered in the 32x16 projectile icon
+  // The shot is drawn as a green wave; its visible part is centered in the
+  // 32x16 projectile icon
   const auto& wave = mpWorld->shotIcon();
+  int minX = 16, maxX = -1, minY = 16, maxY = -1;
+  for (int y = 0; y < 16; ++y)
+  {
+    for (int x = 0; x < 16; ++x)
+    {
+      if (wave[(std::size_t(y) * 16 + std::size_t(x)) * 4 + 3] != 0)
+      {
+        minX = std::min(minX, x);
+        maxX = std::max(maxX, x);
+        minY = std::min(minY, y);
+        maxY = std::max(maxY, y);
+      }
+    }
+  }
+  const auto offsetX = 16 - (minX + maxX + 1) / 2;
+  const auto offsetY = 8 - (minY + maxY + 1) / 2;
   data::PixelBuffer shot(32 * 16, base::Color{0, 0, 0, 0});
   for (int y = 0; y < 16; ++y)
   {
     for (int x = 0; x < 16; ++x)
     {
       const auto k = (std::size_t(y) * 16 + std::size_t(x)) * 4;
-      shot[std::size_t(y) * 32 + std::size_t(8 + x)] =
-        base::Color{wave[k], wave[k + 1], wave[k + 2], wave[k + 3]};
+      const auto dx = x + offsetX;
+      const auto dy = y + offsetY;
+      if (wave[k + 3] != 0 && dx >= 0 && dx < 32 && dy >= 0 && dy < 16)
+      {
+        shot[std::size_t(dy) * 32 + std::size_t(dx)] =
+          base::Color{wave[k], wave[k + 1], wave[k + 2], wave[k + 3]};
+      }
     }
   }
 
