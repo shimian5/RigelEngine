@@ -29,6 +29,7 @@
 #include "ui/hud_skin.hpp"
 #include "ui/hud_skin_generator.hpp"
 #include "ui/menu_navigation.hpp"
+#include "ui/pause_menu.hpp"
 
 #include <array>
 #include <filesystem>
@@ -116,15 +117,14 @@ private:
   enum class PauseScreen
   {
     None,
-    Main,
-    SaveSlots,
-    LoadSlots,
+    Shared, // the pause menu that both games use
     Stats,
     Debug,
     DebugLevels,
     DebugFeatures
   };
   PauseScreen mPause = PauseScreen::None;
+  ui::PauseMenu mPauseMenu;
   ui::ConsoleList mPauseList;
   ui::MenuNavigationHelper mNavigation;
   std::vector<std::uint8_t> mInputLog;
@@ -144,6 +144,9 @@ private:
   double mToastSeconds = 0.0;
 
   void enterPauseScreen(PauseScreen screen);
+  void openPauseMenu();
+  void runPauseMenuAction();
+  static ui::SaveSlotSource saveSlotSource();
   void activatePauseSelection();
   bool saveTo(const std::string& slot);
   bool loadFrom(const std::string& slot);

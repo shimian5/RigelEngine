@@ -27,6 +27,7 @@ RIGEL_DISABLE_WARNINGS
 #include <SDL.h>
 RIGEL_RESTORE_WARNINGS
 
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -34,6 +35,28 @@ RIGEL_RESTORE_WARNINGS
 
 namespace rigel::ui
 {
+
+/** What the pause menu shows for one save slot */
+struct SaveSlotInfo
+{
+  int mEpisode = 1;
+  int mLevel = 1;
+  int mScore = 0;
+  std::optional<double> mPlayTimeSeconds;
+};
+
+
+/** Where a game keeps its saves, so that each game can use the same menu */
+struct SaveSlotSource
+{
+  int mNumSlots = 0;
+  std::function<std::optional<SaveSlotInfo>(int slot)> mSummary;
+  std::function<bool()> mHasAnySave;
+
+  /** The Duke Nukem II console saves */
+  static SaveSlotSource duke2();
+};
+
 
 /** Console-style pause menu (quick save, load, options...)
  *
@@ -52,6 +75,7 @@ public:
     LoadLastSave,
     SaveToSlot,
     LoadFromSlot,
+    Debug,
     Quit
   };
 
@@ -63,7 +87,11 @@ public:
     double mPlayTimeSeconds = 0.0;
   };
 
-  explicit PauseMenu(GameMode::Context context);
+  /** debugEntry adds a DEBUG item that reports Action::Debug */
+  PauseMenu(
+    GameMode::Context context,
+    SaveSlotSource slots = SaveSlotSource::duke2(),
+    bool debugEntry = false);
 
   /** Whether the event should open the pause menu (Esc, Start, Android back) */
   static bool isOpenTrigger(const SDL_Event& event);
@@ -93,6 +121,8 @@ private:
   void goBack();
 
   GameMode::Context mContext;
+  SaveSlotSource mSlots;
+  bool mDebugEntry;
   MenuNavigationHelper mNavigationHelper;
   std::optional<OptionsMenu> mOptionsMenu;
 

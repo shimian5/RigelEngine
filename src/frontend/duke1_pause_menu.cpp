@@ -69,15 +69,7 @@ void Duke1Mode::enterPauseScreen(const PauseScreen screen)
 
   switch (screen)
   {
-    case PauseScreen::Main:
-      items = {
-        {"RESUME", true},
-        {"QUICK SAVE", true},
-        {"LOAD LAST SAVE", newestDuke1Save().has_value()},
-        {"SAVE GAME", true},
-        {"LOAD GAME", true},
-        {"DEBUG", true},
-        {"QUIT TO MENU", true}};
+    case PauseScreen::Shared:
       break;
 
     case PauseScreen::Stats:
@@ -102,26 +94,100 @@ void Duke1Mode::enterPauseScreen(const PauseScreen screen)
         items.push_back({f.mName, mEpisode == 0});
       break;
 
-    case PauseScreen::SaveSlots:
-    case PauseScreen::LoadSlots:
-      for (int i = 0; i < NUM_DUKE1_SLOTS; ++i)
-      {
-        const auto oSave = readDuke1Save(duke1SlotName(i));
-        std::string label = "SLOT " + std::to_string(i + 1) + "   ";
-        label += oSave ? "E" + std::to_string(oSave->mEpisode + 1) + " " +
-            levelLabel(std::size_t(std::max(0, oSave->mLevelIndex))) + "   " +
-            ui::formatScoreWithCommas(oSave->mCarry.score)
-                       : "EMPTY";
-        items.push_back(
-          {label, screen == PauseScreen::SaveSlots || oSave.has_value()});
-      }
-      break;
-
     case PauseScreen::None:
       break;
   }
 
   mPauseList.setItems(std::move(items));
+}
+
+
+ui::SaveSlotSource Duke1Mode::saveSlotSource()
+{
+  ui::SaveSlotSource source;
+  source.mNumSlots = NUM_DUKE1_SLOTS;
+  source.mSummary = [](const int slot) -> std::optional<ui::SaveSlotInfo> {
+    if (const auto oSave = readDuke1Save(duke1SlotName(slot)))
+    {
+      return ui::SaveSlotInfo{
+        oSave->mEpisode + 1,
+        std::max(0, oSave->mLevelIndex) + 1,
+        oSave->mCarry.score,
+        std::nullopt};
+    }
+    return std::nullopt;
+  };
+  source.mHasAnySave = [] {
+    return newestDuke1Save().has_value();
+  };
+  return source;
+}
+
+
+void Duke1Mode::openPauseMenu()
+{
+  mPause = PauseScreen::Shared;
+
+  ui::PauseMenu::Info info;
+  info.mEpisode = mEpisode + 1;
+  info.mLevel = int(mLevelIndex) + 1;
+  info.mScore = mpWorld->score();
+  info.mPlayTimeSeconds = double(mpWorld->updateCount()) / 16.0;
+  mPauseMenu.open(info);
+}
+
+
+void Duke1Mode::runPauseMenuAction()
+{
+  using Action = ui::PauseMenu::Action;
+
+  const auto report = [this](const bool ok, const char* good, const char* bad) {
+    mToast = ok ? good : bad;
+    mToastSeconds = 1.5;
+  };
+
+  int slot = 0;
+  switch (mPauseMenu.takeAction(&slot))
+  {
+    case Action::None:
+      return; // the menu is still open
+
+    case Action::Resume:
+      mPause = PauseScreen::None;
+      break;
+
+    case Action::QuickSave:
+      report(saveTo("dn1_quicksave"), "QUICK SAVED", "SAVE FAILED");
+      mPause = PauseScreen::None;
+      break;
+
+    case Action::LoadLastSave:
+      if (const auto newest = newestDuke1Save())
+      {
+        report(loadFrom(*newest), "LOADED", "LOAD FAILED");
+      }
+      mPause = PauseScreen::None;
+      break;
+
+    case Action::SaveToSlot:
+      report(saveTo(duke1SlotName(slot)), "GAME SAVED", "SAVE FAILED");
+      mPause = PauseScreen::None;
+      break;
+
+    case Action::LoadFromSlot:
+      report(loadFrom(duke1SlotName(slot)), "GAME LOADED", "LOAD FAILED");
+      mPause = PauseScreen::None;
+      break;
+
+    case Action::Debug:
+      enterPauseScreen(PauseScreen::Debug);
+      break;
+
+    case Action::Quit:
+      mQuitRequested = true;
+      mPause = PauseScreen::None;
+      break;
+  }
 }
 
 
@@ -135,39 +201,7 @@ void Duke1Mode::activatePauseSelection()
   const auto selected = mPauseList.selected();
   switch (mPause)
   {
-    case PauseScreen::Main:
-      switch (selected)
-      {
-        case 0:
-          mPause = PauseScreen::None;
-          break;
-        case 1:
-          mToast = saveTo("dn1_quicksave") ? "QUICK SAVED" : "SAVE FAILED";
-          mToastSeconds = 1.5;
-          mPause = PauseScreen::None;
-          break;
-        case 2:
-          if (const auto newest = newestDuke1Save())
-          {
-            mToast = loadFrom(*newest) ? "LOADED" : "LOAD FAILED";
-            mToastSeconds = 1.5;
-          }
-          break;
-        case 3:
-          enterPauseScreen(PauseScreen::SaveSlots);
-          break;
-        case 4:
-          enterPauseScreen(PauseScreen::LoadSlots);
-          break;
-        case 5:
-          enterPauseScreen(PauseScreen::Debug);
-          break;
-        case 6:
-          mQuitRequested = true;
-          break;
-        default:
-          break;
-      }
+    case PauseScreen::Shared:
       break;
 
     case PauseScreen::Stats:
@@ -245,18 +279,6 @@ void Duke1Mode::activatePauseSelection()
         break;
       }
 
-    case PauseScreen::SaveSlots:
-      mToast = saveTo(duke1SlotName(selected)) ? "GAME SAVED" : "SAVE FAILED";
-      mToastSeconds = 1.5;
-      mPause = PauseScreen::None;
-      break;
-
-    case PauseScreen::LoadSlots:
-      mToast =
-        loadFrom(duke1SlotName(selected)) ? "GAME LOADED" : "LOAD FAILED";
-      mToastSeconds = 1.5;
-      break;
-
     case PauseScreen::None:
       break;
   }
@@ -270,24 +292,8 @@ void Duke1Mode::drawPauseMenu()
   view.mDimAlpha = 168;
   switch (mPause)
   {
-    case PauseScreen::Main:
-      view.mTitle = "GAME PAUSED";
-      view.mStartLabel = "RESUME";
-      view.mInfoLines = {
-        {levelLabel(mLevelIndex), false},
-        {"CURRENT SCORE", true},
-        {ui::formatScoreWithCommas(mpWorld->score()), false}};
-      break;
-    case PauseScreen::SaveSlots:
-      view.mTitle = "SAVE GAME";
-      view.mConfirmLabel = "SAVE";
-      view.mBackLabel = "BACK";
-      break;
-    case PauseScreen::LoadSlots:
-      view.mTitle = "LOAD GAME";
-      view.mConfirmLabel = "LOAD";
-      view.mBackLabel = "BACK";
-      break;
+    case PauseScreen::Shared:
+      return;
     case PauseScreen::Stats:
       if (mpResults)
       {

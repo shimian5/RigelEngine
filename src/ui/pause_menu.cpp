@@ -25,8 +25,35 @@
 namespace rigel::ui
 {
 
-PauseMenu::PauseMenu(GameMode::Context context)
+SaveSlotSource SaveSlotSource::duke2()
+{
+  SaveSlotSource source;
+  source.mNumSlots = NUM_SAVE_SLOTS_CONSOLE;
+  source.mSummary = [](const int slot) -> std::optional<SaveSlotInfo> {
+    if (const auto oSummary = readSaveSummary(consoleSlotName(slot)))
+    {
+      return SaveSlotInfo{
+        oSummary->mEpisode,
+        oSummary->mLevel,
+        oSummary->mScore,
+        oSummary->mPlayTimeSeconds};
+    }
+    return std::nullopt;
+  };
+  source.mHasAnySave = [] {
+    return newestSaveSlotName().has_value();
+  };
+  return source;
+}
+
+
+PauseMenu::PauseMenu(
+  GameMode::Context context,
+  SaveSlotSource slots,
+  const bool debugEntry)
   : mContext(context)
+  , mSlots(std::move(slots))
+  , mDebugEntry(debugEntry)
 {
 }
 
@@ -101,36 +128,46 @@ void PauseMenu::enterScreen(const Screen screen)
   switch (screen)
   {
     case Screen::Main:
-      mHasAnySave = newestSaveSlotName().has_value();
-      mList.setItems(
-        {{"QUICK SAVE", true},
-         {"LOAD LAST SAVE", mHasAnySave},
-         {"SAVE GAME", true},
-         {"LOAD GAME", true},
-         {"OPTIONS", true},
-         {"CONTROLS", true},
-         {"QUIT GAME", true}});
-      break;
+      {
+        mHasAnySave = mSlots.mHasAnySave();
+        std::vector<ConsoleMenuItem> items{
+          {"QUICK SAVE", true},
+          {"LOAD LAST SAVE", mHasAnySave},
+          {"SAVE GAME", true},
+          {"LOAD GAME", true},
+          {"OPTIONS", true},
+          {"CONTROLS", true}};
+        if (mDebugEntry)
+        {
+          items.push_back({"DEBUG", true});
+        }
+        items.push_back({"QUIT GAME", true});
+        mList.setItems(std::move(items));
+        break;
+      }
 
     case Screen::SaveSlots:
     case Screen::LoadSlots:
       {
         std::vector<ConsoleMenuItem> items;
-        for (auto i = 0; i < NUM_SAVE_SLOTS_CONSOLE; ++i)
+        for (auto i = 0; i < mSlots.mNumSlots; ++i)
         {
-          const auto oSummary = readSaveSummary(consoleSlotName(i));
+          const auto oSummary = mSlots.mSummary(i);
           char buffer[128];
           if (oSummary)
           {
+            const auto time = oSummary->mPlayTimeSeconds
+              ? "   " + formatPlayTime(*oSummary->mPlayTimeSeconds)
+              : std::string{};
             std::snprintf(
               buffer,
               sizeof(buffer),
-              "SLOT %d   E%d L%d   %s   %s",
+              "SLOT %d   E%d L%d   %s%s",
               i + 1,
               oSummary->mEpisode,
               oSummary->mLevel,
               formatScoreWithCommas(oSummary->mScore).c_str(),
-              formatPlayTime(oSummary->mPlayTimeSeconds).c_str());
+              time.c_str());
           }
           else
           {
@@ -205,8 +242,16 @@ void PauseMenu::activateSelected()
         case 5:
           enterScreen(Screen::Controls);
           break;
-        case 6:
-          enterScreen(Screen::QuitConfirm);
+        default:
+          if (mDebugEntry && selected == 6)
+          {
+            mAction = Action::Debug;
+            mActive = false;
+          }
+          else
+          {
+            enterScreen(Screen::QuitConfirm);
+          }
           break;
       }
       break;

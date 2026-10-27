@@ -234,6 +234,7 @@ Duke1Mode::Duke1Mode(
   const std::size_t initialLevel)
   : mContext(context)
   , mDataDir(dataDir)
+  , mPauseMenu(context, saveSlotSource(), true)
 {
   mContext.mpServiceProvider->stopMusic();
   mWide = mContext.mpUserProfile->mOptions.widescreenModeActive() &&
@@ -621,7 +622,11 @@ void Duke1Mode::renderFrame(const double dt, const bool paused)
   {
     mpResults->update(dt);
   }
-  if (paused)
+  if (mPause == PauseScreen::Shared)
+  {
+    mPauseMenu.updateAndRender(dt);
+  }
+  else if (paused)
   {
     drawPauseMenu();
   }
@@ -695,7 +700,14 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
       continue;
     }
 
-    // Pause menu navigation
+    if (mPause == PauseScreen::Shared)
+    {
+      mPauseMenu.handleEvent(event);
+      runPauseMenuAction();
+      continue;
+    }
+
+    // Navigation of the results and debug screens
     const auto startPressed = event.type == SDL_CONTROLLERBUTTONDOWN &&
       event.cbutton.button == SDL_CONTROLLER_BUTTON_START;
     const auto escPressed = event.type == SDL_KEYDOWN &&
@@ -707,12 +719,7 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
     }
     if (startPressed || escPressed)
     {
-      mPause =
-        mPause == PauseScreen::Main ? PauseScreen::None : PauseScreen::Main;
-      if (mPause == PauseScreen::Main)
-      {
-        enterPauseScreen(PauseScreen::Main);
-      }
+      openPauseMenu();
       continue;
     }
 
@@ -732,11 +739,7 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
         {
           break;
         }
-        if (mPause == PauseScreen::Main)
-        {
-          mPause = PauseScreen::None;
-        }
-        else if (
+        if (
           mPause == PauseScreen::DebugLevels ||
           mPause == PauseScreen::DebugFeatures)
         {
@@ -744,7 +747,7 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
         }
         else
         {
-          enterPauseScreen(PauseScreen::Main);
+          openPauseMenu();
         }
         break;
       default:
@@ -778,7 +781,7 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
       mInput = {};
       mDpad[0] = mDpad[1] = mDpad[2] = mDpad[3] = false;
       mStickX = mStickY = 0.0f;
-      enterPauseScreen(PauseScreen::Main);
+      openPauseMenu();
     }
   }
   const auto paused = mPause != PauseScreen::None;

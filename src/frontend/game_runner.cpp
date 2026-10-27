@@ -440,6 +440,7 @@ void GameRunner::executePauseMenuAction()
       mQuitRequestedFromPauseMenu = true;
       break;
 
+    case Action::Debug: // only offered by other games
     case Action::Resume:
     case Action::None:
       break;
