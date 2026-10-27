@@ -140,8 +140,6 @@ set(core_sources
     frontend/duke1_mode.hpp
     frontend/console_launcher_mode.cpp
     frontend/console_launcher_mode.hpp
-    frontend/console_title_mode.cpp
-    frontend/console_title_mode.hpp
     frontend/console_menu_mode.hpp
     frontend/game_runner.cpp
     frontend/replay_save.cpp

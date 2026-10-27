@@ -448,42 +448,6 @@ void drawConsoleResults(const ConsoleResultsView& view)
 }
 
 
-void drawConsoleTitleScreen(
-  const std::string& title,
-  const std::string& prompt,
-  const double timeSeconds)
-{
-  const auto display = ImGui::GetIO().DisplaySize;
-  Canvas c{
-    ImGui::GetForegroundDrawList(),
-    static_cast<ImFont*>(imgui_integration::hudFont()),
-    display.y / REF_HEIGHT,
-    display};
-  if (!c.mpFont)
-  {
-    return;
-  }
-
-  const auto offsetX = (display.x / c.mScale - 1920.0f) / 2.0f;
-  drawMainBackdrop(c, offsetX);
-
-  c.text(title.c_str(), 960.0f + offsetX, 470.0f, 190.0f, ORANGE, true);
-
-  // Pulsing prompt at the bottom
-  const auto pulse = 0.55f + 0.45f * std::sin(float(timeSeconds) * 3.0f);
-  const auto legendWidth = c.legendWidthRef(prompt.c_str(), false);
-  const auto alpha = int(255.0f * pulse);
-  (void)alpha; // the legend widget draws at full strength, the pulse is on the
-               // plate below
-  c.mpList->AddRectFilled(
-    {0, c.s(930.0f)},
-    {display.x, c.s(1070.0f)},
-    IM_COL32(0, 0, 0, int(120.0f * pulse)));
-  c.buttonLegend(
-    "A", prompt.c_str(), 960.0f + offsetX + legendWidth / 2.0f, 1000.0f, false);
-}
-
-
 const char* randomQuitMessage()
 {
   static const char* MESSAGES[] = {

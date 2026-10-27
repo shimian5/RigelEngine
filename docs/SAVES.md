@@ -44,9 +44,9 @@ autosave and 8 slots), Stats (per-episode high scores), Options, Quit. Menus sha
 Still the original DOS screens: intro/Apogee logo, story/instructions, bonus screens, end-of-episode
 sequences and high score name entry.
 
-## Title screen, quit prompt, boss bar and timer
-- With console menus on, startup shows a title screen ("A START") unless `--skip-intro` / the "Skip intro
-  sequence" option is set; it replaces the Apogee logo and intro movie.
+## Startup, quit prompt, boss bar and timer
+- With console menus on, startup goes straight to the game launcher; it replaces the Apogee logo and
+  intro movie.
 - Quitting from the main menu or the pause menu asks for confirmation first (default answer: keep playing),
   with a random quip. The wording is our own.
 - The overlay HUD draws the boss health bar (bottom, right of the radar panel) and an optional level timer

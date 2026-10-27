@@ -99,12 +99,6 @@ struct ConsoleResultsView
 /** The level results page shared by both games */
 void drawConsoleResults(const ConsoleResultsView& view);
 
-/** Full screen title with a prompt, e.g. "A START". timeSeconds animates it. */
-void drawConsoleTitleScreen(
-  const std::string& title,
-  const std::string& prompt,
-  double timeSeconds);
-
 /** A random lighthearted line for the "really quit?" screen */
 const char* randomQuitMessage();
 

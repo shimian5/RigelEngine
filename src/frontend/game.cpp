@@ -27,8 +27,8 @@
 #include "ui/imgui_integration.hpp"
 
 #include "anti_piracy_screen_mode.hpp"
+#include "console_launcher_mode.hpp"
 #include "console_menu_mode.hpp"
-#include "console_title_mode.hpp"
 #include "demo_player.hpp"
 #include "duke1_mode.hpp"
 #include "game_session_mode.hpp"
@@ -41,7 +41,9 @@ RIGEL_DISABLE_WARNINGS
 #include <loguru.hpp>
 RIGEL_RESTORE_WARNINGS
 
+#include <cstdlib>
 #include <ctime>
+#include <string_view>
 
 
 namespace rigel
@@ -89,6 +91,30 @@ auto loadScripts(const assets::ResourceLoader& resources)
 }
 
 
+std::unique_ptr<GameMode> createLauncherMode(GameMode::Context context)
+{
+#ifdef RIGEL_DEV_SCREENSHOT
+  // Development shortcuts for taking screenshots
+  if (const auto* pLauncher = std::getenv("RIGEL_DEV_LAUNCHER"))
+  {
+    if (std::string_view{pLauncher} == "dn1")
+    {
+      if (const auto dir = Duke1Mode::findDataDir())
+      {
+        return std::make_unique<Duke1Mode>(context, *dir);
+      }
+    }
+  }
+  if (std::getenv("RIGEL_DEV_MENU_KEYS"))
+  {
+    return createMainMenuMode(context);
+  }
+#endif
+
+  return std::make_unique<ConsoleLauncherMode>(context);
+}
+
+
 std::unique_ptr<GameMode> createInitialGameMode(
   GameMode::Context context,
   const CommandLineOptions& commandLineOptions,
@@ -126,7 +152,7 @@ std::unique_ptr<GameMode> createInitialGameMode(
   if (!context.mpResources)
   {
     // Without Duke Nukem II's data, only the launcher (and Duke Nukem 1) work
-    return std::make_unique<ConsoleTitleMode>(context);
+    return createLauncherMode(context);
   }
 
   if (commandLineOptions.mLevelToJumpTo)
@@ -145,8 +171,8 @@ std::unique_ptr<GameMode> createInitialGameMode(
     !commandLineOptions.mPlayDemo)
   {
     // The console-style menus replace the original intro (Apogee logo and
-    // intro movie) with a simple title screen.
-    return std::make_unique<ConsoleTitleMode>(context);
+    // intro movie) and go straight to the launcher.
+    return createLauncherMode(context);
   }
   else if (commandLineOptions.mPlayDemo)
   {
