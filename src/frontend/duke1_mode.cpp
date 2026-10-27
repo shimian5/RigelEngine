@@ -25,6 +25,7 @@
 #include "frontend/user_profile.hpp"
 #include "renderer/texture.hpp"
 #include "renderer/upscaling.hpp"
+#include "ui/hud_skin_generator.hpp"
 #include "ui/console_menu.hpp"
 #include "ui/overlay_hud.hpp"
 
@@ -267,6 +268,12 @@ Duke1Mode::Duke1Mode(
         pages.clear();
         pages.push_back(std::move(ready));
       }
+#ifdef RIGEL_DEV_SCREENSHOT
+      if (std::getenv("RIGEL_DEV_SKIP_STORY"))
+      {
+        pages.clear();
+      }
+#endif
       showPages(std::move(pages));
     }
   }
@@ -418,11 +425,11 @@ void Duke1Mode::submitOverlayHud()
   if (!mHudSkinTierTried || *mHudSkinTierTried != tier)
   {
     mHudSkin = ui::HudSkin::tryLoad(
-      mContext.mpRenderer, mContext.mpResources->gamePath(), tier);
+      mContext.mpRenderer, gGamePath, tier);
     if (!mHudSkin && !mGeneratedHudSkin)
     {
       mGeneratedHudSkin = ui::HudSkin::generateDefault(
-        mContext.mpRenderer, *mContext.mpResources);
+        mContext.mpRenderer, ui::HudArt{});
     }
     mHudSkinTierTried = tier;
   }

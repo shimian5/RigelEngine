@@ -70,6 +70,9 @@ private:
   std::vector<int> mDn1Episodes;
   int mDn1Episode = 0;
   std::size_t mDn1LevelCount = 0;
+  /** Duke Nukem II needs its own data file, which may not be there */
+  bool duke2Available() const { return mContext.mpResources != nullptr; }
+
   bool mDn1DataAvailable = false;
   Context mContext;
   ui::MenuNavigationHelper mNavigationHelper;

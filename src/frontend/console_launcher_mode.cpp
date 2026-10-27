@@ -105,7 +105,10 @@ std::string describeDn2Save(const std::string& slot)
 ConsoleLauncherMode::ConsoleLauncherMode(Context context)
   : mContext(context)
 {
-  mContext.mpServiceProvider->playMusic("DUKEIIA.IMF");
+  if (duke2Available())
+  {
+    mContext.mpServiceProvider->playMusic("DUKEIIA.IMF");
+  }
   enter(Screen::Games);
 }
 
@@ -144,9 +147,12 @@ std::optional<ConsoleLauncherMode::SaveItem>
       consider(true, slot);
     }
   }
-  for (const auto& slot : dn2SlotNames())
+  if (duke2Available())
   {
-    consider(false, slot);
+    for (const auto& slot : dn2SlotNames())
+    {
+      consider(false, slot);
+    }
   }
   return newest;
 }
@@ -190,7 +196,7 @@ void ConsoleLauncherMode::enter(const Screen screen)
       mList.setItems(
         {{"CONTINUE", newestSave().has_value()},
          {"DUKE NUKEM", mDn1DataAvailable},
-         {"DUKE NUKEM II", true},
+         {"DUKE NUKEM II", duke2Available()},
          {"LOAD GAME", newestSave().has_value()},
          {"OPTIONS", true},
          {"CREDITS", true},
@@ -263,7 +269,8 @@ void ConsoleLauncherMode::enter(const Screen screen)
             }
           }
         }
-        for (const auto& slot : dn2SlotNames())
+        for (const auto& slot : duke2Available() ? dn2SlotNames()
+                                                 : std::vector<std::string>{})
         {
           const auto text = describeDn2Save(slot);
           if (!text.empty())

@@ -33,6 +33,8 @@ class ResourceLoader;
 namespace rigel::ui
 {
 
+struct HudArt;
+
 /** Resolution class the overlay HUD is laid out for.
  *
  * Each tier has its own atlas image, its own sprite rectangle table, and its
@@ -175,9 +177,8 @@ public:
     HudTier tier);
 
   /** Our own default artwork, used when no custom skin is available */
-  static HudSkin generateDefault(
-    renderer::Renderer* pRenderer,
-    const assets::ResourceLoader& resources);
+  static HudSkin
+    generateDefault(renderer::Renderer* pRenderer, const HudArt& art);
 
   HudTier tier() const { return mTier; }
   HudSkinSource source() const { return mSource; }

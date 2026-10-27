@@ -147,9 +147,28 @@ private:
   }
 
 private:
+  /** Everything that needs the Duke Nukem II data file. Only created if that
+   * file is present, so that Duke Nukem 1 can be played without it. */
+  struct Duke2Resources
+  {
+    Duke2Resources(
+      const std::filesystem::path& gamePath,
+      const UserProfile& profile,
+      renderer::Renderer* pRenderer,
+      IGameServiceProvider* pServiceProvider);
+
+    assets::ResourceLoader mResources;
+    ui::DukeScriptRunner mScriptRunner;
+    assets::ScriptBundle mAllScripts;
+    engine::TiledTexture mUiSpriteSheet;
+    engine::SpriteFactory mSpriteFactory;
+    ui::MenuElementRenderer mTextRenderer;
+  };
+
   SDL_Window* mpWindow;
   renderer::Renderer mRenderer;
-  assets::ResourceLoader mResources;
+  std::unique_ptr<Duke2Resources> mpDuke2;
+  assets::ScriptBundle mNoScripts;
   std::unique_ptr<audio::SoundSystem> mpSoundSystem;
   bool mIsShareWareVersion;
 
@@ -172,11 +191,6 @@ private:
   bool mWidescreenModeWasActive;
   std::filesystem::path mGamePathToSwitchTo;
 
-  ui::DukeScriptRunner mScriptRunner;
-  assets::ScriptBundle mAllScripts;
-  engine::TiledTexture mUiSpriteSheet;
-  engine::SpriteFactory mSpriteFactory;
-  ui::MenuElementRenderer mTextRenderer;
   ui::FpsDisplay mFpsDisplay;
   std::vector<SDL_Event> mEventQueue;
 

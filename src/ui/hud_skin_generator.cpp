@@ -444,8 +444,47 @@ data::Image cropTiles(
 } // namespace
 
 
-GeneratedHudAtlas
-  generateDefaultHudAtlas(const assets::ResourceLoader& resources)
+HudArt HudArt::fromDuke2(const assets::ResourceLoader& resources)
+{
+  using data::ActorID;
+
+  HudArt art;
+
+  const ActorID items[] = {
+    ActorID::White_box_circuit_card,
+    ActorID::White_box_blue_key,
+    ActorID::Rapid_fire_icon,
+    ActorID::Special_hint_globe_icon,
+    ActorID::Cloaking_device_icon};
+  for (auto i = 0; i < 5; ++i)
+  {
+    const auto actor = resources.loadActor(items[i]);
+    if (!actor.mFrames.empty())
+    {
+      art.mItemIcons[std::size_t(i)] = actor.mFrames.front().mFrameImage;
+    }
+  }
+
+  const auto duke = resources.loadActor(ActorID::Duke_RIGHT);
+  if (!duke.mFrames.empty())
+  {
+    art.mPlayerSprite = duke.mFrames.front().mFrameImage;
+  }
+
+  // The status bar's weapon icons are the projectiles
+  const auto sheet = resources.loadUiSpriteSheet();
+  for (auto i = 0; i < 4; ++i)
+  {
+    const auto tileIndex = i * 4 + 4 + 5 * 40;
+    art.mProjectiles[std::size_t(i)] =
+      cropTiles(sheet, tileIndex % 40, tileIndex / 40, 4, 2);
+  }
+
+  return art;
+}
+
+
+GeneratedHudAtlas generateDefaultHudAtlas(const HudArt& art)
 {
   int numRects = 0;
   const auto* pRects = hudAtlasRects(HudTier::P1080, &numRects);
@@ -607,19 +646,11 @@ GeneratedHudAtlas
 
   // -- Icons from the game's own sprites ----------------------------------
   {
-    using data::ActorID;
-    const ActorID items[] = {
-      ActorID::White_box_circuit_card,
-      ActorID::White_box_blue_key,
-      ActorID::Rapid_fire_icon,
-      ActorID::Special_hint_globe_icon,
-      ActorID::Cloaking_device_icon};
     for (auto i = 0; i < 5; ++i)
     {
-      const auto actor = resources.loadActor(items[i]);
-      if (!actor.mFrames.empty())
+      if (const auto& icon = art.mItemIcons[std::size_t(i)])
       {
-        c.blitFit(actor.mFrames.front().mFrameImage, R(ItemFirst + i));
+        c.blitFit(*icon, R(ItemFirst + i));
       }
     }
 
@@ -628,13 +659,13 @@ GeneratedHudAtlas
     // sprite and the hidden receiver, grip and end cap are drawn in the same
     // style and palette. Each weapon gets a different colored status light.
     {
-      const auto duke = resources.loadActor(ActorID::Duke_RIGHT);
+      const auto& duke = art.mPlayerSprite;
 
       // Pick the green of the receiver from the sprite itself
       Color green{0, 170, 0, 255};
-      if (!duke.mFrames.empty())
+      if (duke)
       {
-        const auto& img = duke.mFrames.front().mFrameImage;
+        const auto& img = *duke;
         auto best = -1;
         for (auto y = 14; y < 24; ++y)
         {
@@ -703,10 +734,14 @@ GeneratedHudAtlas
         g.fillRect(9, 3, 1, 1, scaleColor(light, 1.3f));
 
         // The visible part: barrel from the sprite (without Duke's hand)
-        if (!duke.mFrames.empty())
+        if (duke)
         {
-          g.blitCropScaled(
-            duke.mFrames.front().mFrameImage, 17, 16, 15, 7, 13, 1, 1, true);
+          g.blitCropScaled(*duke, 17, 16, 15, 7, 13, 1, 1, true);
+        }
+        else
+        {
+          part(14, 3, 13, 3, grey);
+          g.fillRect(14, 3, 13, 1, Color{205, 205, 215, 255});
         }
 
         c.blitCropScaled(
@@ -726,22 +761,34 @@ GeneratedHudAtlas
   // The game's own status bar weapon icons are the projectiles, shown at 1x
   // here (small slot) and 2x in the weapon slot above.
   {
-    const auto sheet = resources.loadUiSpriteSheet();
+    const Color projectileColors[] = {
+      {255, 153, 0, 255}, {90, 170, 255, 255}, {235, 60, 50, 255}, {255, 225, 70, 255}};
     for (auto i = 0; i < 4; ++i)
     {
-      const auto tileIndex = i * 4 + 4 + 5 * 40;
       const auto& r = R(ProjectileNormal + i);
-      c.blitCropScaled(
-        cropTiles(sheet, tileIndex % 40, tileIndex / 40, 4, 2),
-        0,
-        0,
-        32,
-        16,
-        r.x + (r.w - 96) / 2,
-        r.y + (r.h - 48) / 2,
-        3,
-        false,
-        true);
+      if (const auto& icon = art.mProjectiles[std::size_t(i)])
+      {
+        c.blitCropScaled(
+          *icon,
+          0,
+          0,
+          32,
+          16,
+          r.x + (r.w - 96) / 2,
+          r.y + (r.h - 48) / 2,
+          3,
+          false,
+          true);
+      }
+      else
+      {
+        c.fillRect(
+          r.x + (r.w - 60) / 2,
+          r.y + (r.h - 18) / 2,
+          60,
+          18,
+          projectileColors[i]);
+      }
     }
 
     const auto& rapid = R(ProjectileRapid);

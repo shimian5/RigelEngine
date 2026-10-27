@@ -263,49 +263,20 @@ std::optional<HudSkin> HudSkin::tryLoad(
 
 HudSkin HudSkin::generateDefault(
   renderer::Renderer* pRenderer,
-  const assets::ResourceLoader& resources)
+  const HudArt& art)
 {
   LOG_F(INFO, "HUD skin: using generated default artwork");
 
-  GeneratedHudAtlas generated = generateDefaultHudAtlas(resources);
+  GeneratedHudAtlas generated = generateDefaultHudAtlas(art);
   auto& image = generated.mImage;
 
 #ifdef RIGEL_DEV_SCREENSHOT
-  // RIGEL_DUMP_ACTORS_DIR=<dir> RIGEL_DUMP_ACTORS=19,20,22,23: write actor
-  // frames as PNG
-  if (const auto* pDir = std::getenv("RIGEL_DUMP_ACTORS_DIR"))
-  {
-    if (const auto* pIds = std::getenv("RIGEL_DUMP_ACTORS"))
-    {
-      std::string ids = pIds;
-      std::size_t pos = 0;
-      while (pos < ids.size())
-      {
-        const auto end = ids.find(',', pos);
-        const auto id = std::stoi(ids.substr(pos, end - pos));
-        const auto actor = resources.loadActor(static_cast<data::ActorID>(id));
-        for (auto f = 0u; f < actor.mFrames.size(); ++f)
-        {
-          assets::savePng(
-            std::filesystem::path{pDir} /
-              ("actor" + std::to_string(id) + "_f" + std::to_string(f) +
-               ".png"),
-            actor.mFrames[f].mFrameImage);
-        }
-        if (end == std::string::npos)
-        {
-          break;
-        }
-        pos = end + 1;
-      }
-    }
-  }
-
   if (const auto* pDump = std::getenv("RIGEL_DUMP_HUD_ATLAS"))
   {
     assets::savePng(pDump, image);
   }
 #endif
+
   renderer::Texture atlas{pRenderer, image};
   pRenderer->setFilteringEnabled(atlas.data(), true);
 

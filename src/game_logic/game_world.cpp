@@ -41,6 +41,7 @@
 #include "game_logic_common/utils.hpp"
 #include "renderer/upscaling.hpp"
 #include "renderer/viewport_utils.hpp"
+#include "ui/hud_skin_generator.hpp"
 #include "ui/menu_element_renderer.hpp"
 #include "ui/utils.hpp"
 
@@ -895,7 +896,8 @@ bool GameWorld::submitOverlayHud(const std::vector<base::Vec2>& radarDots)
       if (!mGeneratedHudSkin)
       {
         mGeneratedHudSkin =
-          ui::HudSkin::generateDefault(mpRenderer, *mpResources);
+          ui::HudSkin::generateDefault(
+            mpRenderer, ui::HudArt::fromDuke2(*mpResources));
       }
     }
     mHudSkinTierTried = tier;

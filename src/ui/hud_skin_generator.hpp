@@ -20,6 +20,7 @@
 #include "ui/hud_skin.hpp"
 
 #include <array>
+#include <optional>
 
 namespace rigel::assets
 {
@@ -43,7 +44,22 @@ struct GeneratedHudAtlas
   std::array<HudSpriteRect, hud_sprite::CountWithExtra> mRects;
 };
 
-GeneratedHudAtlas
-  generateDefaultHudAtlas(const assets::ResourceLoader& resources);
+/** Game sprites the default HUD artwork is built from. Everything is optional:
+ * a game without some of them gets drawn stand-ins. */
+struct HudArt
+{
+  std::array<std::optional<data::Image>, 5> mItemIcons;
+
+  /** First frame of the player facing right, for the gun in the weapon slot */
+  std::optional<data::Image> mPlayerSprite;
+
+  /** The 32x16 projectile icons of the four weapons */
+  std::array<std::optional<data::Image>, 4> mProjectiles;
+
+  /** Art taken from the Duke Nukem II data */
+  static HudArt fromDuke2(const assets::ResourceLoader& resources);
+};
+
+GeneratedHudAtlas generateDefaultHudAtlas(const HudArt& art);
 
 } // namespace rigel::ui

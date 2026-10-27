@@ -123,6 +123,12 @@ std::unique_ptr<GameMode> createInitialGameMode(
     IGameServiceProvider* mpServiceProvider;
   };
 
+  if (!context.mpResources)
+  {
+    // Without Duke Nukem II's data, only the launcher (and Duke Nukem 1) work
+    return std::make_unique<ConsoleTitleMode>(context);
+  }
+
   if (commandLineOptions.mLevelToJumpTo)
   {
     return std::make_unique<GameSessionMode>(
@@ -211,6 +217,34 @@ std::filesystem::path effectiveGamePath(
 }
 
 
+Game::Duke2Resources::Duke2Resources(
+  const std::filesystem::path& gamePath,
+  const UserProfile& profile,
+  renderer::Renderer* pRenderer,
+  IGameServiceProvider* pServiceProvider)
+  : mResources(
+      gamePath,
+      profile.mOptions.mEnableTopLevelMods,
+      profile.mModLibrary.enabledModPaths())
+  , mScriptRunner(
+      &mResources,
+      pRenderer,
+      &profile.mSaveSlots,
+      pServiceProvider)
+  , mAllScripts(loadScripts(mResources))
+  , mUiSpriteSheet(
+      // Explicitly specify the palette here to avoid loading any replacement
+      // status.png file (since that is meant only for in-game, for now)
+      renderer::Texture{
+        pRenderer,
+        mResources.loadUiSpriteSheet(data::GameTraits::INGAME_PALETTE)},
+      pRenderer)
+  , mSpriteFactory(pRenderer, &mResources)
+  , mTextRenderer(&mUiSpriteSheet, pRenderer, mResources)
+{
+}
+
+
 Game::Game(
   const CommandLineOptions& commandLineOptions,
   UserProfile* pUserProfile,
@@ -218,14 +252,21 @@ Game::Game(
   const bool isFirstLaunch)
   : mpWindow(pWindow)
   , mRenderer(pWindow)
-  , mResources(
-      effectiveGamePath(commandLineOptions, *pUserProfile),
-      pUserProfile->mOptions.mEnableTopLevelMods,
-      pUserProfile->mModLibrary.enabledModPaths())
+  , mpDuke2([&]() -> std::unique_ptr<Duke2Resources> {
+    const auto gamePath = effectiveGamePath(commandLineOptions, *pUserProfile);
+    Duke1Mode::setGamePath(gamePath);
+
+    std::error_code ec;
+    if (!std::filesystem::exists(gamePath / "NUKEM2.CMP", ec) || ec)
+    {
+      LOG_F(INFO, "No Duke Nukem II data found, only Duke Nukem 1 is available");
+      return nullptr;
+    }
+    return std::make_unique<Duke2Resources>(
+      gamePath, *pUserProfile, &mRenderer, this);
+  }())
   , mpSoundSystem([&]() -> std::unique_ptr<audio::SoundSystem> {
-    Duke1Mode::setGamePath(
-      effectiveGamePath(commandLineOptions, *pUserProfile));
-    if (commandLineOptions.mDisableAudio)
+    if (commandLineOptions.mDisableAudio || !mpDuke2)
     {
       return nullptr;
     }
@@ -234,7 +275,7 @@ Game::Game(
     try
     {
       pResult = std::make_unique<audio::SoundSystem>(
-        &mResources,
+        &mpDuke2->mResources,
         pUserProfile->mOptions.mSoundStyle,
         pUserProfile->mOptions.mAdlibPlaybackType);
     }
@@ -252,8 +293,9 @@ Game::Game(
     // check for the presence of one of the registered version's levels, and
     // the anti-piracy screen, and assume that we're dealing with a
     // registered version data set if these two are present.
-    const auto hasRegisteredVersionFiles =
-      mResources.hasFile("LCR.MNI") && mResources.hasFile("O1.MNI");
+    const auto hasRegisteredVersionFiles = mpDuke2 &&
+      mpDuke2->mResources.hasFile("LCR.MNI") &&
+      mpDuke2->mResources.hasFile("O1.MNI");
     return !hasRegisteredVersionFiles;
   }())
   , mFpsLimiter(createLimiter(pUserProfile->mOptions))
@@ -266,17 +308,6 @@ Game::Game(
   , mWidescreenModeWasActive(
       pUserProfile->mOptions.widescreenModeActive() &&
       renderer::canUseWidescreenMode(&mRenderer))
-  , mScriptRunner(&mResources, &mRenderer, &mpUserProfile->mSaveSlots, this)
-  , mAllScripts(loadScripts(mResources))
-  , mUiSpriteSheet(
-      // Explicitly specify the palette here to avoid loading any replacement
-      // status.png file (since that is meant only for in-game, for now)
-      renderer::Texture{
-        &mRenderer,
-        mResources.loadUiSpriteSheet(data::GameTraits::INGAME_PALETTE)},
-      &mRenderer)
-  , mSpriteFactory(&mRenderer, &mResources)
-  , mTextRenderer(&mUiSpriteSheet, &mRenderer, mResources)
 {
   LOG_F(INFO, "Successfully loaded all resources");
   LOG_F(
@@ -422,15 +453,17 @@ void Game::updateAndRender(const entityx::TimeDelta elapsed)
 
 GameMode::Context Game::makeModeContext()
 {
+  // Without Duke Nukem II's data, the resources for it are null: only modes
+  // that don't need them can be entered.
   return {
-    &mResources,
+    mpDuke2 ? &mpDuke2->mResources : nullptr,
     &mRenderer,
     this,
-    &mScriptRunner,
-    &mAllScripts,
-    &mTextRenderer,
-    &mUiSpriteSheet,
-    &mSpriteFactory,
+    mpDuke2 ? &mpDuke2->mScriptRunner : nullptr,
+    mpDuke2 ? &mpDuke2->mAllScripts : &mNoScripts,
+    mpDuke2 ? &mpDuke2->mTextRenderer : nullptr,
+    mpDuke2 ? &mpDuke2->mUiSpriteSheet : nullptr,
+    mpDuke2 ? &mpDuke2->mSpriteFactory : nullptr,
     mpUserProfile};
 }
 

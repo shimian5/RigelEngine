@@ -19,6 +19,7 @@
 #include "version_info.hpp"
 
 #include "base/defer.hpp"
+#include "frontend/duke1_mode.hpp"
 #include "frontend/game.hpp"
 #include "renderer/opengl.hpp"
 #include "sdl_utils/error.hpp"
@@ -74,7 +75,14 @@ bool isValidGamePath(const std::filesystem::path& path)
   namespace fs = std::filesystem;
 
   std::error_code ec;
-  return fs::exists(path / "NUKEM2.CMP", ec) && !ec;
+  if (fs::exists(path / "NUKEM2.CMP", ec) && !ec)
+  {
+    return true;
+  }
+
+  // Duke Nukem 1 can be played on its own
+  Duke1Mode::setGamePath(path);
+  return Duke1Mode::findDataDir().has_value();
 }
 
 
@@ -155,7 +163,7 @@ for more info.)");
   if (!isValidGamePath(gamePath))
   {
     throw std::runtime_error(
-      "No game data (NUKEM2.CMP file) found in game path");
+      "No game data (NUKEM2.CMP or Duke Nukem 1 files) found in game path");
   }
 
   // Import original game's profile data, if our profile is still 'empty'
