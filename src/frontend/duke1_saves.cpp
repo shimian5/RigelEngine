@@ -104,36 +104,8 @@ std::vector<std::uint8_t> serializeDuke1Save(const Duke1Save& save)
 
 bool writeDuke1Save(const std::string& slot, const Duke1Save& save)
 {
-  const auto oPath = saveFilePath(slot);
-  if (!oPath)
-  {
-    return false;
-  }
-
-  const auto bytes = serializeDuke1Save(save);
-
-  auto tmp = *oPath;
-  tmp += ".tmp";
-  {
-    std::ofstream file{tmp, std::ios::binary | std::ios::trunc};
-    if (!file)
-    {
-      return false;
-    }
-    file.write(
-      reinterpret_cast<const char*>(bytes.data()),
-      std::streamsize(bytes.size()));
-    if (!file)
-    {
-      return false;
-    }
-  }
-
-  std::error_code ec;
-  std::filesystem::rename(tmp, *oPath, ec);
-  return !ec;
+  return writeSaveBytes(slot, serializeDuke1Save(save));
 }
-
 
 std::optional<Duke1Save> readDuke1Save(const std::string& slot)
 {
@@ -202,33 +174,12 @@ std::optional<Duke1Save>
 
 std::optional<std::string> newestDuke1Save()
 {
-  std::optional<std::string> newest;
-  std::filesystem::file_time_type newestTime{};
   std::vector<std::string> names = {"dn1_quicksave", "dn1_autosave"};
   for (int i = 0; i < NUM_DUKE1_SLOTS; ++i)
   {
     names.push_back(duke1SlotName(i));
   }
-
-  for (const auto& name : names)
-  {
-    const auto oPath = saveFilePath(name);
-    std::error_code ec;
-    if (!oPath || !std::filesystem::exists(*oPath, ec))
-    {
-      continue;
-    }
-    const auto time = std::filesystem::last_write_time(*oPath, ec);
-    if (
-      !ec &&
-      (!newest ||
-       time.time_since_epoch().count() > newestTime.time_since_epoch().count()))
-    {
-      newest = name;
-      newestTime = time;
-    }
-  }
-  return newest;
+  return newestSaveAmong(names);
 }
 
 } // namespace rigel

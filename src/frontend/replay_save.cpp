@@ -298,13 +298,19 @@ std::optional<std::filesystem::path> saveFilePath(const std::string& slotName)
 
 bool writeReplaySaveFile(const std::string& slotName, const ReplaySave& save)
 {
+  return writeSaveBytes(slotName, serializeReplaySave(save));
+}
+
+
+bool writeSaveBytes(
+  const std::string& slotName,
+  const std::vector<std::uint8_t>& bytes)
+{
   const auto oPath = saveFilePath(slotName);
   if (!oPath)
   {
     return false;
   }
-
-  const auto bytes = serializeReplaySave(save);
 
   // Write to a temporary file first, so that a crash/kill while saving can't
   // destroy the previous save
@@ -428,6 +434,30 @@ std::optional<std::string> newestSaveSlotName()
   }
 
   return best;
+}
+
+
+std::optional<std::string>
+  newestSaveAmong(const std::vector<std::string>& slotNames)
+{
+  std::optional<std::string> newest;
+  std::filesystem::file_time_type newestTime{};
+  for (const auto& name : slotNames)
+  {
+    const auto oPath = saveFilePath(name);
+    std::error_code ec;
+    if (!oPath || !std::filesystem::exists(*oPath, ec))
+    {
+      continue;
+    }
+    const auto time = std::filesystem::last_write_time(*oPath, ec);
+    if (!ec && (!newest || time > newestTime))
+    {
+      newest = name;
+      newestTime = time;
+    }
+  }
+  return newest;
 }
 
 } // namespace rigel

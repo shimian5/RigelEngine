@@ -74,6 +74,16 @@ std::optional<ReplaySave>
 /** Where save files live, e.g. <prefs>/saves/duke2/quicksave.dn2 */
 std::optional<std::filesystem::path> saveFilePath(const std::string& slotName);
 
+/** Writes the bytes of a save into the slot's file. The previous save survives
+ * a crash while writing. Used by both games' saves. */
+bool writeSaveBytes(
+  const std::string& slotName,
+  const std::vector<std::uint8_t>& bytes);
+
+/** The slot among the given ones whose file was written last */
+std::optional<std::string>
+  newestSaveAmong(const std::vector<std::string>& slotNames);
+
 bool writeReplaySaveFile(const std::string& slotName, const ReplaySave& save);
 
 constexpr int NUM_SAVE_SLOTS_CONSOLE = 8;
