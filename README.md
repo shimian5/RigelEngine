@@ -1,4 +1,4 @@
-# Rigel Engine [![CI](https://github.com/shimian5/RigelEngine/actions/workflows/ci.yml/badge.svg?branch=dn1-snapshot-2026-10-26)](https://github.com/shimian5/RigelEngine/actions/workflows/ci.yml)
+# Rigel Engine [![CI](https://github.com/shimian5/RigelEngine/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/shimian5/RigelEngine/actions/workflows/ci.yml)
 
 ## What is Rigel Engine?
 
@@ -185,7 +185,7 @@ additions; they provide desktop builds of the upstream Duke Nukem II engine.
 Clone this fork with its submodules. On Linux, use a separate build directory:
 
 ```sh
-git clone --recursive --branch dn1-snapshot-2026-10-26 https://github.com/shimian5/RigelEngine.git
+git clone --recursive https://github.com/shimian5/RigelEngine.git
 cd RigelEngine
 cmake -S . -B build-host -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBUILD_TESTS=ON
 cmake --build build-host --parallel 2
