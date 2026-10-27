@@ -8,6 +8,31 @@ namespace rigel::duke1
 struct PlayWorldTestAccess
 {
   static Sandbox& sandbox(PlayWorld& world) { return world.mSandbox; }
+  static int columnContact(
+    PlayWorld& world,
+    int dx,
+    int feetOffset,
+    bool immunity,
+    bool disabled)
+  {
+    auto& p = world.mSandbox.player;
+    p.health = 9;
+    p.x8 = 14 + dx;
+    p.cameraX8 = 28;
+    p.y = 64 + feetOffset;
+    p.cameraYWords = 2048;
+    p.immunity = immunity ? 21 : 0;
+    PlayWorld::ActorInstance column{};
+    column.id = 0x302B;
+    column.alive = column.ported = true;
+    column.state = 1;
+    column.x8 = 42;
+    column.yw = 2560;
+    column.hits = 10;
+    column.v0 = disabled ? 1 : 0;
+    world.updatePortedPart2(column);
+    return p.health;
+  }
   static void keyDoor(PlayWorld& world, int color)
   {
     PlayWorld::ActorInstance reader{};
@@ -293,4 +318,26 @@ TEST_CASE(
     world.update(input);
     CHECK(world.takeSounds().empty());
   }
+}
+
+TEST_CASE(
+  "DN1 exit column matches original lethal-contact boundaries",
+  "[duke1][collision]")
+{
+  rigel::test::Duke1Fixture fixture;
+  duke1::PlayWorld world(fixture.mData, "WORLDAL1");
+  WorldAccess::prepare(world);
+  for (bool immunity : {false, true})
+    for (bool disabled : {false, true})
+      for (int dx = -3; dx <= 3; ++dx)
+        for (int feetOffset = -48; feetOffset <= 48; feetOffset += 8)
+        {
+          CAPTURE(dx, feetOffset, immunity, disabled);
+          // Original callback sweep: upper overlap is not universally lethal.
+          const bool lethal = !disabled && dx > -2 && dx < 2 &&
+            feetOffset >= 0 && feetOffset < 48;
+          CHECK(
+            WorldAccess::columnContact(
+              world, dx, feetOffset, immunity, disabled) == (lethal ? 0 : 9));
+        }
 }

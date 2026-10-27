@@ -735,15 +735,9 @@ void PlayWorld::updatePortedPart2(ActorInstance& a)
             }
           }
           a.v1 = hit ? 1 : 0;
-          if (a.v0 == 0)
-          {
-            // Contact box a little wider than the generic one so walking
-            // under or against the column counts
-            const int dx = std::abs(p.x8 + p.cameraX8 - a.x8);
-            const int dyc = ((p.y >> 4) * 0x80 + p.cameraYWords) - a.yw + 2;
-            if (dx <= 2 && dyc > 0x10 && dyc < 0x1c0)
-              p.health = 0; // high voltage
-          }
+          // The original tests eight pixels above the column anchor.
+          if (a.v0 == 0 && touchesPlayer(a.x8, a.yw - 0x40))
+            p.health = 0;
         }
         else
         {
