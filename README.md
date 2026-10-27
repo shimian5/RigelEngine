@@ -18,30 +18,31 @@ and usability improvements, including:
 * persistent save slots, quick saves, level-start autosaves, and Continue for both games
 * extended modding features for Duke Nukem II
 
-<img src="https://nikolai-wuttke.de/RigelEngine/assets/screenshot.png" alt="Duke Nukem II running in upstream RigelEngine" width="500"/>
+<img src="docs/screenshots/duke-nukem-1-overlay.png" alt="Duke Nukem I in this fork with the modern overlay HUD" width="700"/>
 
-<img src="docs/screenshots/duke-nukem-1-dos-reference.png" alt="Duke Nukem I DOS reference capture from episode 3, used during development" width="500"/>
+*Duke Nukem I with the modern overlay HUD.*
 
-*First: Duke Nukem II in RigelEngine. Second: Duke Nukem I DOS reference capture
-from this project's development.*
+<img src="docs/screenshots/duke-nukem-2-overlay.png" alt="Duke Nukem II in this fork with the modern overlay HUD" width="700"/>
+
+*Duke Nukem II with the modern overlay HUD.*
 
 The original games did not have publicly released source code. Their behaviour is studied
 through reverse engineering of the DOS executables and comparison with the original games.
-See [Duke2Reconstructed](https://github.com/lethal-guitar/Duke2Reconstructed) for the
-Duke Nukem II reconstruction. The new Duke Nukem I implementation is developed from
-the DOS executables, data and behavioural tests. Game files are supplied by the player;
+The new Duke Nukem I implementation is developed from the DOS executables, data and
+behavioural tests. For Duke Nukem II, see
+[Duke2Reconstructed](https://github.com/lethal-guitar/Duke2Reconstructed). Game files are supplied by the player;
 no game data is included in builds.
 
 Read the upstream [F.A.Q.](https://github.com/lethal-guitar/RigelEngine/wiki/FAQ).
 
 ## Current state
 
-The upstream Duke Nukem II engine supports all four episodes, including shareware and
-registered data. This fork adds a new launcher, menus and persistent saves around it.
-
 Duke Nukem I supports the shareware episode and all three registered episodes, with
 episode-aware campaign progression and level selection. It remains under active development
 and playtesting; some presentation work, including animated endings, is incomplete.
+
+The upstream Duke Nukem II engine supports all four episodes, including shareware and
+registered data. This fork adds a new launcher, menus and persistent saves around it.
 
 ### Supported platforms
 
@@ -66,9 +67,9 @@ On Linux, using GL ES can be an option for those older Intel GPUs.
 
 See [Supported Graphics cards](https://github.com/lethal-guitar/RigelEngine/wiki/Supported-graphics-cards-(GPUs)) for more info.
 
-Upstream Duke Nukem II has modest hardware requirements, including support for older
-Raspberry Pi systems. Those figures are not minimum requirements established for this fork's
-Duke Nukem I implementation or Android build.
+Minimum hardware requirements for this fork's Duke Nukem I implementation and Android
+build have not been established. Duke Nukem II's upstream engine also supports older
+Raspberry Pi systems.
 
 ## Contributing
 
@@ -80,22 +81,21 @@ For work specific to this fork, see the [pull requests](https://github.com/shimi
 
 ## Running RigelEngine
 
-Supply your own original DOS game files. Shareware and registered versions are supported.
-On first launch, select your Duke Nukem II installation in the file browser; the location
-is saved in your user profile. You can also pass that directory on the command line.
+Supply your own original DOS game files. Duke Nukem I supports shareware episode 1 and
+all three registered episodes; Duke Nukem II supports shareware and registered data.
 
-**The current launcher requires Duke Nukem II data even when you want to play Duke Nukem I.**
-Place Duke Nukem I's files in a directory named `DN1` inside or beside the selected
-Duke Nukem II directory. The launcher also recognizes `DN1-full/pc` in either location,
-and can recognize the selected directory itself if it contains both games' files.
+For **Duke Nukem I**, place its episode EXEs and matching data files together in a directory
+named `DN1`. For **Duke Nukem II**, use the directory containing `NUKEM2.CMP`.
+
+**Temporary setup limitation:** playing Duke Nukem I currently also requires selecting
+a Duke Nukem II data directory at startup. Place `DN1` inside or beside that directory.
+The launcher also recognizes `DN1-full/pc` in either location, or DN1 files stored directly
+in the selected directory. Removing this dependency is being handled separately.
 
 For example:
 
 ```text
 Games/
-  Duke2/
-    NUKEM2.CMP
-    NUKEM2.F1       (optional intro movies, through .F5)
   DN1/
     DN1.EXE
     WORLDAL1.DN1
@@ -106,28 +106,33 @@ Games/
     DN3.EXE
     WORLDAL1.DN3
     ...            (all other episode 3 data files)
+  Duke2/
+    NUKEM2.CMP
+    NUKEM2.F1       (optional intro movies, through .F5)
 ```
 
-Select `Games/Duke2` when prompted. On Android, use an accessible location for these
-directories and select it through the app's file browser.
+In this example, choose the `Duke2` folder containing `NUKEM2.CMP` in the first-launch
+file browser; the launcher finds `DN1` beside it. These are example paths, not required
+folder names apart from the DN1 discovery locations described above. The selected path
+is saved in your user profile. Desktop builds also accept it on the command line.
+On Android, store the files in a location accessible to the app.
 
 ### Acquiring the game data
 
 Use an existing DOS installation or obtain the original shareware or registered release.
-Upstream's [game-data instructions](https://github.com/lethal-guitar/RigelEngine/wiki/FAQ)
-provide additional background for Duke Nukem II.
-
-For **Duke Nukem II**, the required file is `NUKEM2.CMP`. Include `NUKEM2.F1` through
-`NUKEM2.F5` for the optional intro movies; missing movies are skipped.
-Existing original Duke Nukem II saves, high scores and settings can be imported into
-RigelEngine's user profile on first use.
-
 For **Duke Nukem I**, keep each episode's original EXE and all matching loose data files
 together: `DN1.EXE` with `*.DN1`, `DN2.EXE` with `*.DN2`, and `DN3.EXE` with `*.DN3`.
 Install only the episodes you own; filenames are case-insensitive. The episode EXE supplies
 level order, backdrops and story text, so it is required as well as the data files.
 The known incomplete shareware `DROP3.DN1` is supported with a visible compatibility warning;
 a complete file loads normally.
+
+For **Duke Nukem II**, the required file is `NUKEM2.CMP`. Include `NUKEM2.F1` through
+`NUKEM2.F5` for the optional intro movies; missing movies are skipped.
+Existing original Duke Nukem II saves, high scores and settings can be imported into
+RigelEngine's user profile on first use. The upstream
+[F.A.Q.](https://github.com/lethal-guitar/RigelEngine/wiki/FAQ) provides additional
+background for Duke Nukem II.
 
 ### Launcher, menus and saves
 
@@ -146,9 +151,10 @@ compatibility across engine changes is not guaranteed.
 
 ### Command line options, debugging tools, more info
 
-The upstream [Wiki](https://github.com/lethal-guitar/RigelEngine/wiki) covers Duke Nukem II's
-command-line options, debugging tools and engine features. Details specific to this fork
-are documented here and in the [Android build guide](android/README.md).
+Duke Nukem I setup and the shared launcher and saves are documented above. For Android,
+see the [build guide](android/README.md). The upstream
+[Wiki](https://github.com/lethal-guitar/RigelEngine/wiki) covers Duke Nukem II's
+command-line options, debugging tools and engine features.
 
 ## Pre-built binaries
 
@@ -166,8 +172,8 @@ not signed release packages, and contain no game data.
 The [upstream releases](https://github.com/lethal-guitar/RigelEngine/releases), upstream
 [Flatpak](https://flathub.org/apps/details/io.github.lethal_guitar.RigelEngine) and
 [third-party Linux packages](https://github.com/lethal-guitar/RigelEngine/wiki/Third-party-Linux-builds)
-provide desktop builds of the upstream Duke Nukem II engine. They do not include this fork's
-Duke Nukem I implementation, launcher or persistent-save additions.
+do not include this fork's Duke Nukem I implementation, launcher or persistent-save
+additions; they provide desktop builds of the upstream Duke Nukem II engine.
 
 ## Building from source
 
