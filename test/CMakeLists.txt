@@ -47,7 +47,10 @@ add_test(all-tests tests)
 
 # Separate process: portable-mode preference lookup is cached globally.
 # The fixture supplies generated resources and isolated temporary saves.
-add_executable(duke1_frontend_tests test_duke1_frontend.cpp)
+add_executable(duke1_frontend_tests
+    test_duke1_frontend.cpp
+    test_duke1_presentation.cpp
+)
 target_link_libraries(duke1_frontend_tests PRIVATE rigel_core Catch2::Catch2WithMain)
 rigel_enable_warnings(duke1_frontend_tests)
 add_test(NAME duke1-frontend-flow COMMAND duke1_frontend_tests)

@@ -468,7 +468,10 @@ void PlayWorld::update(const Input& input)
     else if (e.kind == Event::Sound)
       sound(e.value);
   mSandbox.events.clear();
-  mSandbox.impacts.clear(); // no wall-hit effect yet
+  // DOS wall contacts allocate the small enemy-impact effect without a sound.
+  for (const auto& impact : mSandbox.impacts)
+    mExplosions.push_back({1, impact.first, impact.second, 1});
+  mSandbox.impacts.clear();
   for (auto& pop : mPopups)
     ++pop.age;
   mPopups.erase(
@@ -893,44 +896,6 @@ void PlayWorld::renderWorld(
       h);
   }
 
-  // Shots: the wave piece (OBJECT0 pieces 6..9) cycles while the bullet
-  // travels.
-  for (const auto& b : mSandbox.bullets)
-  {
-    if (b.kind == 0)
-      continue;
-    const auto& bank = mSprites[6];
-    // The first frame shows a red muzzle flash where the shot was fired, then
-    // the wave takes over in two frames
-    const bool muzzle = b.newFlag || b.age <= 1;
-    const std::size_t frame = muzzle ? 46 : 6 + mPhase % 2;
-    if (frame >= bank.size())
-      continue;
-    // Shots travel 16 px per update; draw them where they were that far back
-    // along the path. A shot that was just fired has no earlier position (it
-    // would be drawn inside Duke), so it shows where the first update put it.
-    const int shotShift = (b.newFlag || b.age <= 1)
-      ? 0
-      : static_cast<int>(std::lround(16 * (1.0 - mBlend))) *
-        (b.kind == 1 ? 1 : -1);
-    blit(
-      out,
-      b.x8 * 8 - left + shotShift,
-      b.yWords / 8 + 3 - top,
-      bank[frame].data(),
-      16,
-      0,
-      0,
-      16,
-      16,
-      0,
-      0,
-      w,
-      h,
-      w,
-      h);
-  }
-
   const auto& p = mSandbox.player;
   const bool blink = p.immunity > 0 && (p.immunity % 2) == 0 && mHitFlash == 0;
   if (!blink && mExitState < 2 && p.health > 0)
@@ -938,12 +903,13 @@ void PlayWorld::renderWorld(
     const bool leftFacing = p.facing == 0;
     // MAN0 groups 0-3: walking left, 4-7: walking right; MAN1 groups 0/1:
     // standing left/right
-    // Standing still always shows both feet down, whatever step he stopped on
-    const bool standing =
+    const bool stationary =
       p.grounded && !(mSandbox.input.left || mSandbox.input.right);
+    const bool standing = stationary && !mSandbox.input.fire;
     const Tileset* pSet = standing ? &mMan[1] : &mMan[0];
-    int base = standing ? (leftFacing ? 0 : 4)
-                        : 4 * ((leftFacing ? 0 : 4) + p.walkFrame % 4);
+    const int step = stationary && mSandbox.input.fire ? 3 : p.walkFrame % 4;
+    int base =
+      standing ? (leftFacing ? 0 : 4) : 4 * ((leftFacing ? 0 : 4) + step);
     auto useFrame = [&](const int frame) {
       pSet = &mMan[static_cast<std::size_t>(frame / 12)];
       base = 4 * (frame % 12);
@@ -986,7 +952,8 @@ void PlayWorld::renderWorld(
     }
     const auto& set = *pSet;
     const int px = playerX - left, py = playerY - top;
-    const int offs[4][2] = {{-16, -32}, {0, -32}, {-16, -16}, {0, -16}};
+    // DOS draws at x8-1/x8+1 on a screen whose playfield starts at x=16.
+    const int offs[4][2] = {{-24, -32}, {-8, -32}, {-24, -16}, {-8, -16}};
     for (int i = 0; i < 4; ++i)
     {
       const auto idx = static_cast<std::size_t>(base + i);
@@ -1010,6 +977,44 @@ void PlayWorld::renderWorld(
         w,
         h);
     }
+  }
+  // The original projectile pass draws after the player.
+  // Shots: the wave piece (OBJECT0 pieces 6..9) cycles while the bullet
+  // travels.
+  for (const auto& b : mSandbox.bullets)
+  {
+    if (b.kind == 0)
+      continue;
+    const auto& bank = mSprites[6];
+    const bool leftFacing = b.kind == 1;
+    const bool muzzle = b.newFlag || b.age <= 1;
+    const std::size_t frame =
+      muzzle ? (leftFacing ? 46 : 47) : (leftFacing ? 6 : 8) + mPhase % 2;
+    if (frame >= bank.size())
+      continue;
+    // Shots travel 16 px per update; draw them where they were that far back
+    // along the path. A shot that was just fired has no earlier position (it
+    // would be drawn inside Duke), so it shows where the first update put it.
+    const int shotShift = (b.newFlag || b.age <= 1)
+      ? 0
+      : static_cast<int>(std::lround(16 * (1.0 - mBlend))) *
+        (b.kind == 1 ? 1 : -1);
+    blit(
+      out,
+      (b.x8 - 2) * 8 - left + shotShift,
+      b.yWords / 8 + 3 - top,
+      bank[frame].data(),
+      16,
+      0,
+      0,
+      16,
+      16,
+      0,
+      0,
+      w,
+      h,
+      w,
+      h);
   }
 }
 

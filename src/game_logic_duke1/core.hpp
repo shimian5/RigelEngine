@@ -65,8 +65,7 @@ public:
   Input input;
   std::array<Bullet, 4> bullets{};
   std::vector<Event> events;
-  // Where shots hit a wall during the last updates (x8, map word); presentation
-  // only
+  // Small-impact animation anchors from the last update (x8, map words).
   std::vector<std::pair<int, int>> impacts;
   // Optional controlled query provider for matching the original substituted
   // probes.

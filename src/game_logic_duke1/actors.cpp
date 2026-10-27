@@ -1774,6 +1774,7 @@ void PlayWorld::updatePortedPart5(ActorInstance& a)
           if (a.state == 0xe)
           {
             spawnExplosion(a.yw, a.x8, 2);
+            sound(33);
           }
           else if (a.state == 0x11)
           {
@@ -2092,7 +2093,6 @@ void PlayWorld::updatePorted()
       mWalkerAnim = 4;
   }
 
-  auto& p = mSandbox.player;
   for (auto& a : mActors)
   {
     // (the boss has a meaningful state 0: it is beaten and leaving)
@@ -2428,7 +2428,6 @@ void PlayWorld::drawPortedPart3(
   int top,
   const ActorInstance& a) const
 {
-  const auto& p0 = mSandbox.player;
   switch (a.id)
   {
     case 0x304C:
@@ -2573,7 +2572,6 @@ void PlayWorld::drawPorted(
   int left,
   int top) const
 {
-  const auto& p0 = mSandbox.player;
   for (const auto& actorRef : mActors)
   {
     if (!actorRef.alive || !actorRef.ported)
