@@ -369,6 +369,7 @@ void Sandbox::moveBullets(bool checkWorld, bool cull)
     if (cull && culled(b.x8, b.yWords))
       b.kind = 0;
     b.newFlag = 0;
+    ++b.age;
   }
 }
 int Sandbox::drawPlayer()

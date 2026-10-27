@@ -905,8 +905,9 @@ void PlayWorld::renderWorld(
     if (frame >= bank.size())
       continue;
     // Shots travel 16 px per update; draw them where they were that far back
-    // along the path
-    const int shotShift = b.newFlag
+    // along the path. A shot that was just fired has no earlier position (it
+    // would be drawn inside Duke), so it shows where the first update put it.
+    const int shotShift = (b.newFlag || b.age <= 1)
       ? 0
       : static_cast<int>(std::lround(16 * (1.0 - mBlend))) *
         (b.kind == 1 ? 1 : -1);

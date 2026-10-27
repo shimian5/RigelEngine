@@ -40,6 +40,7 @@ struct PlayerState
 struct Bullet
 {
   int kind = 0, x8 = 0, yWords = 0, newFlag = 0;
+  int age = 0; // updates since it was fired (presentation only)
 };
 enum class Sensor
 {
