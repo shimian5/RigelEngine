@@ -29,22 +29,6 @@ namespace rigel
 namespace
 {
 
-// The data segment offset is the file offset in an unpacked DN1.EXE minus 0x19810; these are the
-// places where the text rows of the 1.0 release live.
-constexpr int DS_BIAS = 0x19810;
-constexpr int STORY_ONE = 0x1b5fb - DS_BIAS;
-constexpr int STORY_ONE_ROWS = 19;
-constexpr int STORY_TWO = 0x1b92f - DS_BIAS;
-constexpr int STORY_TWO_ROWS = 9;
-constexpr int EPISODE_ONE = 0x1d113 - DS_BIAS;
-constexpr int EPISODE_ONE_ROWS = 8;
-constexpr int TEXT_STRIDE = 41;
-constexpr int PROTON_SPEAKS = 0x1db7e - DS_BIAS;
-constexpr int DUKE_SPEAKS = 0x1dbe2 - DS_BIAS;
-constexpr int GET_READY = 0x1c89d - DS_BIAS;
-constexpr int DIALOGUE_ROWS = 4;
-constexpr int DIALOGUE_STRIDE = 25;
-
 constexpr std::array<std::array<std::uint8_t, 3>, 16> EGA = {{
   {0, 0, 0},       {0, 0, 170},     {0, 170, 0},     {0, 170, 170},
   {170, 0, 0},     {170, 0, 170},   {170, 85, 0},    {170, 170, 170},
@@ -127,8 +111,8 @@ Duke1Screens::Duke1Screens(const std::filesystem::path& dataDir, const duke1::Ex
 {
   try
   {
-    const auto font1 = duke1::parse_tiles(duke1::read_file(dataDir, "FONT1.DN1"));
-    const auto font2 = duke1::parse_tiles(duke1::read_file(dataDir, "FONT2.DN1"));
+    const auto font1 = duke1::parse_tiles(duke1::read_file(dataDir, mText.assetName("FONT1")));
+    const auto font2 = duke1::parse_tiles(duke1::read_file(dataDir, mText.assetName("FONT2")));
     for (const auto* set : {&font1, &font2})
     {
       for (const auto& tile : set->tiles)
@@ -136,7 +120,7 @@ Duke1Screens::Duke1Screens(const std::filesystem::path& dataDir, const duke1::Ex
         mGlyphs.push_back(tile.rgba());
       }
     }
-    const auto border = duke1::parse_tiles(duke1::read_file(dataDir, "BORDER.DN1"));
+    const auto border = duke1::parse_tiles(duke1::read_file(dataDir, mText.assetName("BORDER")));
     if (mGlyphs.size() >= 100 && border.tiles.size() > 17)
     {
       mPaper = border.tiles[17].rgba(); // 16x16 diagonal red hatching
@@ -247,7 +231,7 @@ std::vector<std::uint8_t> Duke1Screens::portraitPicture(const std::string& name)
   std::vector<std::uint8_t> rgba(std::size_t(DUKE1_SCREEN_W) * DUKE1_SCREEN_H * 4, 255);
   try
   {
-    const auto screen = duke1::parse_screen(duke1::read_file(mDataDir, name));
+    const auto screen = duke1::parse_screen(duke1::read_file(mDataDir, mText.assetName(std::filesystem::path(name).stem().string())));
     for (std::size_t i = 0; i < screen.indices.size() && i * 4 + 3 < rgba.size(); ++i)
     {
       const auto& color = EGA[screen.indices[i] & 15];
@@ -301,48 +285,63 @@ std::vector<std::vector<std::uint8_t>> Duke1Screens::introPages() const
     return pages;
   }
 
-  auto page = storyBackground();
-  int y = 16;
-  for (const auto& row : mText.rows(STORY_ONE, STORY_ONE_ROWS, TEXT_STRIDE))
+  const auto& layout = mText.layout();
+  for (const auto& draws : layout.introPages)
   {
-    drawText(page, 0, y, row);
-    y += 8;
+    auto page = storyBackground();
+    for (const auto& draw : draws)
+    {
+      drawText(page, draw.column * 8, draw.row * 8, mText.at(draw.offset));
+    }
+    pages.push_back(std::move(page));
   }
-  pages.push_back(std::move(page));
 
-  page = storyBackground();
-  y = 16;
-  for (const auto& row : mText.rows(STORY_TWO, STORY_TWO_ROWS, TEXT_STRIDE))
+  for (std::size_t i = 0; i < layout.dialogue.size(); ++i)
   {
-    drawText(page, 0, y, row);
-    y += 8;
+    std::vector<std::string> lines;
+    for (const auto& draw : layout.dialogue[i]) lines.push_back(mText.at(draw.offset));
+    if (!lines.empty()) pages.push_back(boxOverPortrait(
+      i == 0 ? "BADGUY" : "DUKE", lines, i == 2 ? 112 : (i == 1 ? 80 : 0), i == 2 ? 72 : 144));
   }
-  y += 8;
-  for (const auto& row : mText.rows(EPISODE_ONE, EPISODE_ONE_ROWS, TEXT_STRIDE))
-  {
-    drawText(page, 0, y, row);
-    y += 8;
-  }
-  pages.push_back(std::move(page));
-
-  pages.push_back(boxOverPortrait(
-    "BADGUY.DN1", mText.rows(PROTON_SPEAKS, DIALOGUE_ROWS, DIALOGUE_STRIDE), 0, 144));
-  pages.push_back(boxOverPortrait(
-    "DUKE.DN1", mText.rows(DUKE_SPEAKS, DIALOGUE_ROWS, DIALOGUE_STRIDE), 0, 144));
-  pages.push_back(boxOverPortrait(
-    "DUKE.DN1", mText.rows(GET_READY, 2, DIALOGUE_STRIDE), 112, 72));
   return pages;
 }
 
 
+std::vector<std::vector<std::uint8_t>> Duke1Screens::endingPages() const
+{
+  std::vector<std::vector<std::uint8_t>> pages;
+  if (!mValid) return pages;
+  const auto& ending = mText.layout().ending;
+  // The final episode destroys the boss. Earlier episodes show its escape.
+  if (mText.episode() != 2) pages.push_back(portraitPicture("END"));
+  const auto first = mText.episode() == 2 && !ending.empty() ? ending.size() - 1 : 0;
+  const auto last = mText.episode() == 2 ? ending.size() :
+    (ending.empty() ? 0 : ending.size() - 1);
+  for (std::size_t i = first; i < last; ++i) {
+    const auto& dialogue = ending[i];
+    std::vector<std::string> lines;
+    for (const auto& draw : dialogue.lines) lines.push_back(mText.at(draw.offset));
+    pages.push_back(boxOverPortrait(dialogue.player ? "DUKE" : "BADGUY", lines,
+                                   dialogue.player ? 80 : 0, 144));
+  }
+  return pages;
+}
+
 std::vector<std::uint8_t> Duke1Screens::hallwayMessage(const int index) const
 {
-  const auto lines = mText.hallwayMessage(index);
+  const auto lines = mText.tipMessage(index);
   if (lines.empty())
   {
     return {};
   }
-  return boxOverPortrait("BADGUY.DN1", lines, 0, 144);
+  auto page = storyBackground();
+  drawBox(page, 8, 8, 30, 6);
+  int y = 24;
+  for (const auto& line : lines) {
+    drawText(page, 24, y, line);
+    y += 8;
+  }
+  return page;
 }
 
 } // namespace rigel

@@ -68,11 +68,12 @@ p=run(data_dir,'WORLDAL1.DN1',probe,'--compat')
 if 'DROP3 incomplete (shareware)' not in p.stderr: raise AssertionError('compat warning missing')
 drop=load_backdrop_compat(data_dir/'DROP3.DN1'); exported=next(e for e in manifest['graphics'] if e['source']=='DROP3.DN1')
 if (assets/exported['file']).read_bytes()!=drop.image.tobytes() or drop.complete_images!=51 or drop.ignored_partial_bytes==0: raise AssertionError('incomplete DROP3 compatibility pixels/metadata mismatch')
-# Synthetic replacements need only loose data files, proving no EXE dependency.
+# Synthetic replacements retain the user EXE because backdrop metadata comes from it.
 def copy_data(target):
     if target.exists():shutil.rmtree(target)
     target.mkdir(parents=True)
     for source in data_dir.glob('*.DN1'):shutil.copyfile(source,target/source.name)
+    shutil.copyfile(data_dir/'DN1.EXE', target/'DN1.EXE')
 # Same-name complete replacement must use ordinary strict parsing; no filename special case.
 replacement=out/'replacement'; copy_data(replacement/'data'); shutil.copyfile(replacement/'data'/'DROP0.DN1',replacement/'data'/'DROP3.DN1')
 run(replacement/'data','WORLDAL1.DN1',replacement/'full.ppm')

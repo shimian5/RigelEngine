@@ -293,7 +293,7 @@ void PlayWorld::initPorted(ActorInstance& a) {
       a.x8 = a.col * 2 + 2;
       a.yw = a.row * 128;
       break;
-    case 0x3043:  // last boss
+    case 0x3042: case 0x3043:  // last boss
       a.ported = true;
       a.state = 1;
       a.x8 = a.col * 2 + 2;
@@ -567,7 +567,7 @@ void PlayWorld::updatePorted() {
   auto& p = sandbox_.player;
   for (auto& a : actors_) {
     // (the boss has a meaningful state 0: it is beaten and leaving)
-    if (!a.alive || !a.ported || (a.state == 0 && a.id != 0x3043)) continue;
+    if (!a.alive || !a.ported || (a.state == 0 && a.id != 0x3042 && a.id != 0x3043)) continue;
     switch (a.id) {
       case 0x302A: {
         if (offscreen(a.yw, a.x8)) {
@@ -633,7 +633,7 @@ void PlayWorld::updatePorted() {
         }
         break;
       }
-      case 0x3043: {
+      case 0x3042: case 0x3043: {
         auto& b = boss_;
         if (b.deadCount != 0) {
           if (++b.deadCount == 10 && !levelComplete_) {
@@ -704,7 +704,7 @@ void PlayWorld::updatePorted() {
             if (a.hits < 6) spawnDebris(a.yw - 0x40, a.x8 + 1);
             if (a.hits < 2) spawnDebris(a.yw - 0x40, a.x8 + 3);
           }
-          if (a.hits == 1) a.state = 0;
+          if (a.hits == 1 && a.id == 0x3043) a.state = 0;
           else if (a.hits <= 0) a.state = 2;
         }
         if (a.state != 2 || b.deadCount == 0) {
@@ -1651,7 +1651,7 @@ void PlayWorld::drawPorted(std::vector<std::uint8_t>& out, int w, int h, int lef
         }
         break;
       }
-      case 0x3043: {
+      case 0x3042: case 0x3043: {
         const bool faceLeft = p0.x8 + p0.cameraX8 - 2 < a.x8;
         const int frame = a.state == 2 ? (faceLeft ? 0 : 2) : boss_.anim + (faceLeft ? 0 : 2);
         static const int kBottom[4][2] = {{272, 273}, {274, 275}, {278, 279}, {280, 281}};

@@ -1,8 +1,8 @@
 #include "play.hpp"
+#include "exe_text.hpp"
 
 #include <cmath>
 #include <algorithm>
-#include <map>
 #include <stdexcept>
 
 namespace duke1 {
@@ -36,17 +36,7 @@ const Placement CHROME[] = {
 struct Box { int x0, y0, x1, y1; };
 const Box PANELS[] = {{239, 16, 306, 42}, {239, 54, 306, 82}, {239, 94, 306, 130}, {239, 144, 306, 178}};
 
-const std::map<std::string, std::array<const char*, 2>>& pairs() {
-  static const std::map<std::string, std::array<const char*, 2>> p = {
-      {"WORLDAL1", {"DROP0.DN1", "DROP3.DN1"}}, {"WORLDAL3", {"DROP0.DN1", "DROP3.DN1"}},
-      {"WORLDAL4", {"DROP7.DN1", "DROP3.DN1"}}, {"WORLDAL5", {"DROP3.DN1", "DROP5.DN1"}},
-      {"WORLDAL6", {"DROP7.DN1", "DROP7.DN1"}}, {"WORLDAL7", {"DROP2.DN1", "DROP2.DN1"}},
-      {"WORLDAL8", {"DROP1.DN1", "DROP2.DN1"}}, {"WORLDAL9", {"DROP3.DN1", "DROP3.DN1"}},
-      {"WORLDALA", {"DROP5.DN1", "DROP2.DN1"}}, {"WORLDALB", {"DROP0.DN1", "DROP11.DN1"}},
-      {"WORLDALC", {"DROP13.DN1", "DROP9.DN1"}},
-  };
-  return p;
-}
+
 
 void fillRect(std::vector<std::uint8_t>& img, int x0, int y0, int x1, int y1, std::uint8_t r, std::uint8_t g,
               std::uint8_t b) {
@@ -81,8 +71,14 @@ void PlayWorld::drawTile(std::vector<std::uint8_t>& dst, const Tile& tile, int x
   blit(dst, x, y, px.data(), 16, 0, 0, 16, 16, 0, 0, SCREEN_W, SCREEN_H);
 }
 
-PlayWorld::PlayWorld(const std::filesystem::path& dir, const std::string& levelName, const std::array<std::string, 2>* context) {
-  const auto level = parse_level(read_file(dir, levelName + ".DN1"));
+PlayWorld::PlayWorld(const std::filesystem::path& dir, const std::string& levelName,
+                     const std::array<std::string, 2>* context, const int episode) {
+  episode_ = std::filesystem::path(levelName).extension().empty() ? episode : episode_from_asset(levelName);
+  const auto levelFile = std::filesystem::path(levelName).extension().empty() ?
+    asset_name(levelName, episode_) : levelName;
+  const auto executable = ExeText::load(dir, episode_);
+  if (!executable) throw std::runtime_error("missing or unsupported Duke 1 episode executable");
+  const auto level = parse_level(read_file(dir, levelFile));
   sandbox_.world = CollisionWorld(0);
   std::copy(level.cells.begin(), level.cells.end(), sandbox_.world.cells.begin());
 
@@ -108,7 +104,8 @@ PlayWorld::PlayWorld(const std::filesystem::path& dir, const std::string& levelN
     const auto v = cells[i];
     if (v < 0x3000 || v == 0x3032) continue;
     for (const auto& a : kActors) {
-      if (a.id != v) continue;
+      // The registered finale uses the same loader record and sprite family as the escaping boss.
+      if (a.id != v && !(v == 0x3042 && a.id == 0x3043)) continue;
       const bool keepSolid = v == 0x302B;  // the column stays a solid cell
       int row = static_cast<int>(i / 128);
       const int col = static_cast<int>(i % 128);
@@ -146,7 +143,7 @@ PlayWorld::PlayWorld(const std::filesystem::path& dir, const std::string& levelN
   // Active IDs and anything not yet understood render as empty space; the sandbox treats them as map values.
   for (int solid = 0; solid < 2; ++solid)
     for (int n = 0; n < 4; ++n) {
-      const auto set = parse_tiles(read_file(dir, std::string(solid ? "SOLID" : "BACK") + std::to_string(n) + ".DN1"));
+      const auto set = parse_tiles(read_file(dir, asset_name(std::string(solid ? "SOLID" : "BACK") + std::to_string(n), episode_)));
       auto& dst = banks_[static_cast<std::size_t>(solid * 4 + n)].rgba;
       dst.assign(96 * 128 * 4, 0);
       for (int j = 0; j < 48 && j < static_cast<int>(set.tiles.size()); ++j) {
@@ -161,10 +158,9 @@ PlayWorld::PlayWorld(const std::filesystem::path& dir, const std::string& levelN
       }
     }
 
-  const auto it = pairs().find(levelName);
   for (auto& b : backdrops_) b.assign(VIEW_W * VIEW_H * 4, 0);
-  if (it != pairs().end()) pair_ = {it->second[0], it->second[1]};
-  else if (context) pair_ = *context;
+  if (context) pair_ = *context;
+  else if (const auto pair = executable->backdropPair(levelFile)) pair_ = *pair;
   if (!pair_[0].empty()) {
     for (int i = 0; i < 2; ++i) {
       const auto bd = parse_backdrop_compat(read_file(dir, pair_[static_cast<std::size_t>(i)]), pair_[static_cast<std::size_t>(i)]);
@@ -184,16 +180,16 @@ PlayWorld::PlayWorld(const std::filesystem::path& dir, const std::string& levelN
   {
     static const char* names[9] = {"ANIM0", "ANIM1", "ANIM2", "ANIM3", "ANIM4", "ANIM5", "OBJECT0", "OBJECT1", "OBJECT2"};
     for (int b = 0; b < 9; ++b) {
-      const auto set = parse_tiles(read_file(dir, std::string(names[b]) + ".DN1"));
+      const auto set = parse_tiles(read_file(dir, asset_name(names[b], episode_)));
       for (const auto& t : set.tiles) sprites_[static_cast<std::size_t>(b)].push_back(t.rgba());
     }
   }
   {
-    const auto set = parse_tiles(read_file(dir, "NUMBERS.DN1"));
+    const auto set = parse_tiles(read_file(dir, asset_name("NUMBERS", episode_)));
     for (const auto& t : set.tiles) numbers_.push_back(t.rgba());
   }
-  for (int i = 0; i < 5; ++i) man_[static_cast<std::size_t>(i)] = parse_tiles(read_file(dir, "MAN" + std::to_string(i) + ".DN1"));
-  border_ = parse_tiles(read_file(dir, "BORDER.DN1"));
+  for (int i = 0; i < 5; ++i) man_[static_cast<std::size_t>(i)] = parse_tiles(read_file(dir, asset_name("MAN" + std::to_string(i), episode_)));
+  border_ = parse_tiles(read_file(dir, asset_name("BORDER", episode_)));
   buildFrame();
   prevX_ = worldX();
   prevY_ = worldY();
@@ -211,10 +207,12 @@ void PlayWorld::buildFrame() {
   fillRect(frame_, VIEW_X, VIEW_Y, VIEW_X + VIEW_W, VIEW_Y + VIEW_H, 0, 0, 0);
 }
 
-std::array<std::string, 2> PlayWorld::backdropPairFor(const std::string& levelName) {
-  const auto it = pairs().find(levelName);
-  if (it == pairs().end()) return {};
-  return {it->second[0], it->second[1]};
+std::array<std::string, 2> PlayWorld::backdropPairFor(
+    const std::filesystem::path& dataDir, const std::string& levelName, const int episode) {
+  const auto executable = ExeText::load(dataDir, episode);
+  if (!executable) return {};
+  const auto pair = executable->backdropPair(levelName);
+  return pair ? *pair : std::array<std::string, 2>{};
 }
 
 PlayWorld::Carry PlayWorld::carry() const {

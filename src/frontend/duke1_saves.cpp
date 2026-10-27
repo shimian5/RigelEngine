@@ -32,7 +32,7 @@ namespace
 {
 
 constexpr std::array<char, 4> MAGIC = {'D', 'N', '1', 'S'};
-constexpr std::uint8_t VERSION = 2; // bump whenever the simulation changes in a way that alters replays
+constexpr std::uint8_t VERSION = 3; // bump whenever the simulation changes in a way that alters replays
 
 void put32(std::vector<std::uint8_t>& out, std::int32_t v)
 {
@@ -82,17 +82,12 @@ std::string duke1SlotName(const int index)
 }
 
 
-bool writeDuke1Save(const std::string& slot, const Duke1Save& save)
+std::vector<std::uint8_t> serializeDuke1Save(const Duke1Save& save)
 {
-  const auto oPath = saveFilePath(slot);
-  if (!oPath)
-  {
-    return false;
-  }
-
   std::vector<std::uint8_t> bytes(MAGIC.begin(), MAGIC.end());
   bytes.push_back(VERSION);
   put32(bytes, save.mLevelIndex);
+  put32(bytes, save.mEpisode);
   put32(bytes, save.mCarry.score);
   put32(bytes, save.mCarry.health);
   put32(bytes, save.mCarry.boost);
@@ -101,6 +96,19 @@ bool writeDuke1Save(const std::string& slot, const Duke1Save& save)
   put32(bytes, save.mWide ? 1 : 0);
   put32(bytes, static_cast<std::int32_t>(save.mInputs.size()));
   bytes.insert(bytes.end(), save.mInputs.begin(), save.mInputs.end());
+
+  return bytes;
+}
+
+bool writeDuke1Save(const std::string& slot, const Duke1Save& save)
+{
+  const auto oPath = saveFilePath(slot);
+  if (!oPath)
+  {
+    return false;
+  }
+
+  const auto bytes = serializeDuke1Save(save);
 
   auto tmp = *oPath;
   tmp += ".tmp";
@@ -139,29 +147,38 @@ std::optional<Duke1Save> readDuke1Save(const std::string& slot)
   const std::vector<std::uint8_t> bytes{
     std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
 
-  constexpr std::size_t HEADER = 5 + 8 * 4;
-  if (bytes.size() < HEADER || !std::equal(MAGIC.begin(), MAGIC.end(), bytes.begin()) ||
-      bytes[4] != VERSION)
+  return deserializeDuke1Save(bytes);
+}
+
+std::optional<Duke1Save> deserializeDuke1Save(const std::vector<std::uint8_t>& bytes)
+{
+  constexpr std::size_t LEGACY_HEADER = 5 + 8 * 4;
+  if (bytes.size() < LEGACY_HEADER || !std::equal(MAGIC.begin(), MAGIC.end(), bytes.begin()) ||
+      (bytes[4] != 2 && bytes[4] != VERSION))
   {
     return std::nullopt;
   }
 
+  const std::size_t shift = bytes[4] >= 3 ? 4 : 0;
+  const std::size_t HEADER = LEGACY_HEADER + shift;
+  if (bytes.size() < HEADER) return std::nullopt;
   Duke1Save save;
   save.mLevelIndex = get32(bytes, 5);
-  save.mCarry.score = get32(bytes, 9);
-  save.mCarry.health = get32(bytes, 13);
-  save.mCarry.boost = get32(bytes, 17);
-  save.mCarry.claw = get32(bytes, 21);
-  save.mCarry.capacity = get32(bytes, 25);
-  save.mWide = get32(bytes, 29) != 0;
-  const auto rawCount = get32(bytes, 33);
+  save.mEpisode = shift ? get32(bytes, 9) : 0;
+  save.mCarry.score = get32(bytes, 9 + shift);
+  save.mCarry.health = get32(bytes, 13 + shift);
+  save.mCarry.boost = get32(bytes, 17 + shift);
+  save.mCarry.claw = get32(bytes, 21 + shift);
+  save.mCarry.capacity = get32(bytes, 25 + shift);
+  save.mWide = get32(bytes, 29 + shift) != 0;
+  const auto rawCount = get32(bytes, 33 + shift);
   if (rawCount < 0 || std::size_t(rawCount) > bytes.size() - HEADER)
   {
     return std::nullopt;
   }
   const auto count = std::size_t(rawCount);
   const auto& carry = save.mCarry;
-  if (save.mLevelIndex < 0 || carry.score < 0 || carry.health < 0 || carry.health > 9 ||
+  if (save.mEpisode < 0 || save.mEpisode > 2 || save.mLevelIndex < 0 || carry.score < 0 || carry.health < 0 || carry.health > 9 ||
       carry.boost < 0 || carry.boost > 1 || carry.claw < 0 || carry.claw > 1 ||
       carry.capacity < 1 || carry.capacity > 4)
   {

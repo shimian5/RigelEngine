@@ -45,6 +45,7 @@ private:
   {
     Games,
     Dn1Menu,
+    Dn1Episodes,
     LoadAll,
     Credits,
     QuitConfirm
@@ -64,6 +65,8 @@ private:
   std::optional<SaveItem> newestSave() const;
 
   std::vector<SaveItem> mSaveItems;
+  std::vector<int> mDn1Episodes;
+  bool mDn1DataAvailable = false;
   Context mContext;
   ui::MenuNavigationHelper mNavigationHelper;
   std::optional<ui::OptionsMenu> mOptionsMenu;

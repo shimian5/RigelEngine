@@ -36,7 +36,7 @@ namespace rigel
 class Duke1Speaker
 {
 public:
-  explicit Duke1Speaker(const std::filesystem::path& dataDir);
+  explicit Duke1Speaker(const std::filesystem::path& dataDir, int episode = 0);
   ~Duke1Speaker();
 
   Duke1Speaker(const Duke1Speaker&) = delete;

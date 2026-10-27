@@ -51,21 +51,6 @@ std::filesystem::path gGamePath;
 std::string gLookupProblem;
 
 
-bool hasLevelFile(const std::filesystem::path& dir)
-{
-  try
-  {
-    duke1::read_file(dir, "WORLDAL1.DN1");
-    duke1::read_file(dir, "DN1.EXE"); // the story and message texts come from the player's own copy
-    return true;
-  }
-  catch (const std::exception& error)
-  {
-    LOG_F(INFO, "Duke 1 data not usable in %s: %s", dir.u8string().c_str(), error.what());
-    gLookupProblem = dir.u8string() + ": " + error.what();
-    return false;
-  }
-}
 
 
 } // namespace
@@ -95,18 +80,27 @@ std::optional<std::filesystem::path> Duke1Mode::findDataDir()
 
   // Accept a trailing separator in the stored path
   const auto base = gGamePath.filename().empty() ? gGamePath.parent_path() : gGamePath;
+  std::optional<std::filesystem::path> found;
+  std::size_t episodeCount = 0;
   for (const auto& candidate :
-       {base / "DN1", base / "dn1", base.parent_path() / "DN1"})
+       {base / "DN1", base / "dn1", base.parent_path() / "DN1",
+        base / "DN1-full" / "pc", base.parent_path() / "DN1-full" / "pc", base})
   {
     std::error_code error;
-    if (std::filesystem::is_directory(candidate, error) &&
-        hasLevelFile(candidate))
+    if (!std::filesystem::is_directory(candidate, error)) continue;
+    const auto count = availableEpisodes(candidate).size();
+    if (count > episodeCount)
     {
-      return candidate;
+      found = candidate;
+      episodeCount = count;
     }
   }
+  if (found) {
+    gLookupProblem.clear();
+    return found;
+  }
 
-  gLookupProblem += " (looked under " + base.u8string() + ")";
+  gLookupProblem = "no supported episode EXE and map (looked under " + base.u8string() + ")";
   return std::nullopt;
 }
 
@@ -114,11 +108,6 @@ std::optional<std::filesystem::path> Duke1Mode::findDataDir()
 namespace
 {
 
-// Level order. The original puts a shared hallway (WORLDAL2) between levels; the console release
-// shows a stats screen instead, so the hallway is skipped.
-const char* const LEVEL_ORDER[] = {
-  "WORLDAL1", "WORLDAL3", "WORLDAL4", "WORLDAL5", "WORLDAL6", "WORLDAL7",
-  "WORLDAL8", "WORLDAL9", "WORLDALA", "WORLDALB"};
 // DN1 had no music; each level borrows a song from Duke Nukem II when that game's data is present
 const char* const LEVEL_MUSIC[] = {
   "RANGEA.IMF", "HESBACKA.IMF", "KICKBUTA.IMF", "BEGONEA.IMF", "SQUEAKA.IMF", "PROWLA.IMF",
@@ -156,25 +145,43 @@ const DebugFeature DEBUG_FEATURES[] = {
   {"RED BALLOONS (LEVEL 10)", "WORLDALB", 52, 47},
 };
 
-constexpr std::size_t NUM_LEVELS = sizeof(LEVEL_ORDER) / sizeof(LEVEL_ORDER[0]);
+
 
 } // namespace
 
+
+std::vector<int> Duke1Mode::availableEpisodes(const std::filesystem::path& dataDir)
+{
+  std::vector<int> episodes;
+  for (int episode = 0; episode < 3; ++episode) {
+    if (const auto executable = duke1::ExeText::load(dataDir, episode)) {
+      try {
+        duke1::parse_level(duke1::read_file(dataDir, executable->levels().front().filename));
+        episodes.push_back(episode);
+      } catch (const std::exception&) {}
+    }
+  }
+  return episodes;
+}
+
+bool Duke1Mode::selectEpisode(const int episode)
+{
+  auto text = duke1::ExeText::load(mDataDir, episode);
+  if (!text) return false;
+  mText = std::move(text);
+  mEpisode = episode;
+  mpSpeaker = std::make_unique<Duke1Speaker>(mDataDir, episode);
+  mpScreens = std::make_unique<Duke1Screens>(mDataDir, *mText);
+  return true;
+}
 
 void Duke1Mode::startLevel(const std::size_t index, const duke1::PlayWorld::Carry* pCarry)
 {
   mInputLog.clear();
   mLevelStartCarry = pCarry ? *pCarry : duke1::PlayWorld::Carry{};
-  // The shared intermission room has no backdrop of its own: it keeps the pair of the level before it
-  std::array<std::string, 2> previousPair;
-  const std::array<std::string, 2>* pContext = nullptr;
-  if (index > 0 && std::string_view{LEVEL_ORDER[index]} == "WORLDAL2")
-  {
-    previousPair = duke1::PlayWorld::backdropPairFor(LEVEL_ORDER[index - 1]);
-    pContext = &previousPair;
-  }
-
-  auto next = std::make_unique<duke1::PlayWorld>(mDataDir, LEVEL_ORDER[index], pContext);
+  const auto& level = mText->levels().at(index);
+  auto next = std::make_unique<duke1::PlayWorld>(
+    mDataDir, level.filename, &level.backdrops, mEpisode);
   if (pCarry)
   {
     next->applyCarry(*pCarry);
@@ -203,19 +210,17 @@ void Duke1Mode::startLevel(const std::size_t index, const duke1::PlayWorld::Carr
 Duke1Mode::Duke1Mode(
   Context context,
   const std::filesystem::path& dataDir,
-  std::optional<std::string> loadSlot)
+  std::optional<std::string> loadSlot,
+  const int episode)
   : mContext(context)
   , mDataDir(dataDir)
 {
   mContext.mpServiceProvider->stopMusic();
-  mpSpeaker = std::make_unique<Duke1Speaker>(dataDir);
   mWide = mContext.mpUserProfile->mOptions.widescreenModeActive() &&
     renderer::canUseWidescreenMode(mContext.mpRenderer);
-  mText = duke1::ExeText::load(dataDir);
-  if (mText)
-  {
-    mpScreens = std::make_unique<Duke1Screens>(dataDir, *mText);
-  }
+  const auto saved = loadSlot ? readDuke1Save(*loadSlot) : std::nullopt;
+  if (!selectEpisode(saved ? saved->mEpisode : episode))
+    throw std::runtime_error("Duke 1 episode executable or data is not usable");
   if (!loadSlot || !loadFrom(*loadSlot))
   {
     startLevel(0, nullptr);
@@ -415,6 +420,7 @@ bool Duke1Mode::saveTo(const std::string& slot)
   }
   Duke1Save save;
   save.mLevelIndex = static_cast<int>(mLevelIndex);
+  save.mEpisode = mEpisode;
   save.mCarry = mLevelStartCarry;
   save.mInputs = mInputLog;
   save.mWide = mWide;
@@ -425,11 +431,15 @@ bool Duke1Mode::saveTo(const std::string& slot)
 bool Duke1Mode::loadFrom(const std::string& slot)
 {
   const auto oSave = readDuke1Save(slot);
-  if (!oSave || oSave->mLevelIndex < 0 || std::size_t(oSave->mLevelIndex) >= NUM_LEVELS)
+  const auto executable = oSave ? duke1::ExeText::load(mDataDir, oSave->mEpisode) : std::nullopt;
+  if (!oSave || !executable || oSave->mLevelIndex < 0 ||
+      std::size_t(oSave->mLevelIndex) >= executable->levels().size())
   {
     return false;
   }
 
+  if (oSave->mEpisode != mEpisode && !selectEpisode(oSave->mEpisode)) return false;
+  mEpisodeFinished = false;
   mAutosaveOnStart = false;
   mWide = oSave->mWide;
   startLevel(std::size_t(oSave->mLevelIndex), &oSave->mCarry);
@@ -474,11 +484,11 @@ void Duke1Mode::enterPauseScreen(const PauseScreen screen)
       break;
 
     case PauseScreen::DebugLevels:
-      for (std::size_t i = 0; i < NUM_LEVELS; ++i) items.push_back({levelLabel(i), true});
+      for (std::size_t i = 0; i < mText->levels().size(); ++i) items.push_back({levelLabel(i), true});
       break;
 
     case PauseScreen::DebugFeatures:
-      for (const auto& f : DEBUG_FEATURES) items.push_back({f.mName, true});
+      for (const auto& f : DEBUG_FEATURES) items.push_back({f.mName, mEpisode == 0});
       break;
 
     case PauseScreen::SaveSlots:
@@ -488,7 +498,8 @@ void Duke1Mode::enterPauseScreen(const PauseScreen screen)
         const auto oSave = readDuke1Save(duke1SlotName(i));
         std::string label = "SLOT " + std::to_string(i + 1) + "   ";
         label += oSave
-          ? levelLabel(std::size_t(std::max(0, oSave->mLevelIndex))) + "   " +
+          ? "E" + std::to_string(oSave->mEpisode + 1) + " " +
+            levelLabel(std::size_t(std::max(0, oSave->mLevelIndex))) + "   " +
             ui::formatScoreWithCommas(oSave->mCarry.score)
           : "EMPTY";
         items.push_back({label, screen == PauseScreen::SaveSlots || oSave.has_value()});
@@ -546,7 +557,12 @@ void Duke1Mode::activatePauseSelection()
       mpResults.reset();
       mPause = PauseScreen::None;
       mContext.mpServiceProvider->fadeOutScreen();
-      const auto message = static_cast<int>(mLevelIndex) + 2; // Dr. Proton's message for this stretch of the game
+      if (mLevelIndex + 1 >= mText->levels().size()) {
+        mEpisodeFinished = true;
+        if (mpScreens && mpScreens->valid()) showPages(mpScreens->endingPages());
+        break;
+      }
+      const auto message = mText->levels()[mLevelIndex].intermissionMessage;
       startLevel(mLevelIndex + 1, &mStatsCarry);
       mFadeInPending = true;
       if (mpScreens && mpScreens->valid())
@@ -595,8 +611,8 @@ void Duke1Mode::activatePauseSelection()
       auto carry = mpWorld->carry();
       mPause = PauseScreen::None;
       std::size_t index = 0;
-      for (std::size_t i = 0; i < NUM_LEVELS; ++i)
-        if (std::string_view{LEVEL_ORDER[i]} == feature.mLevel) index = i;
+      for (std::size_t i = 0; i < mText->levels().size(); ++i)
+        if (std::filesystem::path(mText->levels()[i].filename).stem() == feature.mLevel) index = i;
       startLevel(index, &carry);
       mpWorld->teleportToCell(feature.mCol, feature.mRow);
       mpWorld->grantAll();
@@ -747,6 +763,9 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
     }
   }
 
+  if (mEpisodeFinished && mPages.empty())
+    return std::make_unique<ConsoleLauncherMode>(mContext);
+
   for (const auto& event : events)
   {
     if (mPause == PauseScreen::None)
@@ -887,11 +906,6 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
     if (mpWorld->levelComplete())
     {
       const auto carry = mpWorld->carry();
-      if (mLevelIndex + 1 >= NUM_LEVELS)
-      {
-        mContext.mpServiceProvider->fadeOutScreen();
-        return std::make_unique<ConsoleLauncherMode>(mContext);
-      }
       mStatsCarry = carry;
       {
         // Secret bonuses are paid when the level is left: 10,000 for each one that was earned

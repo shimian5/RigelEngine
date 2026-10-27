@@ -1,9 +1,9 @@
 #include "assets.hpp"
+#include "exe_text.hpp"
 #include <algorithm>
 #include <cctype>
 #include <fstream>
 #include <stdexcept>
-#include <map>
 namespace duke1 {
   static void need(bool b,const char*m){
     if(!b)throw std::runtime_error(m);
@@ -12,6 +12,23 @@ namespace duke1 {
     need(p+2<=b.size(),"truncated word");
     return b[p]|(uint16_t(b[p+1])<<8);
   }
+  std::string asset_name(const std::string& stem, const int episode) {
+    need(episode >= 0 && episode < 3, "invalid Duke 1 episode");
+    need(!stem.empty() && std::filesystem::path(stem).extension().empty(), "asset stem must not have an extension");
+    return stem + ".DN" + std::to_string(episode + 1);
+  }
+
+  int episode_from_asset(const std::string& filename) {
+    auto extension = std::filesystem::path(filename).extension().string();
+    std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) {
+      return static_cast<char>(std::toupper(c));
+    });
+    if (extension.empty()) return 0;
+    need(extension.size() == 4 && extension.substr(0, 3) == ".DN" &&
+         extension[3] >= '1' && extension[3] <= '3', "invalid Duke 1 resource suffix");
+    return extension[3] - '1';
+  }
+
   std::vector<uint8_t> read_file(const std::filesystem::path&r,const std::string&n){
     std::filesystem::path p(n);
     need(!p.is_absolute()&&p.parent_path().empty()&&n.find(':')==n.npos,"unsafe path");
@@ -263,70 +280,14 @@ namespace duke1 {
     }
   }
   Scene render_scene(const std::filesystem::path&root,const std::string&level_name,bool compat,bool flat,std::optional<std::array<std::string,2>> context){
-    static const std::map<std::string,std::array<std::string,2>> pairs={
-      {
-        "WORLDAL1",{
-          "DROP0.DN1","DROP3.DN1"
-        }
-      }
-      ,{
-        "WORLDAL3",{
-          "DROP0.DN1","DROP3.DN1"
-        }
-      }
-      ,{
-        "WORLDAL4",{
-          "DROP7.DN1","DROP3.DN1"
-        }
-      }
-      ,{
-        "WORLDAL5",{
-          "DROP3.DN1","DROP5.DN1"
-        }
-      }
-      ,{
-        "WORLDAL6",{
-          "DROP7.DN1","DROP7.DN1"
-        }
-      }
-      ,{
-        "WORLDAL7",{
-          "DROP2.DN1","DROP2.DN1"
-        }
-      }
-      ,{
-        "WORLDAL8",{
-          "DROP1.DN1","DROP2.DN1"
-        }
-      }
-      ,{
-        "WORLDAL9",{
-          "DROP3.DN1","DROP3.DN1"
-        }
-      }
-      ,{
-        "WORLDALA",{
-          "DROP5.DN1","DROP2.DN1"
-        }
-      }
-      ,{
-        "WORLDALB",{
-          "DROP0.DN1","DROP11.DN1"
-        }
-      }
-      ,{
-        "WORLDALC",{
-          "DROP13.DN1","DROP9.DN1"
-        }
-      }
-    }
-    ;
-    std::string stem=std::filesystem::path(level_name).stem().string();
-    std::transform(stem.begin(),stem.end(),stem.begin(),[](unsigned char c){
-      return std::toupper(c);
-    }
-    );
-    auto level=parse_level(read_file(root,level_name));
+    const int episode = episode_from_asset(level_name);
+    const auto levelFile = std::filesystem::path(level_name).extension().empty() ?
+      asset_name(level_name, episode) : level_name;
+    auto stem = std::filesystem::path(levelFile).stem().string();
+    std::transform(stem.begin(), stem.end(), stem.begin(), [](unsigned char c) {
+      return static_cast<char>(std::toupper(c));
+    });
+    auto level=parse_level(read_file(root,levelFile));
     Scene result;
     result.image={
       2048,1440,std::vector<uint8_t>(2048*1440*4)
@@ -345,10 +306,11 @@ namespace duke1 {
       have=true;
     }
     else if(!flat){
-      auto it=pairs.find(stem);
-      if(it!=pairs.end()){
-        pair=it->second;
-        have=true;
+      if (const auto executable = ExeText::load(root, episode)) {
+        if (const auto selected = executable->backdropPair(levelFile)) {
+          pair = *selected;
+          have = true;
+        }
       }
     }
     if(have&&!flat)for(int i=0;i<2;i++){
@@ -369,7 +331,7 @@ namespace duke1 {
     for(auto&d:drops)if(!d.warning.empty())result.warnings.push_back(d.warning);
     std::array<std::vector<uint8_t>,8>bank;
     for(int solid=0;solid<2;solid++)for(int n=0;n<4;n++){
-      auto set=parse_tiles(read_file(root,std::string(solid?"SOLID":"BACK")+std::to_string(n)+".DN1"));
+      auto set=parse_tiles(read_file(root,asset_name(std::string(solid?"SOLID":"BACK")+std::to_string(n), episode)));
       auto& dst=bank[solid*4+n];
       dst.resize(96*128*4);
       for(int j=0;j<48;j++)scene_blit(dst,(j%6)*16,(j/6)*16,96,set.tiles.at(j).rgba(),16,16);

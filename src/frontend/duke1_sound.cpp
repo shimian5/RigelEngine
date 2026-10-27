@@ -15,6 +15,7 @@
  */
 
 #include "duke1_sound.hpp"
+#include "duke1/assets.hpp"
 
 #include "data/sound_ids.hpp"
 
@@ -43,11 +44,6 @@ constexpr double HIGH_PASS_TAU_44K = 31.0;
 constexpr double LOW_PASS_TAU_44K = 1.5;
 constexpr int SOUNDS_PER_BANK = 24;
 
-std::vector<std::uint8_t> readFile(const std::filesystem::path& path)
-{
-  std::ifstream file(path, std::ios::binary);
-  return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
-}
 
 
 std::uint16_t word(const std::vector<std::uint8_t>& data, const std::size_t offset)
@@ -104,7 +100,7 @@ std::vector<Record> parseBank(const std::vector<std::uint8_t>& data, const bool 
 } // namespace
 
 
-Duke1Speaker::Duke1Speaker(const std::filesystem::path& dataDir)
+Duke1Speaker::Duke1Speaker(const std::filesystem::path& dataDir, const int episode)
 {
   int sampleRate = 0;
   Uint16 format = 0;
@@ -114,9 +110,9 @@ Duke1Speaker::Duke1Speaker(const std::filesystem::path& dataDir)
     return; // audio is switched off
   }
 
-  std::vector<Record> records = parseBank(readFile(dataDir / "DUKE1.DN1"), false);
+  std::vector<Record> records = parseBank(duke1::read_file(dataDir, duke1::asset_name("DUKE1", episode)), false);
   records.resize(SOUNDS_PER_BANK);
-  auto second = parseBank(readFile(dataDir / "DUKE1-B.DN1"), true);
+  auto second = parseBank(duke1::read_file(dataDir, duke1::asset_name("DUKE1-B", episode)), true);
   second.resize(SOUNDS_PER_BANK);
   records.insert(records.end(), second.begin(), second.end());
 

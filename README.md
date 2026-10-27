@@ -27,6 +27,27 @@ Read the [F.A.Q.](https://github.com/lethal-guitar/RigelEngine/wiki/FAQ)
 
 Watch a [showcase video (outdated)](http://www.youtube.com/watch?v=U7-eotm8Xoo)
 
+## Duke Nukem 1 in this fork
+
+This fork also contains an independent DOS Duke Nukem 1 implementation. Supply your own
+original episode EXE and matching loose data files: `DN1.EXE` with `*.DN1`, `DN2.EXE` with
+`*.DN2`, and/or `DN3.EXE` with `*.DN3`. Case does not matter. Keep each episode's files together
+in the `DN1` directory beside the Duke Nukem II data directory; the launcher also recognizes a
+`DN1-full/pc` directory there. It offers the episodes whose EXEs and first maps are present.
+The current launcher still requires the normal Duke Nukem II setup.
+
+Campaign order, backdrops, and displayed story/dialogue text come from the supplied EXE;
+no original game files or text are included here. Full `DROP3.DN1` loads normally. The known
+truncated shareware file renders only its complete images with a visible compatibility warning.
+DN1 saves include their episode; older version-2 saves refer to episode 1.
+
+Standalone headless checks can be configured in a separate build directory with
+`cmake -S src/duke1 -B build-host-dn1-full -DBUILD_TESTING=ON`. Synthetic metadata checks need no
+game data. Optional `DN1_DATA_DIR` enables the boss regression using your own episode-1 files;
+`DN1_RESEARCH_ROOT` enables local trace comparisons. The existing pixel comparison requires the
+original uppercase shareware research fixture. `dn1_episode_info DATA EPISODE --worlds` loads
+and briefly simulates every main map without opening a window or playing audio.
+
 ## Current state
 
 RigelEngine is stable and fairly complete in terms of feature set.

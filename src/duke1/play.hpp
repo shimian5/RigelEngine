@@ -20,7 +20,7 @@ class PlayWorld {
   // levelName without extension, e.g. "WORLDAL1". Throws std::runtime_error if a required file is missing.
   // context: backdrop pair to use for levels that don't have their own (the shared intermission, WORLDAL2).
   PlayWorld(const std::filesystem::path& dataDir, const std::string& levelName,
-            const std::array<std::string, 2>* context = nullptr);
+            const std::array<std::string, 2>* context = nullptr, int episode = 0);
 
   // What carries over between levels
   struct Carry { int score = 0, health = 9, boost = 0, claw = 0, capacity = 1; };
@@ -38,7 +38,8 @@ class PlayWorld {
   bool levelComplete() const { return levelComplete_; }
   void debugFinishLevel() { levelComplete_ = true; }
   const std::array<std::string, 2>& backdropPair() const { return pair_; }
-  static std::array<std::string, 2> backdropPairFor(const std::string& levelName);
+  static std::array<std::string, 2> backdropPairFor(
+      const std::filesystem::path& dataDir, const std::string& levelName, int episode = 0);
 
   // One game update (the caller decides the cadence, see TickGate).
   void update(const Input& input);
@@ -104,6 +105,8 @@ class PlayWorld {
   const PlayerState& player() const { return sandbox_.player; }
 
  private:
+  friend struct PlayWorldTestAccess;
+
   struct Bank {
     std::vector<std::uint8_t> rgba;  // 96x128, 6x8 tiles of 16x16
   };
@@ -200,6 +203,7 @@ class PlayWorld {
   int walkerAnim_ = 0, walkerPhase_ = 0;  // 300E: 05ae / 05b0
   int famAnimUp_ = 0, famAnimDown_ = 0x1e0;  // flyers: 06e9 counts up, 06eb counts down
 
+  int episode_ = 0;
   Sandbox sandbox_;
   std::vector<ActorInstance> actors_;
   std::array<std::vector<std::vector<std::uint8_t>>, 9> sprites_;  // ANIM0-5, OBJECT0-2: RGBA per 16x16 piece

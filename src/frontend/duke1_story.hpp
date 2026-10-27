@@ -32,8 +32,8 @@ constexpr int DUKE1_SCREEN_H = 200;
 
 /** Draws the Duke Nukem 1 story and message screens from the player's own data files.
  *
- * All pictures come from the DN1 data files (fonts, portraits) and all text from
- * the player's DN1.EXE; the engine itself contains no game text.
+ * All pictures come from the selected episode's data files and all text from
+ * the player's matching episode EXE; the engine itself contains no game text.
  */
 class Duke1Screens
 {
@@ -42,8 +42,9 @@ public:
 
   /** The introduction after "New Game": the story, then the exchange with Dr. Proton */
   std::vector<std::vector<std::uint8_t>> introPages() const;
+  std::vector<std::vector<std::uint8_t>> endingPages() const;
 
-  /** One of Dr. Proton's messages (indexed like the original's hallway messages), over his portrait */
+  /** Four-line machine tip from an intermission context (original map-sequence index). */
   std::vector<std::uint8_t> hallwayMessage(int index) const;
 
   /** Free-standing text box on a dimmed copy of whatever 320x200 picture is given */

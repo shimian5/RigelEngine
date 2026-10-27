@@ -79,7 +79,7 @@ std::string describeDn1Save(const std::string& slot)
   {
     return {};
   }
-  return "DN1   " + slotLabel(slot) + "   LEVEL " + std::to_string(oSave->mLevelIndex + 1) + "   " +
+  return "DN1   " + slotLabel(slot) + "   E" + std::to_string(oSave->mEpisode + 1) + " LEVEL " + std::to_string(oSave->mLevelIndex + 1) + "   " +
     ui::formatScoreWithCommas(oSave->mCarry.score);
 }
 
@@ -178,10 +178,11 @@ void ConsoleLauncherMode::enter(const Screen screen)
   switch (screen)
   {
     case Screen::Games:
+      mDn1DataAvailable = Duke1Mode::findDataDir().has_value();
       // Duke Nukem 1 is only available when its original data files are found
       mList.setItems(
         {{"CONTINUE", newestSave().has_value()},
-         {"DUKE NUKEM", Duke1Mode::findDataDir().has_value()},
+         {"DUKE NUKEM", mDn1DataAvailable},
          {"DUKE NUKEM II", true},
          {"LOAD GAME", newestSave().has_value()},
          {"OPTIONS", true},
@@ -201,6 +202,18 @@ void ConsoleLauncherMode::enter(const Screen screen)
         anySave = anySave || readDuke1Save(slot).has_value();
       }
       mList.setItems({{"NEW GAME", true}, {"CONTINUE", anySave}, {"LOAD GAME", anySave}, {"BACK", true}});
+      break;
+    }
+
+    case Screen::Dn1Episodes:
+    {
+      const auto dir = Duke1Mode::findDataDir();
+      mDn1Episodes = dir ? Duke1Mode::availableEpisodes(*dir) : std::vector<int>{};
+      std::vector<ui::ConsoleMenuItem> items;
+      for (const auto episode : mDn1Episodes)
+        items.push_back({"EPISODE " + std::to_string(episode + 1), true});
+      items.push_back({"BACK", true});
+      mList.setItems(std::move(items));
       break;
     }
 
@@ -286,6 +299,20 @@ std::unique_ptr<GameMode> ConsoleLauncherMode::activateSelected()
     return nullptr;
   }
 
+  if (mScreen == Screen::Dn1Episodes)
+  {
+    if (std::size_t(selected) >= mDn1Episodes.size()) {
+      enter(Screen::Dn1Menu);
+      return nullptr;
+    }
+    if (const auto dataDir = Duke1Mode::findDataDir()) {
+      mContext.mpServiceProvider->fadeOutScreen();
+      return std::make_unique<Duke1Mode>(
+        mContext, *dataDir, std::nullopt, mDn1Episodes[std::size_t(selected)]);
+    }
+    return nullptr;
+  }
+
   if (mScreen == Screen::Dn1Menu)
   {
     const auto dataDir = Duke1Mode::findDataDir();
@@ -294,8 +321,12 @@ std::unique_ptr<GameMode> ConsoleLauncherMode::activateSelected()
       case 0:
         if (dataDir)
         {
-          mContext.mpServiceProvider->fadeOutScreen();
-          return std::make_unique<Duke1Mode>(mContext, *dataDir);
+          const auto episodes = Duke1Mode::availableEpisodes(*dataDir);
+          if (episodes.size() == 1) {
+            mContext.mpServiceProvider->fadeOutScreen();
+            return std::make_unique<Duke1Mode>(mContext, *dataDir, std::nullopt, episodes.front());
+          }
+          enter(Screen::Dn1Episodes);
         }
         break;
       case 1:
@@ -402,7 +433,7 @@ std::unique_ptr<GameMode> ConsoleLauncherMode::updateAndRender(
       case ui::NavigationEvent::Cancel:
         if (mScreen != Screen::Games)
         {
-          enter(Screen::Games);
+          enter(mScreen == Screen::Dn1Episodes ? Screen::Dn1Menu : Screen::Games);
         }
         break;
       default:
@@ -437,6 +468,11 @@ void ConsoleLauncherMode::render()
     view.mTitle = "DUKE NUKEM";
     view.mBackLabel = "BACK";
   }
+  else if (mScreen == Screen::Dn1Episodes)
+  {
+    view.mTitle = "EPISODE SELECT";
+    view.mBackLabel = "BACK";
+  }
   else if (mScreen == Screen::LoadAll)
   {
     view.mTitle = "LOAD GAME";
@@ -446,7 +482,7 @@ void ConsoleLauncherMode::render()
   else if (mScreen == Screen::Games)
   {
     view.mTitle = "SELECT GAME";
-    if (!Duke1Mode::findDataDir())
+    if (!mDn1DataAvailable)
     {
       view.mSubtitle = "DN1: " + Duke1Mode::lastLookupProblem();
     }

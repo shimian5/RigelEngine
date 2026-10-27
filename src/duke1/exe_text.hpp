@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
@@ -29,20 +30,59 @@ namespace duke1 {
 // by us: no game text is part of the engine.
 class ExeText {
  public:
-  static std::optional<ExeText> load(const std::filesystem::path& dataDir);
+  struct LevelInfo {
+    std::string filename;
+    std::array<std::string, 2> backdrops;
+    int sequenceIndex = 0;
+    int intermissionMessage = 0;
+  };
+
+  struct TextDraw {
+    int offset = 0;
+    int column = 0;
+    int row = 0;
+  };
+
+  struct PortraitPage {
+    bool player = false;
+    std::vector<TextDraw> lines;
+  };
+
+  struct TextLayout {
+    std::vector<std::vector<TextDraw>> introPages;
+    std::array<std::vector<TextDraw>, 3> dialogue;
+    std::vector<PortraitPage> ending;
+    int tipTable = 0;
+    int tipCount = 0;
+  };
+
+  static std::optional<ExeText> load(const std::filesystem::path& dataDir, int episode = 0);
+  static std::optional<ExeText> fromImage(std::vector<std::uint8_t> image, int episode);
+
+  int episode() const { return episode_; }
+  const std::vector<LevelInfo>& levels() const { return levels_; }
+  const std::vector<LevelInfo>& sequence() const { return sequence_; }
+  const TextLayout& layout() const { return layout_; }
+  std::string assetName(const std::string& stem) const;
+  std::optional<std::array<std::string, 2>> backdropPair(const std::string& filename) const;
 
   // NUL terminated text at the given data-segment offset
   std::string at(int dsOffset) const;
   // `count` fixed-stride rows starting at a data-segment offset (trailing blanks removed)
   std::vector<std::string> rows(int dsOffset, int count, int stride) const;
-  // The four text rows of hallway message number `index` (Dr. Proton's messages)
-  std::vector<std::string> hallwayMessage(int index) const;
+  // Contextual four-line machine tip number `index` (original map-sequence index)
+  std::vector<std::string> tipMessage(int index) const;
 
-  // Sanity check: does this look like the DN1 1.0 executable these offsets were made for?
+  // Validate the decoded DOS table layout before reading any resource or text.
   bool plausible() const;
 
  private:
   std::vector<std::uint8_t> image_;
+  std::size_t dataSegment_ = 0;
+  int episode_ = 0;
+  std::vector<LevelInfo> sequence_;
+  std::vector<LevelInfo> levels_;
+  TextLayout layout_{};
 };
 
 // Decompress an LZEXE 0.91 packed MZ executable; returns the load image (code and data), or nothing.

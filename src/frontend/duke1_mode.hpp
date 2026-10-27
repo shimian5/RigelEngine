@@ -50,7 +50,8 @@ public:
   Duke1Mode(
     Context context,
     const std::filesystem::path& dataDir,
-    std::optional<std::string> loadSlot = std::nullopt);
+    std::optional<std::string> loadSlot = std::nullopt,
+    int episode = 0);
 
   std::unique_ptr<GameMode> updateAndRender(
     engine::TimeDelta dt,
@@ -64,6 +65,7 @@ public:
 
   /** Human readable reason for the most recent findDataDir() failure */
   static const std::string& lastLookupProblem();
+  static std::vector<int> availableEpisodes(const std::filesystem::path& dataDir);
 
 private:
   void handleEvent(const SDL_Event& event);
@@ -79,6 +81,9 @@ private:
   std::size_t mPageIndex = 0;
   bool showPages(std::vector<std::vector<std::uint8_t>> pages);
   void drawPicture(const std::vector<std::uint8_t>& rgba);
+  int mEpisode = 0;
+  bool selectEpisode(int episode);
+  bool mEpisodeFinished = false;
   std::size_t mLevelIndex = 0;
   void startLevel(std::size_t index, const duke1::PlayWorld::Carry* carry);
   duke1::TickGate mGate;

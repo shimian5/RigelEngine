@@ -9,6 +9,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Catch2)
 
 add_executable(tests
+    test_duke1_saves.cpp
     test_array_view.cpp
     test_duke_script_loader.cpp
     test_elevator.cpp

@@ -82,6 +82,9 @@ namespace duke1 {
     std::vector<std::string> warnings;
   }
   ;
+  // Episode numbers are zero-based; DOS resource suffixes are .DN1/.DN2/.DN3.
+  std::string asset_name(const std::string& stem, int episode);
+  int episode_from_asset(const std::string& filename);
   std::vector<uint8_t> read_file(const std::filesystem::path&, const std::string&);
   Tileset parse_tiles(const std::vector<uint8_t>&);
   Tileset parse_backdrop(const std::vector<uint8_t>&);
