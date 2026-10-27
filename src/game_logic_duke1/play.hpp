@@ -219,6 +219,11 @@ private:
                       // (for smooth falling)
   };
 
+  void updatePortedPart1(ActorInstance& a);
+  void updatePortedPart2(ActorInstance& a);
+  void updatePortedPart3(ActorInstance& a);
+  void updatePortedPart4(ActorInstance& a);
+  void updatePortedPart5(ActorInstance& a);
   void interact(); // bullets and touch against the actors
 
   // Actors whose behaviour has been ported from the original code (actors.cpp)

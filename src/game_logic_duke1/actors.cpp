@@ -378,6 +378,1668 @@ void PlayWorld::initPorted(ActorInstance& a)
   }
 }
 
+// Per-update behaviour of actor types 0x3007 - 0x3043 (8 types), part 1 of 5.
+void PlayWorld::updatePortedPart1(ActorInstance& a)
+{
+  auto& p = mSandbox.player;
+  switch (a.id)
+  {
+    case 0x302A:
+      {
+        if (offscreen(a.yw, a.x8))
+        {
+          if (a.state > 0xf)
+          {
+            a.state = 0;
+            a.alive = false;
+          }
+          break;
+        }
+        const int px = p.x8 + p.cameraX8;
+        const int feet = (p.y >> 4) * 0x80 + p.cameraYWords;
+        if (a.state > 1)
+        {
+          if (floorAt(a.x8 + 1, a.yw + 0x80))
+          {
+            spawnSparks(a.yw, a.x8 + 1);
+            spawnDebris(a.yw, a.x8 + 1);
+            a.state = 0;
+            a.alive = false;
+            break;
+          }
+          ++a.state;
+        }
+        if (
+          a.state < 2 && a.x8 - 1 <= px && px <= a.x8 + 3 &&
+          feet - a.yw < 0x400 && feet != a.yw && a.yw <= feet)
+          a.state = 2;
+        if (a.state == 0x10)
+          sound(32);
+        if (a.state > 0xf)
+        {
+          a.yw += 0x60;
+          if (touchesPlayer(a.x8, a.yw) || touchesPlayer(a.x8 + 2, a.yw))
+            p.pendingHit = true;
+          if (bulletHit(a.yw - 0x40, a.x8) || bulletHit(a.yw - 0x40, a.x8 + 2))
+          {
+            spawnSparks(a.yw, a.x8 + 1);
+            spawnDebris(a.yw, a.x8 + 1);
+            spawnExplosion(a.yw, a.x8 + 1, 1);
+            addScore(500, (a.x8 - 2) * 8, a.yw / 8);
+            a.state = 0;
+            a.alive = false;
+          }
+        }
+        break;
+      }
+    case 0x3007:
+      {
+        // 1 waiting, 2-9 igniting, 10 flying up, 0 gone
+        if (a.state == 1 && bulletHit(a.yw, a.x8))
+        {
+          a.state = 2;
+          sound(30);
+          addScore(200, (a.x8 - 2) * 8, a.yw / 8);
+        }
+        if (a.state > 1 && a.state < 10)
+        {
+          if (a.state == 9)
+          {
+            auto& cells = mSandbox.world.cells;
+            const auto below =
+              static_cast<std::size_t>((a.yw / 128 + 1) * 128 + a.col);
+            if (below + 128 < cells.size())
+              cells[below] = cells[below + 128]; // the launch pad is gone
+            spawnSparks(a.yw + 0x80, a.x8);
+          }
+          if (a.state == 3)
+            spawnExplosion(a.yw + 0x80, a.x8, 3);
+          ++a.state;
+        }
+        if (a.state == 10)
+          a.yw -= 0x80;
+        if (a.state == 10 && floorAt(a.x8, a.yw - 0x200))
+        {
+          spawnSparks(a.yw - 0x200, a.x8 - 3);
+          spawnSparks(a.yw - 0x180, a.x8 + 2);
+          spawnSparks(a.yw - 0x180, a.x8 + 1);
+          spawnSparks(a.yw - 0x100, a.x8 - 1);
+          spawnSparks(a.yw - 0x80, a.x8);
+          const auto hit =
+            static_cast<std::size_t>((a.yw / 128 - 4) * 128 + a.col);
+          if (hit + 128 < mSandbox.world.cells.size())
+            mSandbox.world.cells[hit] = mSandbox.world.cells[hit + 128];
+          a.state = 0;
+          a.alive = false;
+        }
+        break;
+      }
+    case 0x3042:
+    case 0x3043:
+      {
+        auto& b = mBoss;
+        if (b.deadCount != 0)
+        {
+          if (++b.deadCount == 10 && !mLevelComplete)
+          {
+            mLevelComplete = true;
+            addScore(100000, (a.x8 - 2) * 8, a.yw / 8); // the ending bonus
+          }
+          break;
+        }
+        b.anim ^= 1;
+        const int px = p.x8 + p.cameraX8;
+        if (a.state == 2)
+        { // destroyed: sinks to the floor in a shower of explosions
+          a.yw += 0x20;
+          switch (mPhase % 4)
+          {
+            case 0:
+              spawnSparks(a.yw, a.x8 + 2);
+              break;
+            case 1:
+              spawnExplosion(a.yw, a.x8 + 2, 1);
+              break;
+            case 2:
+              spawnSparks(a.yw, a.x8);
+              break;
+            default:
+              spawnExplosion(a.yw, a.x8 + 2, 3);
+              break;
+          }
+          if (floorAt(a.x8 + 1, a.yw))
+          {
+            b.deadCount = 1;
+            sound(41);
+          }
+        }
+        else if (a.state == 0)
+        { // beaten: Duke is frozen while the boss rises out of the level
+          if (!offscreen(a.yw, a.x8) && b.freeze == 0)
+          {
+            b.freeze = 1;
+            mFrozen = true;
+            sound(40);
+          }
+          if (b.freeze > 0x1e && !mLevelComplete)
+          {
+            mLevelComplete = true;
+            addScore(100000, (a.x8 - 2) * 8, a.yw / 8); // the ending bonus
+          }
+          if (b.freeze != 0)
+            ++b.freeze;
+          if (b.freeze != 0 && a.yw > 0x100 && p.cameraYWords > 0x100)
+          {
+            a.yw -= 0x80;
+            p.cameraYWords -= 0x80;
+          }
+        }
+        else
+        {
+          static const int kJump[12] = {
+            128, 92, 64, 32, 16, 8, -8, -16, -32, -64, -92, -128};
+          if (b.jumping == 0)
+          {
+            ++b.cnt;
+            if ((b.period >> 1) == b.cnt)
+            {
+              if (px - 2 < a.x8)
+                spawnEnemyShot(a.yw - 0x20, a.x8, 1);
+              else
+                spawnEnemyShot(a.yw - 0x20, a.x8 + 3, 2);
+            }
+            if (b.period < b.cnt)
+            {
+              b.cnt = 0;
+              b.step = 0;
+              b.jumping = 1;
+              b.dir = px - 2 < a.x8 ? 1 : 0;
+            }
+          }
+          else
+          {
+            a.yw += kJump[b.step];
+            if (b.dir == 0)
+            {
+              if (!wallAt(a.x8 + 3, a.yw - 0x40))
+                ++a.x8;
+            }
+            else if (!wallAt(a.x8 - 1, a.yw - 0x40))
+            {
+              --a.x8;
+            }
+            if (++b.step == 12)
+            {
+              b.jumping = 0;
+              b.period = (((mPhase % 4) * 0x20) >> 1) + 1;
+              b.cnt = 0;
+            }
+          }
+          if (bulletHit(a.yw - 0x40, a.x8 + 1))
+          {
+            spawnExplosion(a.yw - 0x5c, a.x8 + 2, 3);
+            --a.hits;
+          }
+          if (mPhase % 4 != 0 && a.hits < 10)
+          {
+            spawnDebris(a.yw - 0x20, a.x8 + 2);
+            if (a.hits < 6)
+              spawnDebris(a.yw - 0x40, a.x8 + 1);
+            if (a.hits < 2)
+              spawnDebris(a.yw - 0x40, a.x8 + 3);
+          }
+          if (a.hits == 1 && a.id == 0x3043)
+            a.state = 0;
+          else if (a.hits <= 0)
+            a.state = 2;
+        }
+        if (a.state != 2 || b.deadCount == 0)
+        {
+          // Touching any part hurts
+          for (const int dx : {0, 2})
+            if (
+              touchesPlayer(a.x8 + dx, a.yw) ||
+              touchesPlayer(a.x8 + dx, a.yw - 0x80))
+              p.pendingHit = true;
+        }
+        break;
+      }
+    case 0x3034:
+      {
+        if (a.state != 1 || offscreen(a.yw, a.x8))
+          break;
+        if (touchesPlayer(a.x8, a.yw) && mHasCard && mSandbox.input.up)
+        {
+          for (auto& f : mActors)
+            if (f.id == 0x3021)
+            {
+              f.state = 0;
+              f.alive = false;
+            }
+          a.state = 0;
+          mHasCard = false;
+          sound(31);
+        }
+        break;
+      }
+    case 0x3035:
+      {
+        if (offscreen(a.yw, a.x8))
+        {
+          a.v1 = 0;
+          break;
+        }
+        if (touchesPlayer(a.x8, a.yw) && mSandbox.input.up && a.v0 == 0)
+        {
+          if (!mHasItem)
+            a.v1 = 1;
+          else
+          {
+            a.v0 = 1;
+            mBlast = true;
+            sound(5);
+          }
+        }
+        if (a.v1)
+        {
+          if (mPhase % 4 == 0)
+            spawnEnemyShot(a.yw - 0x24, a.x8 + 2, 1);
+          if (mPhase % 4 == 2)
+            spawnEnemyShot(a.yw - 0x24, a.x8 - 2, 2);
+        }
+        break;
+      }
+    case 0x3036:
+      {
+        if (a.state != 1 || !mBlast)
+          break;
+        spawnExplosion(a.yw, a.v0 + 2, 3);
+        const auto idx = static_cast<std::size_t>(a.row * 128 + (a.v0 >> 1));
+        if (
+          idx >= mSandbox.world.cells.size() ||
+          mSandbox.world.cells[idx] == 0x2fe0)
+        {
+          a.state = 0;
+          mBlast = false;
+        }
+        else
+        {
+          mSandbox.world.cells[idx] = 0x2fe0;
+        }
+        a.v0 += 2;
+        break;
+      }
+    case 0x3019:
+      {
+        if (a.state != 1)
+          break;
+        const int px = p.x8 + p.cameraX8;
+        const int dy = ((p.y >> 4) * 0x80 + p.cameraYWords) - (a.yw - 0x20) + 2;
+        const bool on = px > 2 * a.col && px < 2 * a.col + 2 + 2 * a.v0 &&
+          dy > 0 && dy < 0x180;
+        if (!on)
+        {
+          if (a.v1 == 1)
+            a.v1 = 2;
+        }
+        else
+        {
+          if (a.v1 == 2)
+          {
+            auto& cells = mSandbox.world.cells;
+            for (int i = 0; i < a.v0; ++i)
+            {
+              const auto idx = a.cellIndex + static_cast<std::size_t>(i);
+              if (idx >= 128)
+                cells[idx] = cells[idx - 128];
+              if (i % 2 == 0)
+                spawnExplosion(a.yw, 2 * a.col + 4 + 2 * i, 1);
+              else
+                spawnSparks(a.yw, 2 * a.col + 4 + 2 * i);
+            }
+            a.state = 0;
+            a.alive = false;
+            sound(21);
+          }
+          a.v1 = 1;
+        }
+        break;
+      }
+    default:
+      break;
+  }
+}
+
+// Per-update behaviour of actor types 0x3015 - 0x3052 (9 types), part 2 of 5.
+void PlayWorld::updatePortedPart2(ActorInstance& a)
+{
+  auto& p = mSandbox.player;
+  switch (a.id)
+  {
+    case 0x302B:
+      {
+        if (offscreen(a.yw, a.x8))
+          break;
+        if (a.v0 == 0)
+        {
+          bool hit = false;
+          for (int dy : {0, -0x80, -0x100})
+          {
+            if (bulletHit(a.yw + dy, a.x8))
+            {
+              --a.hits;
+              spawnSparks(a.yw + dy, a.x8);
+              hit = true;
+              if (a.hits <= 0)
+                a.v0 = 1;
+            }
+          }
+          a.v1 = hit ? 1 : 0;
+          if (a.v0 == 0)
+          {
+            // Contact box a little wider than the generic one so walking
+            // under or against the column counts
+            const int dx = std::abs(p.x8 + p.cameraX8 - a.x8);
+            const int dyc = ((p.y >> 4) * 0x80 + p.cameraYWords) - a.yw + 2;
+            if (dx <= 2 && dyc > 0x10 && dyc < 0x1c0)
+              p.health = 0; // high voltage
+          }
+        }
+        else
+        {
+          ++a.v0;
+          if (mPhase % 4 == 0 || mPhase % 4 == 2)
+            spawnDebris(a.yw, a.x8);
+          if (a.v0 > 24)
+          {
+            a.state = 0;
+            a.alive = false;
+            const auto idx = a.cellIndex;
+            mSandbox.world.cells[idx] =
+              idx > 0 ? mSandbox.world.cells[idx - 1] : 0;
+          }
+        }
+        break;
+      }
+    case 0x302F:
+    case 0x3030:
+      {
+        const auto& in = mSandbox.input;
+        const ActorInstance* partner = nullptr;
+        for (const auto& o : mActors)
+          if (o.alive && o.id == (a.id == 0x302F ? 0x3030 : 0x302F))
+          {
+            partner = &o;
+            break;
+          }
+        if (!partner)
+          break;
+        // Countdown as in the original: 8 on activation, the jump happens on
+        // the update that finds it at 1
+        if (a.v0 == 1)
+        {
+          // Move Duke to the other pad, keeping the camera rules happy
+          const int targetX = partner->x8 + 2;
+          p.cameraX8 = std::clamp(targetX - p.x8, 0, 230);
+          p.x8 = targetX - p.cameraX8;
+          p.cameraYWords = std::max(0, partner->yw - 0x300);
+          p.y = std::max(0, (partner->yw - p.cameraYWords) / 8);
+          if (p.y > 150)
+          {
+            p.cameraYWords += (p.y - 150) * 8 / 128 * 128;
+            p.y = std::max(0, (partner->yw - p.cameraYWords) / 8);
+          }
+          p.verticalScroll = true;
+          a.v0 = 0;
+          mUpConsumed =
+            true; // the key press is used up: it has to be pressed again
+          mDiscontinuity = true; // nothing should be blended across the jump
+        }
+        else if (a.v0 > 1)
+        {
+          --a.v0;
+        }
+        if (
+          a.v0 == 0 && !offscreen(a.yw, a.x8) &&
+          touchesPlayer(a.x8 + 2, a.yw) && in.up && !mUpConsumed && !in.left &&
+          !in.right && !in.jump)
+        {
+          a.v0 = 8;
+          sound(7);
+        }
+        break;
+      }
+    case 0x3015:
+    case 0x3052:
+    case 0x3018:
+    case 0x3051:
+      {
+        const bool soda = a.id == 0x3015 || a.id == 0x3052;
+        if (soda && a.state > 2 && offscreen(a.yw, a.x8))
+        {
+          a.state = 0;
+          a.alive = false;
+          mSandbox.world.cells[a.cellIndex] = a.under;
+          break;
+        }
+        if (offscreen(a.yw, a.x8))
+          break;
+        if (!floorAt(a.x8, a.yw + 0x80) && (a.state < 3 || !soda))
+          a.yw += 0x80;
+        if (soda && a.state > 2)
+        { // a shot can sends the soda flying upwards (food just keeps
+          // falling)
+          if (mPhase % 4 != 0)
+            a.yw -= 0x40;
+          if (floorAt(a.x8, a.yw - 0x40))
+          {
+            spawnExplosion(a.yw, a.x8, 1);
+            a.state = 0;
+            a.alive = false;
+            mSandbox.world.cells[a.cellIndex] = a.under;
+            break;
+          }
+          if (touchesPlayer(a.x8, a.yw))
+          {
+            addScore(1000, (a.x8 - 2) * 8, a.yw / 8);
+            sound(16);
+            a.state = 0;
+            a.alive = false;
+            mSandbox.world.cells[a.cellIndex] = a.under;
+            break;
+          }
+        }
+        if (bulletHit(a.yw, a.x8))
+        {
+          if (a.state == 1)
+          {
+            spawnSparks(a.yw, a.x8);
+            a.state = 2;
+            if (!floorAt(a.x8, a.yw + 0x80))
+              addScore(500, (a.x8 - 2) * 8, a.yw / 8);
+          }
+          else if (a.state == 2)
+          {
+            a.state = 3;
+            if (soda)
+              sound(2); // the can is hit and sent flying
+          }
+        }
+        if (
+          a.state >= 2 && touchesPlayer(a.x8, a.yw) &&
+          (soda ? a.state == 2 : true))
+        {
+          if (soda)
+          {
+            addScore(200, (a.x8 - 2) * 8, a.yw / 8);
+            if (p.health < 9)
+              ++p.health;
+          }
+          else if (a.state == 2)
+          {
+            addScore(100, (a.x8 - 2) * 8, a.yw / 8);
+            if (p.health < 9)
+              ++p.health;
+          }
+          else
+          {
+            addScore(200, (a.x8 - 2) * 8, a.yw / 8);
+            p.health = std::min(9, p.health + 2);
+          }
+          sound(1);
+          a.state = 0;
+          a.alive = false;
+          mSandbox.world.cells[a.cellIndex] = a.under;
+        }
+        break;
+      }
+    case 0x3022:
+      {
+        const int playerX = p.x8 + p.cameraX8;
+        const int step = mPhase % 4;
+        const bool moveNow = step == 0 || step == 2;
+        if (!offscreen(a.yw, a.x8) && a.v0 == 0)
+          a.v0 = floorAt(a.x8 + 3, a.yw + 0x80) ? 0x18 : 1;
+        if (a.v0 == 0)
+          break;
+        if (a.v0 > 2)
+        {
+          --a.v0;
+          a.yw -= 0x10;
+        }
+        if (a.v1 > 1 && a.v0 < 3)
+        {
+          a.yw += 0x10;
+          ++a.v1;
+          if (a.v1 > 0x17 || floorAt(a.x8 + 3, a.yw + 0x80))
+          {
+            a.v0 = 0x18;
+            a.v1 = 0;
+          }
+        }
+        if (playerX < a.x8 + 3)
+        {
+          a.state = 2;
+          if (moveNow && !wallAt(a.x8 - 2, a.yw))
+            --a.x8;
+        }
+        else if (a.x8 + 3 < playerX)
+        {
+          a.state = 3;
+          if (moveNow && !wallAt(a.x8 + 8, a.yw))
+            ++a.x8;
+        }
+        else
+        {
+          if (a.v0 < 3 && a.v1 == 0)
+            a.v1 = 2;
+          a.state = 1;
+        }
+        if (
+          (bulletHit(a.yw, a.x8) || bulletHit(a.yw, a.x8 + 8) ||
+           bulletHit(a.yw - 0x80, a.x8 + 4)) &&
+          a.hits > 0)
+          --a.hits;
+        if (a.hits < 4 && step == 0)
+          spawnDebris(a.yw - 0x60, a.x8 + 3);
+        if (a.hits < 3 && step == 1)
+          spawnDebris(a.yw - 0x60, a.x8);
+        if (a.hits < 2 && step == 2)
+          spawnDebris(a.yw - 0x80, a.x8 + 2);
+        if (a.hits == 0)
+        {
+          if (!floorAt(a.x8, a.yw + 0x80) && !floorAt(a.x8 + 8, a.yw + 0x80))
+          {
+            a.yw += 0x20; // the wreck falls
+          }
+          else
+          {
+            spawnExplosion(a.yw - 0x20, a.x8 + 1, 1);
+            spawnExplosion(a.yw - 0x40, a.x8 + 7, 1);
+            spawnExplosion(a.yw - 0x80, a.x8 + 2, 1);
+            spawnExplosion(a.yw - 0x80, a.x8 + 3, 1);
+            spawnExplosion(a.yw - 0x20, a.x8 + 5, 1);
+            for (int k = 0; k < 5; ++k)
+              spawnSparks(
+                a.yw - (k % 2) * 0x40, a.x8 + 2 * (k / 2) + (k % 2) * 2);
+            addScore(5000, (a.x8 - 2) * 8, a.yw / 8);
+            a.state = 0;
+            a.alive = false;
+            mSandbox.world.cells[a.cellIndex] = a.under;
+          }
+        }
+        else if (
+          touchesPlayer(a.x8 + 2, a.yw - 0x40) ||
+          touchesPlayer(a.x8 + 4, a.yw - 0x40))
+        {
+          p.pendingHit = true;
+        }
+        break;
+      }
+    case 0x303B:
+      {
+        a.v1 = -1;
+        const int step = mPhase % 4;
+        const bool moveNow = step == 0 || step == 2;
+        if (a.state > 2)
+        {
+          static const int kBiteFrame[4] = {0, 6, 3, 7};
+          a.v1 = kBiteFrame[a.v0 & 3];
+          ++a.state;
+          a.v0 = (a.v0 + 1) % 4;
+          if (a.state == 0x14)
+          {
+            a.state = 0;
+            a.alive = false;
+            mSandbox.world.cells[a.cellIndex] = a.under;
+            spawnDebris(a.yw, a.x8);
+            spawnDebris(a.yw - 0x80, a.x8);
+            spawnDebris(a.yw - 0x40, a.x8 - 1);
+            spawnDebris(a.yw - 0x40, a.x8 + 1);
+            spawnDebris(a.yw - 0xc0, a.x8 + 1);
+            spawnDebris(a.yw, a.x8 - 1);
+            addScore(5000, (a.x8 - 2) * 8, a.yw / 8);
+          }
+          break;
+        }
+        if (!floorAt(a.x8, a.yw + 0x80))
+        {
+          a.yw += 0x40;
+        }
+        else if (wallAt(a.x8 - 1, a.yw) && a.state == 1)
+        {
+          a.state = 2;
+          a.v0 = 0;
+        }
+        else if (wallAt(a.x8 + 2, a.yw) && a.state == 2)
+        {
+          a.state = 1;
+          a.v0 = 0;
+        }
+        if (a.v0 == 0)
+        {
+          a.v1 = a.state == 1 ? 6 : 7;
+          if (moveNow)
+            a.v0 = 1;
+        }
+        else
+        {
+          if (a.state == 1)
+          {
+            if (moveNow)
+              --a.x8;
+            a.v1 = a.v0 < 3 ? a.v0 : 5 - a.v0;
+            if (moveNow)
+            {
+              if (floorAt(a.x8, a.yw + 0x80))
+                ++a.v0;
+              if (a.v0 == 6)
+                a.v0 = 1;
+            }
+          }
+          if (a.state == 2)
+          {
+            if (moveNow)
+              ++a.x8;
+            a.v1 = a.v0 < 3 ? a.v0 + 2 : 8 - a.v0;
+            if (moveNow)
+            {
+              if (floorAt(a.x8, a.yw + 0x80))
+                ++a.v0;
+              if (a.v0 == 6)
+                a.v0 = 1;
+            }
+          }
+        }
+        if (bulletHit(a.yw, a.x8))
+        {
+          a.state = 0;
+          a.alive = false;
+          mSandbox.world.cells[a.cellIndex] = a.under;
+          spawnDebris(a.yw, a.x8);
+          spawnDebris(a.yw - 0x80, a.x8);
+          spawnDebris(a.yw - 0x40, a.x8 - 1);
+          spawnDebris(a.yw - 0x40, a.x8 + 1);
+          spawnDebris(a.yw - 0xc0, a.x8 + 1);
+          spawnDebris(a.yw, a.x8 - 1);
+          addScore(200, (a.x8 - 2) * 8, a.yw / 8);
+        }
+        else if (touchesPlayer(a.x8, a.yw))
+        {
+          p.pendingHit = true;
+          a.state = 3;
+          a.v0 = 0;
+        }
+        break;
+      }
+    default:
+      break;
+  }
+}
+
+// Per-update behaviour of actor types 0x3001 - 0x3059 (19 types), part 3 of 5.
+void PlayWorld::updatePortedPart3(ActorInstance& a)
+{
+  auto& p = mSandbox.player;
+  switch (a.id)
+  {
+    case 0x3023:
+      {
+        if (a.state == 1)
+        {
+          if (!floorAt(a.x8, a.yw + 0x80))
+            a.yw += 0x40;
+          if (!offscreen(a.yw, a.x8) && bulletHit(a.yw, a.x8))
+          {
+            spawnSparks(a.yw, a.x8);
+            if (!floorAt(a.x8, a.yw + 0x80))
+              addScore(500, (a.x8 - 2) * 8, a.yw / 8);
+            a.state = 2;
+          }
+        }
+        else
+        {
+          if ((mPhase % 4) == 0)
+            a.v0 = (a.v0 + 1) % 3;
+          if (!floorAt(a.x8, a.yw - 0x80))
+            a.yw -= 8;
+          const bool shot = bulletHit(a.yw - 0x80, a.x8) != 0;
+          if (!shot && !floorAt(a.x8, a.yw - 0x80))
+          {
+            if (touchesPlayer(a.x8, a.yw))
+            {
+              addScore(10000, (a.x8 - 2) * 8, a.yw / 8);
+              sound(3);
+              a.state = 0;
+              a.alive = false;
+              mSandbox.world.cells[a.cellIndex] = a.under;
+            }
+          }
+          else
+          {
+            spawnExplosion(a.yw - 0x80, a.x8, 4); // the balloon pops
+            spawnDebris(a.yw - 0x80, a.x8);
+            a.state = 0;
+            a.alive = false;
+            mSandbox.world.cells[a.cellIndex] = a.under;
+          }
+        }
+        break;
+      }
+    case 0x3024:
+      {
+        if (offscreen(a.yw, a.x8))
+          break;
+        if (bulletHit(a.yw, a.x8))
+        {
+          addScore(100, (a.x8 - 2) * 8, a.yw / 8);
+          spawnExplosion(a.yw, a.x8, 1);
+          a.state = 0;
+          a.alive = false;
+          mSandbox.world.cells[a.cellIndex] = a.under;
+        }
+        break;
+      }
+    case 0x3058:
+    case 0x3059:
+      if (!offscreen(a.yw, a.x8) && touchesPlayer(a.x8, a.yw))
+        p.pendingHit = true;
+      break;
+    case 0x3029:
+    case 0x3037:
+    case 0x3038:
+    case 0x3039:
+    case 0x303A:
+      {
+        if (offscreen(a.yw, a.x8))
+          break;
+        if (!floorAt(a.x8, a.yw + 0x80))
+          a.yw += 0x80;
+        if (a.v0 == 0 && bulletHit(a.yw, a.x8))
+        {
+          spawnSparks(a.yw, a.x8);
+          if (!floorAt(a.x8, a.yw + 0x80))
+            addScore(500, (a.x8 - 2) * 8, a.yw / 8);
+          a.v0 = 1;
+        }
+        if (a.v0 && touchesPlayer(a.x8, a.yw))
+        {
+          if (a.id == 0x3029)
+          {
+            addScore(1000, (a.x8 - 2) * 8, a.yw / 8);
+            p.health = 9; // the sphere restores full health
+            sound(4);
+          }
+          else
+          {
+            static const int kLetter[4] = {'D', 'U', 'K', 'E'};
+            const int letter = kLetter[a.id - 0x3037];
+            if (
+              letter == 'E' && mLetters.size() == 3 && mLetters[0] == 'D' &&
+              mLetters[1] == 'U' && mLetters[2] == 'K')
+            {
+              mDukeBonus = true; // paid when the level is left
+              mLetters.push_back(letter);
+              sound(37);
+            }
+            else
+            {
+              mLetters.push_back(letter);
+              addScore(500, (a.x8 - 2) * 8, a.yw / 8);
+              sound(16);
+            }
+          }
+          a.state = 0;
+          a.alive = false;
+          mSandbox.world.cells[a.cellIndex] = a.under;
+        }
+        break;
+      }
+    case 0x3031:
+      {
+        if (offscreen(a.yw, a.x8))
+          break;
+        static const int kBob[14] = {
+          128, 96, 64, 32, 8, 4, 1, -1, -4, -8, -32, -64, -96, -128};
+        a.yw -= kBob[a.v0 + 6];
+        if (++a.v0 == 8)
+          a.v0 = -6;
+        if (touchesPlayer(a.x8, a.yw))
+          p.pendingHit = true;
+        bulletHit(a.yw, a.x8);
+        break;
+      }
+    case 0x3057:
+      {
+        if (offscreen(a.yw, a.x8))
+          break;
+        if (!floorAt(a.x8, a.yw + 0x80))
+          a.yw += 0x40;
+        if (touchesPlayer(a.x8, a.yw))
+        {
+          p.pendingHit = true;
+          spawnExplosion(a.yw, a.x8, 2);
+          a.state = 0;
+          a.alive = false;
+          mSandbox.world.cells[a.cellIndex] = a.under;
+        }
+        break;
+      }
+    case 0x3002:
+    case 0x3004:
+      {
+        // Rewrites its tiles every update so they animate; carries Duke along
+        // while he stands on it
+        const int anim = mPhase % 4;
+        const int base = a.row * 128 + a.col;
+        for (int i = 0; i < a.v1; ++i)
+        {
+          const auto idx = static_cast<std::size_t>(base + i);
+          if (idx >= mSandbox.world.cells.size())
+            break;
+          std::uint16_t v =
+            static_cast<std::uint16_t>(0x1c00 + (anim & 1) * 0x20);
+          if (i == 0)
+            v = static_cast<std::uint16_t>(
+              a.v0 ? 0x1b80 + anim * 0x20 : 0x1be0 - anim * 0x20);
+          if (i == a.v1 - 1)
+            v = static_cast<std::uint16_t>(
+              a.v0 ? 0x1c40 + anim * 0x20 : 0x1ca0 - anim * 0x20);
+          mSandbox.world.cells[idx] = v;
+        }
+        const int playerX = p.x8 + p.cameraX8;
+        const int dy = ((p.y >> 4) * 0x80 + p.cameraYWords) - (a.yw - 0x20) + 2;
+        const bool standing = playerX > a.x8 - 2 &&
+          playerX < a.x8 + 2 * a.v1 + 2 && dy > 0 && dy < 0x180;
+        if (standing)
+        {
+          std::vector<Event> scratch;
+          const bool canMove = mSandbox.world.clear(
+            a.v0 ? Sensor::Right : Sensor::Left, p, scratch);
+          if (canMove)
+            p.x8 += a.v0 ? 1 : -1;
+        }
+        // Duke hanging from the ceiling below the belt is carried the
+        // opposite way
+        const int dyUnder =
+          ((p.y >> 4) * 0x80 + p.cameraYWords) - (a.yw + 0x60) + 2;
+        if (
+          p.cling && playerX > a.x8 - 2 && playerX < a.x8 + 2 * a.v1 + 2 &&
+          dyUnder > 0 && dyUnder < 0x180)
+        {
+          std::vector<Event> scratch;
+          const bool canMove = mSandbox.world.clear(
+            a.v0 ? Sensor::Left : Sensor::Right, p, scratch);
+          if (canMove)
+            p.x8 += a.v0 ? -1 : 1;
+        }
+        break;
+      }
+    case 0x3001:
+      {
+        // Elevator: a solid carrier tile that rises when Up is pressed while
+        // standing exactly on it
+        if (offscreen(a.yw, a.x8))
+        {
+          if (a.v0 > 0)
+          { // out of view it simply settles back down
+            mSandbox.world
+              .cells[a.cellIndex - static_cast<std::size_t>(a.v0) * 128] =
+              static_cast<std::uint16_t>(a.v1);
+            --a.v0;
+            a.yw += 0x80;
+          }
+          break;
+        }
+        const int playerX = p.x8 + p.cameraX8;
+        const int dy = ((p.y >> 4) * 0x80 + p.cameraYWords) - (a.yw - 0x20) + 2;
+        const bool standing = playerX == a.x8 && dy > 0 && dy < 0x180;
+        if (!standing)
+        {
+          if (a.v0 > 0)
+          { // lowers back down
+            mSandbox.world
+              .cells[a.cellIndex - static_cast<std::size_t>(a.v0) * 128] =
+              static_cast<std::uint16_t>(a.v1);
+            --a.v0;
+            a.yw += 0x80;
+          }
+        }
+        else if (
+          mSandbox.input.up && !p.cling &&
+          mSandbox.world.clear(Sensor::Head, p, mSandbox.events))
+        {
+          sound(20);
+          ++a.v0;
+          a.yw -= 0x80;
+          const auto idx = a.cellIndex - static_cast<std::size_t>(a.v0) * 128;
+          mSandbox.world.cells[idx] = 0x1ae0;
+          p.y -= 0x10;
+          if (p.y < 0x41)
+            p.verticalScroll = true;
+        }
+        break;
+      }
+    case 0x3011:
+      {
+        const auto& in = mSandbox.input;
+        if (a.v0 == 0)
+        {
+          if (
+            in.up && !in.left && !in.right && !in.jump &&
+            (touchesPlayer(a.x8 + 1, a.yw) ||
+             touchesPlayer(a.x8 + 1, a.yw - 0x80)))
+            a.v0 = 1;
+        }
+        else
+        {
+          if (mPhase % 2 == 0)
+            ++a.v0;
+          mExitState = a.v0;
+          if (a.v0 >= 8)
+          {
+            mLevelComplete = true;
+            sound(19);
+          }
+        }
+        break;
+      }
+    case 0x3044:
+    case 0x3045:
+    case 0x3046:
+    case 0x3047:
+      {
+        if (offscreen(a.yw, a.x8))
+          break;
+        if (touchesPlayer(a.x8, a.yw))
+        {
+          mKeys[a.id - 0x3044] = true;
+          sound(9);
+          addScore(1000, (a.x8 - 2) * 8, a.yw / 8);
+          a.state = 0;
+          a.alive = false;
+          mSandbox.world.cells[a.cellIndex] = a.under;
+        }
+        break;
+      }
+    default:
+      break;
+  }
+}
+
+// Per-update behaviour of actor types 0x300C - 0x304F (14 types), part 4 of 5.
+void PlayWorld::updatePortedPart4(ActorInstance& a)
+{
+  auto& p = mSandbox.player;
+  switch (a.id)
+  {
+    case 0x3048:
+    case 0x3049:
+    case 0x304A:
+    case 0x304B:
+      {
+        if (offscreen(a.yw, a.x8) || a.v0)
+          break;
+        const int color = a.id - 0x3048;
+        if (touchesPlayer(a.x8, a.yw) && mSandbox.input.up && mKeys[color])
+        {
+          for (auto& d : mActors)
+          {
+            if (d.alive && d.id == 0x304C + color && d.v0 == 0)
+            {
+              d.v0 = 1; // start opening
+              const auto idx = d.cellIndex;
+              mSandbox.world.cells[idx] =
+                idx > 0 ? mSandbox.world.cells[idx - 1] : 0;
+            }
+          }
+          mKeys[color] = false;
+          sound(31);
+          a.v0 = 1;
+          addScore(1000, (a.x8 - 2) * 8, a.yw / 8);
+        }
+        break;
+      }
+    case 0x304C:
+    case 0x304D:
+    case 0x304E:
+    case 0x304F:
+      {
+        if (a.v0 == 0 || offscreen(a.yw, a.x8))
+          break;
+        const int step = mPhase % 4;
+        if (step == 0 || step == 2)
+          ++a.v0;
+        if (a.v0 >= 9)
+        { // fully open: gone
+          a.state = 0;
+          a.alive = false;
+        }
+        break;
+      }
+    case 0x300C:
+      {
+        // Jump height table from the original data: (dx, dy) pairs in 8 px
+        // units / map words
+        static const int kJump[24] = {1, 256, 2, 128, 0, 64, 1, 32,
+                                      0, 16,  1, 8,   0, 4,  1, 2,
+                                      0, 1,   1, -1,  0, -2, 1, -4};
+        a.v1 = -1;
+        if (!offscreen(a.yw, a.x8) && a.v0 == 0)
+          a.v0 = 1;
+        if (a.v0 == 0)
+          break;
+        const int playerX = p.x8 + p.cameraX8;
+        const int stepPhase = mPhase % 4;
+        auto hurtCheck = [&](int frame) {
+          a.v1 = frame;
+          if (
+            touchesPlayer(a.x8 + 1, a.yw) ||
+            touchesPlayer(a.x8 + 1, a.yw - 0x80))
+            p.pendingHit = true;
+        };
+        int hitsTaken = 0;
+        if (bulletHit(a.yw - 0x80, a.x8 + 1) || bulletHit(a.yw, a.x8 + 1))
+          hitsTaken = 1;
+        a.hits -= hitsTaken; // hits counts down from 3
+        if (hitsTaken && a.hits <= 0)
+        {
+          spawnSparks(a.yw - 0x100, a.x8 + 1);
+          spawnSparks(a.yw - 0x80, a.x8);
+          spawnSparks(a.yw, a.x8 + 2);
+          spawnExplosion(a.yw - 0x80, a.x8 + 1, 1);
+          spawnExplosion(a.yw - 0x40, a.x8 + 2, 1);
+          spawnExplosion(a.yw - 0x80, a.x8 + 2, 1);
+          spawnExplosion(a.yw, a.x8 + 1, 1);
+          addScore(2000, (a.x8 - 2) * 8, a.yw / 8);
+          a.state = 0;
+          a.alive = false;
+          mSandbox.world.cells[a.cellIndex] = a.under;
+          break;
+        }
+        if (hitsTaken && a.hits == 2 && stepPhase == 0)
+          spawnDebris(a.yw - 0xc0, a.x8);
+        if (hitsTaken && a.hits == 1 && stepPhase == 0)
+        {
+          spawnDebris(a.yw - 0xc0, a.x8 + 2);
+          spawnDebris(a.yw - 0xc0, a.x8);
+        }
+        for (int guard = 0; guard < 2; ++guard)
+        {
+          if (a.state < 0x19)
+          {
+            if (!floorAt(a.x8 + 1, a.yw + 0x80))
+            { // in the air: fall a row
+              hurtCheck(playerX - 3 < a.x8 ? 2 : 5);
+              a.yw += 0x80;
+            }
+            else
+            {
+              if (playerX - 3 < a.x8)
+              {
+                a.v0 = 1;
+                if (a.state != 0xc)
+                  hurtCheck(0);
+              }
+              else
+              {
+                if (a.state != 0xc)
+                  hurtCheck(3);
+                a.v0 = 2;
+              }
+              ++a.state;
+              a.yw = (a.yw >> 7) << 7;
+              if (a.state == 0xd)
+              {
+                if (a.v0 == 1)
+                {
+                  spawnEnemyShot(a.yw - 0x50, a.x8 - 1, 1);
+                  hurtCheck(1);
+                }
+                if (a.v0 == 2)
+                {
+                  spawnEnemyShot(a.yw - 0x50, a.x8 + 3, 2);
+                  hurtCheck(4);
+                }
+                ++a.state;
+              }
+            }
+            break;
+          }
+          if (a.state < 0x32)
+          {
+            const int i0 = a.state - 0x19;
+            const int dx = (i0 >= 0 && i0 < 24) ? kJump[i0] : 0;
+            const int dy = (i0 + 1 >= 0 && i0 + 1 < 24) ? kJump[i0 + 1] : 0;
+            if (a.v0 == 1)
+            {
+              if (floorAt(a.x8 + 1, a.yw - 0x100))
+              {
+                a.yw = (a.yw >> 7) << 7;
+                hurtCheck(2);
+                a.state = 1;
+                break;
+              }
+              if (!wallAt(a.x8 - 1, a.yw))
+                a.x8 -= dx;
+              a.yw -= dy;
+              hurtCheck(2);
+              a.state += 2;
+              break;
+            }
+            if (a.v0 == 2)
+            {
+              if (!floorAt(a.x8 + 1, a.yw - 0x100))
+              {
+                if (!wallAt(a.x8 + 4, a.yw))
+                  a.x8 += dx;
+                a.yw -= dy;
+                hurtCheck(5);
+                a.state += 2;
+              }
+              else
+              {
+                a.yw = (a.yw >> 7) << 7;
+                hurtCheck(5);
+                a.state = 1;
+              }
+              break;
+            }
+          }
+          a.state = 1;
+        }
+        break;
+      }
+    case 0x300E:
+      {
+        a.v1 = -1;
+        const bool vulnerable = mWalkerPhase < 0x19;
+        const bool shotNow = bulletHit(a.yw, a.x8) || bulletHit(a.yw, a.x8 + 2);
+        if (shotNow && vulnerable)
+          --a.hits;
+        if (a.hits <= 0)
+        {
+          spawnSparks(a.yw, a.x8 + 2);
+          spawnSparks(a.yw, a.x8);
+          spawnDebris(a.yw - 0x80, a.x8 + 2);
+          spawnExplosion(a.yw, a.x8 + 1, 1);
+          spawnExplosion(a.yw - 0x80, a.x8 + 1, 1);
+          spawnExplosion(a.yw - 0x80, a.x8, 1);
+          addScore(5000, (a.x8 - 2) * 8, a.yw / 8);
+          a.state = 0;
+          a.alive = false;
+          mSandbox.world.cells[a.cellIndex] = a.under;
+          break;
+        }
+        if (a.hits == 1 && (mPhase % 4) == 0)
+          spawnDebris(a.yw - 0x40, a.x8 + 2);
+        const int step = mPhase % 4;
+        const bool moveNow = step == 0 || step == 2;
+        bool draw = true;
+        if (!floorAt(a.x8 + 1, a.yw + 0x80))
+        {
+          a.yw += 0x80;
+        }
+        else
+        {
+          if (a.state == 1)
+          {
+            if (wallAt(a.x8, a.yw + 0x80) && !wallAt(a.x8, a.yw))
+            {
+              if (moveNow)
+                --a.x8;
+            }
+            else
+            {
+              a.state = 2;
+            }
+          }
+          if (a.state == 2)
+          {
+            if (!wallAt(a.x8 + 3, a.yw + 0x80) || wallAt(a.x8 + 3, a.yw))
+              a.state = 1;
+            else if (moveNow)
+              ++a.x8;
+          }
+          else if (a.state != 1)
+          {
+            draw = false;
+          }
+        }
+        if (draw)
+        {
+          a.v1 = mWalkerAnim;
+          if (
+            touchesPlayer(a.x8 + 1, a.yw) ||
+            touchesPlayer(a.x8 + 1, a.yw - 0x40))
+            p.pendingHit = true;
+        }
+        break;
+      }
+    case 0x300D:
+      {
+        if (!a.alive)
+          break;
+        a.v1 = -1;
+        const int anim = (mPhase / 2) % 2, slow = mPhase % 2;
+        int hitsTaken =
+          (bulletHit(a.yw, a.x8) || bulletHit(a.yw, a.x8 + 2)) ? 1 : 0;
+        a.hits -= hitsTaken;
+        if (a.hits <= 0)
+        {
+          spawnSparks(a.yw, a.x8 + 2);
+          spawnSparks(a.yw, a.x8);
+          spawnExplosion(a.yw, a.x8 + 1, 1);
+          addScore(2500, (a.x8 - 2) * 8, a.yw / 8);
+          a.state = 0;
+          a.alive = false;
+          mSandbox.world.cells[a.cellIndex] = a.under;
+          break;
+        }
+        if (a.hits == 1 && (mPhase % 4) == 0)
+          spawnDebris(a.yw - 0x40, a.x8 + 2);
+        auto draw = [&](int frame) {
+          a.v1 = frame;
+          if (touchesPlayer(a.x8, a.yw) || touchesPlayer(a.x8 + 2, a.yw))
+            p.pendingHit = true;
+        };
+        if (!floorAt(a.x8, a.yw + 0x80))
+        {
+          a.yw += 0x20;
+          draw(0);
+        }
+        else
+        {
+          if (a.state == 1)
+          {
+            if (!wallAt(a.x8, a.yw) && wallAt(a.x8, a.yw + 0x80))
+            {
+              if (slow == 0)
+                --a.x8;
+              draw(anim);
+            }
+            else
+            {
+              a.state = 2;
+              spawnEnemyShot(a.yw - 0x40, a.x8 + 4, 2);
+            }
+          }
+          if (a.state == 2)
+          {
+            if (!wallAt(a.x8 + 4, a.yw) && wallAt(a.x8 + 4, a.yw + 0x80))
+            {
+              if (slow == 0)
+                ++a.x8;
+              draw(anim + 2);
+            }
+            else
+            {
+              a.state = 1;
+              spawnEnemyShot(a.yw - 0x40, a.x8 - 2, 1);
+              draw(anim + 2);
+            }
+          }
+        }
+        break;
+      }
+    case 0x301A:
+      a.v0 = touchesPlayer(a.x8, a.yw) ? 1 : 0;
+      if (a.v0 && !offscreen(a.yw, a.x8))
+        p.pendingHit = true;
+      break;
+    case 0x302C:
+      a.v0 = touchesPlayer(a.x8, a.yw) ? 1 : 0;
+      if (a.v0 && !offscreen(a.yw, a.x8))
+        p.pendingHit = true;
+      break;
+    case 0x3021:
+      // Pushes Duke away from the field instead of hurting him
+      if (!offscreen(a.yw, a.x8))
+      {
+        if (mPhase % 4 == 0)
+          sound(21);
+        if (touchesPlayer(a.x8 + 1, a.yw) && p.x8 < 28)
+          ++p.x8;
+        if (touchesPlayer(a.x8 - 1, a.yw) && p.x8 > 0)
+          --p.x8;
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+// Per-update behaviour of actor types 0x3000 - 0x303C (9 types), part 5 of 5.
+void PlayWorld::updatePortedPart5(ActorInstance& a)
+{
+  auto& p = mSandbox.player;
+  switch (a.id)
+  {
+    case 0x3009:
+    case 0x300A:
+      {
+        // Counter runs 1..0x41; from 0xf a puff, then (0x19-0x2c) a three
+        // piece flame that burns
+        ++a.state;
+        if (a.state > 0x41)
+          a.state = 1;
+        if (a.state >= 0x19 && a.state < 0x2d && !offscreen(a.yw, a.x8))
+        {
+          const int dir = a.id == 0x3009 ? 1 : -1;
+          if (
+            touchesPlayer(a.x8, a.yw) ||
+            touchesPlayer(a.x8 + 2 * dir, a.yw - 0x20) ||
+            touchesPlayer(a.x8 + 4 * dir, a.yw))
+            p.pendingHit = true;
+        }
+        break;
+      }
+    case 0x303C:
+      {
+        if (!floorAt(a.x8, a.yw + 0x80))
+          a.yw += 0x40;
+        if (wallAt(a.x8 - 1, a.yw) || !floorAt(a.x8 - 2, a.yw + 0x80))
+          a.state = 2;
+        if (wallAt(a.x8 + 2, a.yw) || !floorAt(a.x8 + 2, a.yw + 0x80))
+          a.state = 1;
+        const int step = mPhase % 4;
+        if (step == 0 || step == 2)
+          a.x8 += a.state == 1 ? -1 : 1;
+        bulletHit(a.yw, a.x8); // fire eats shots
+        if (touchesPlayer(a.x8, a.yw))
+          p.pendingHit = true;
+        break;
+      }
+    case 0x3012:
+      {
+        if (!floorAt(a.x8, a.yw + 0x80))
+          a.yw += 0x80;
+        if (a.v0 == 0 && bulletHit(a.yw, a.x8))
+        {
+          spawnSparks(a.yw, a.x8);
+          a.v0 = 1;
+          if (!floorAt(a.x8, a.yw + 0x80))
+            addScore(500, (a.x8 - 2) * 8, a.yw / 8);
+        }
+        if (a.v0 == 0)
+          break;
+        const bool visible = !offscreen(a.yw, a.x8);
+        ++a.state;
+        if (a.state > 0xc)
+        {
+          auto blast = [&](int dx) {
+            const int x = a.x8 + dx;
+            return !wallAt(x, a.yw) && wallAt(x, a.yw + 0x80);
+          };
+          if (a.state == 0xe)
+          {
+            spawnExplosion(a.yw, a.x8, 2);
+          }
+          else if (a.state == 0x11)
+          {
+            if (blast(-2))
+              spawnExplosion(a.yw, a.x8 - 2, 2);
+            else
+              a.v1 &= ~1;
+            if (blast(2))
+              spawnExplosion(a.yw, a.x8 + 2, 2);
+            else
+              a.v1 &= ~2;
+          }
+          else if (a.state == 0x13 || a.state == 0x15)
+          {
+            const int d = a.state == 0x13 ? 4 : 6;
+            if ((a.v1 & 1) && (blast(-d)))
+              spawnExplosion(a.yw, a.x8 - d, 2);
+            else if (a.v1 & 1)
+              a.v1 &= ~1;
+            if ((a.v1 & 2) && (blast(d)))
+              spawnExplosion(a.yw, a.x8 + d, 2);
+            else if (a.v1 & 2)
+              a.v1 &= ~2;
+          }
+          else if (a.state == 0x17)
+          {
+            if ((a.v1 & 1) && blast(-8))
+              spawnExplosion(a.yw, a.x8 - 8, 2);
+            if ((a.v1 & 2) && blast(8))
+              spawnExplosion(a.yw, a.x8 + 8, 2);
+          }
+          if (a.state == 0x18)
+          {
+            a.state = 0;
+            a.alive = false;
+            mSandbox.world.cells[a.cellIndex] = a.under;
+          }
+        }
+        (void)visible;
+        break;
+      }
+    case 0x3000:
+      {
+        if (offscreen(a.yw, a.x8))
+          break;
+        if (!floorAt(a.x8, a.yw + 0x80))
+          a.yw += 0x80; // crates fall a row per update
+        if (bulletHit(a.yw, a.x8))
+        {
+          a.state = 0;
+          a.alive = false;
+          mSandbox.world.cells[a.cellIndex] = a.under;
+          spawnSparks(a.yw, a.x8);
+          if (!floorAt(a.x8, a.yw + 0x80))
+            addScore(500, (a.x8 - 2) * 8, a.yw / 8);
+        }
+        break;
+      }
+    case 0x300B:
+      {
+        static const int kDyingLeft[24] = {0, -64, 1, -32, 1, -16, 0, -1,
+                                           0, 0,   1, 12,  1, 24,  0, 46,
+                                           1, 128, 0, 128, 1, 256, 0, 0};
+        static const int kDyingRight[24] = {0,  -64, -1, -32, -1, -16, 0, -1,
+                                            0,  0,   -1, 12,  -1, 24,  0, 46,
+                                            -1, 128, -1, 128, -1, 256, 0, 0};
+        if (a.state == 0xfe || a.state == 0xff)
+        { // knocked out: tumbles along a fixed path, then falls
+          const bool facingRight = a.state == 0xfe;
+          if (floorAt(a.x8, a.yw + 0x80))
+          {
+            spawnSparks(a.yw, a.x8);
+            spawnExplosion(a.yw, a.x8, 1);
+            a.state = 0;
+            a.alive = false;
+            mSandbox.world.cells[a.cellIndex] = a.under;
+            break;
+          }
+          const int limit = facingRight ? 0x15 : 0x14;
+          if (a.v0 < limit)
+          {
+            const int* t = facingRight ? kDyingLeft : kDyingRight;
+            a.x8 += t[a.v0];
+            a.yw += t[a.v0 + 1];
+            a.v0 += 2;
+          }
+          else
+          {
+            a.yw += 0x80;
+          }
+          if (offscreen(a.yw, a.x8))
+          {
+            a.state = 0;
+            a.alive = false;
+            mSandbox.world.cells[a.cellIndex] = a.under;
+          }
+          else
+            spawnDebris(a.yw - 0x80, a.x8); // smoke trail while it tumbles down
+          break;
+        }
+        if (offscreen(a.yw, a.x8) || offscreen(a.yw - 0x80, a.x8))
+          break;
+        const int shot = bulletHit(a.yw - 0x80, a.x8);
+        if (shot == 0 && !touchesPlayer(a.x8, a.yw - 0x80))
+        {
+          if (!floorAt(a.x8, a.yw + 0x80))
+            a.yw += 8;
+          if (floorAt(a.x8, a.yw + 0x80))
+          {
+            a.yw -= 8;
+            if (!floorAt(a.x8, a.yw + 0x80) && mHoverAnim == 0)
+              spawnDebris(a.yw, a.x8);
+          }
+          if (mHoverAnim == 0)
+          {
+            const int playerX = p.x8 + p.cameraX8;
+            if (playerX < a.x8)
+            {
+              if (a.state < 2)
+              {
+                if (!wallAt(a.x8 - 1, a.yw - 5))
+                {
+                  --a.x8;
+                  if (mHoverTick == 0)
+                    spawnEnemyShot(a.yw - 0xa0, a.x8 - 1, 1);
+                }
+              }
+              else
+              {
+                --a.state;
+              }
+            }
+            if (a.x8 < playerX)
+            {
+              if (a.state < 6)
+              {
+                ++a.state;
+              }
+              else if (!wallAt(a.x8 + 2, a.yw - 5))
+              {
+                ++a.x8;
+                if (mHoverTick == 0)
+                  spawnEnemyShot(a.yw - 0xa0, a.x8 + 1, 2);
+              }
+            }
+          }
+        }
+        else
+        {
+          if (touchesPlayer(a.x8, a.yw))
+            p.pendingHit = true;
+          a.state = (mPhase % 4) < 2
+            ? 0xfe
+            : 0xff; // original tests the shared tile animation step (0 or 32)
+          spawnExplosion(a.yw, a.x8, 1);
+          a.v0 = 0;
+          addScore(200, (a.x8 - 2) * 8, a.yw / 8);
+        }
+        break;
+      }
+    case 0x3016:
+    case 0x3017:
+      {
+        if (offscreen(a.yw, a.x8))
+          break;
+        if (a.state == 1)
+        {
+          a.yw -= 8;
+          if (!floorAt(a.x8 - 2, a.yw) || floorAt(a.x8, a.yw))
+            a.state = 2;
+        }
+        else if (a.state == 2)
+        {
+          a.yw += 8;
+          if (!floorAt(a.x8 - 2, a.yw + 0x80) || floorAt(a.x8, a.yw + 0x80))
+            a.state = 1;
+        }
+        else if (a.state == 3)
+        {
+          a.yw -= 8;
+          if (!floorAt(a.x8 + 2, a.yw) || floorAt(a.x8, a.yw))
+            a.state = 4;
+        }
+        else if (a.state == 4)
+        {
+          a.yw += 8;
+          if (!floorAt(a.x8 + 2, a.yw + 0x80) || floorAt(a.x8, a.yw + 0x80))
+            a.state = 3;
+        }
+        if (bulletHit(a.yw, a.x8))
+        {
+          spawnExplosion(a.yw, a.x8, 1);
+          spawnDebris(a.yw - 0x40, a.x8);
+          addScore(100, (a.x8 - 2) * 8, a.yw / 8);
+          a.state = 0;
+          a.alive = false;
+          mSandbox.world.cells[a.cellIndex] = a.under;
+          break;
+        }
+        if (touchesPlayer(a.x8, a.yw))
+          p.pendingHit = true;
+        break;
+      }
+    case 0x3010:
+      {
+        if (offscreen(a.yw, a.x8))
+          break;
+        if (a.state < 3)
+        {
+          if (const int hit = bulletHit(a.yw, a.x8))
+          {
+            if (hit == 1)
+              --a.x8;
+            if (hit == 2)
+              ++a.x8;
+            a.state = 3;
+          }
+        }
+        if (!floorAt(a.x8, a.yw + 0x80))
+          a.yw += 0x80; // falls a row at a time
+        if (a.state == 1)
+        {
+          if (!wallAt(a.x8 - 1, a.yw) && wallAt(a.x8 - 1, a.yw + 0x80))
+          {
+            if (mFamAnim3010 == 0)
+              --a.x8;
+          }
+          else
+          {
+            a.state = 2;
+          }
+        }
+        else if (a.state == 2)
+        {
+          if (!wallAt(a.x8 + 2, a.yw) && wallAt(a.x8 + 2, a.yw + 0x80))
+          {
+            if (mFamAnim3010 == 0)
+              ++a.x8;
+          }
+          else
+          {
+            a.state = 1;
+          }
+        }
+        else if (a.state > 2)
+        {
+          ++a.state;
+          if (a.state == 10)
+          {
+            a.state = 0;
+            a.alive = false;
+            mSandbox.world.cells[a.cellIndex] = a.under;
+            spawnExplosion(a.yw, a.x8, 1);
+            addScore(100, (a.x8 - 2) * 8, a.yw / 8);
+            break;
+          }
+        }
+        if (a.state > 0 && a.state < 3 && touchesPlayer(a.x8, a.yw))
+          p.pendingHit = true;
+        break;
+      }
+    default:
+      break;
+  }
+}
+
 void PlayWorld::updatePorted()
 {
   for (auto& a : mActors)
@@ -438,1624 +2100,11 @@ void PlayWorld::updatePorted()
       !a.alive || !a.ported ||
       (a.state == 0 && a.id != 0x3042 && a.id != 0x3043))
       continue;
-    switch (a.id)
-    {
-      case 0x302A:
-        {
-          if (offscreen(a.yw, a.x8))
-          {
-            if (a.state > 0xf)
-            {
-              a.state = 0;
-              a.alive = false;
-            }
-            break;
-          }
-          const int px = p.x8 + p.cameraX8;
-          const int feet = (p.y >> 4) * 0x80 + p.cameraYWords;
-          if (a.state > 1)
-          {
-            if (floorAt(a.x8 + 1, a.yw + 0x80))
-            {
-              spawnSparks(a.yw, a.x8 + 1);
-              spawnDebris(a.yw, a.x8 + 1);
-              a.state = 0;
-              a.alive = false;
-              break;
-            }
-            ++a.state;
-          }
-          if (
-            a.state < 2 && a.x8 - 1 <= px && px <= a.x8 + 3 &&
-            feet - a.yw < 0x400 && feet != a.yw && a.yw <= feet)
-            a.state = 2;
-          if (a.state == 0x10)
-            sound(32);
-          if (a.state > 0xf)
-          {
-            a.yw += 0x60;
-            if (touchesPlayer(a.x8, a.yw) || touchesPlayer(a.x8 + 2, a.yw))
-              p.pendingHit = true;
-            if (
-              bulletHit(a.yw - 0x40, a.x8) || bulletHit(a.yw - 0x40, a.x8 + 2))
-            {
-              spawnSparks(a.yw, a.x8 + 1);
-              spawnDebris(a.yw, a.x8 + 1);
-              spawnExplosion(a.yw, a.x8 + 1, 1);
-              addScore(500, (a.x8 - 2) * 8, a.yw / 8);
-              a.state = 0;
-              a.alive = false;
-            }
-          }
-          break;
-        }
-      case 0x3007:
-        {
-          // 1 waiting, 2-9 igniting, 10 flying up, 0 gone
-          if (a.state == 1 && bulletHit(a.yw, a.x8))
-          {
-            a.state = 2;
-            sound(30);
-            addScore(200, (a.x8 - 2) * 8, a.yw / 8);
-          }
-          if (a.state > 1 && a.state < 10)
-          {
-            if (a.state == 9)
-            {
-              auto& cells = mSandbox.world.cells;
-              const auto below =
-                static_cast<std::size_t>((a.yw / 128 + 1) * 128 + a.col);
-              if (below + 128 < cells.size())
-                cells[below] = cells[below + 128]; // the launch pad is gone
-              spawnSparks(a.yw + 0x80, a.x8);
-            }
-            if (a.state == 3)
-              spawnExplosion(a.yw + 0x80, a.x8, 3);
-            ++a.state;
-          }
-          if (a.state == 10)
-            a.yw -= 0x80;
-          if (a.state == 10 && floorAt(a.x8, a.yw - 0x200))
-          {
-            spawnSparks(a.yw - 0x200, a.x8 - 3);
-            spawnSparks(a.yw - 0x180, a.x8 + 2);
-            spawnSparks(a.yw - 0x180, a.x8 + 1);
-            spawnSparks(a.yw - 0x100, a.x8 - 1);
-            spawnSparks(a.yw - 0x80, a.x8);
-            const auto hit =
-              static_cast<std::size_t>((a.yw / 128 - 4) * 128 + a.col);
-            if (hit + 128 < mSandbox.world.cells.size())
-              mSandbox.world.cells[hit] = mSandbox.world.cells[hit + 128];
-            a.state = 0;
-            a.alive = false;
-          }
-          break;
-        }
-      case 0x3042:
-      case 0x3043:
-        {
-          auto& b = mBoss;
-          if (b.deadCount != 0)
-          {
-            if (++b.deadCount == 10 && !mLevelComplete)
-            {
-              mLevelComplete = true;
-              addScore(100000, (a.x8 - 2) * 8, a.yw / 8); // the ending bonus
-            }
-            break;
-          }
-          b.anim ^= 1;
-          const int px = p.x8 + p.cameraX8;
-          if (a.state == 2)
-          { // destroyed: sinks to the floor in a shower of explosions
-            a.yw += 0x20;
-            switch (mPhase % 4)
-            {
-              case 0:
-                spawnSparks(a.yw, a.x8 + 2);
-                break;
-              case 1:
-                spawnExplosion(a.yw, a.x8 + 2, 1);
-                break;
-              case 2:
-                spawnSparks(a.yw, a.x8);
-                break;
-              default:
-                spawnExplosion(a.yw, a.x8 + 2, 3);
-                break;
-            }
-            if (floorAt(a.x8 + 1, a.yw))
-            {
-              b.deadCount = 1;
-              sound(41);
-            }
-          }
-          else if (a.state == 0)
-          { // beaten: Duke is frozen while the boss rises out of the level
-            if (!offscreen(a.yw, a.x8) && b.freeze == 0)
-            {
-              b.freeze = 1;
-              mFrozen = true;
-              sound(40);
-            }
-            if (b.freeze > 0x1e && !mLevelComplete)
-            {
-              mLevelComplete = true;
-              addScore(100000, (a.x8 - 2) * 8, a.yw / 8); // the ending bonus
-            }
-            if (b.freeze != 0)
-              ++b.freeze;
-            if (b.freeze != 0 && a.yw > 0x100 && p.cameraYWords > 0x100)
-            {
-              a.yw -= 0x80;
-              p.cameraYWords -= 0x80;
-            }
-          }
-          else
-          {
-            static const int kJump[12] = {
-              128, 92, 64, 32, 16, 8, -8, -16, -32, -64, -92, -128};
-            if (b.jumping == 0)
-            {
-              ++b.cnt;
-              if ((b.period >> 1) == b.cnt)
-              {
-                if (px - 2 < a.x8)
-                  spawnEnemyShot(a.yw - 0x20, a.x8, 1);
-                else
-                  spawnEnemyShot(a.yw - 0x20, a.x8 + 3, 2);
-              }
-              if (b.period < b.cnt)
-              {
-                b.cnt = 0;
-                b.step = 0;
-                b.jumping = 1;
-                b.dir = px - 2 < a.x8 ? 1 : 0;
-              }
-            }
-            else
-            {
-              a.yw += kJump[b.step];
-              if (b.dir == 0)
-              {
-                if (!wallAt(a.x8 + 3, a.yw - 0x40))
-                  ++a.x8;
-              }
-              else if (!wallAt(a.x8 - 1, a.yw - 0x40))
-              {
-                --a.x8;
-              }
-              if (++b.step == 12)
-              {
-                b.jumping = 0;
-                b.period = (((mPhase % 4) * 0x20) >> 1) + 1;
-                b.cnt = 0;
-              }
-            }
-            if (bulletHit(a.yw - 0x40, a.x8 + 1))
-            {
-              spawnExplosion(a.yw - 0x5c, a.x8 + 2, 3);
-              --a.hits;
-            }
-            if (mPhase % 4 != 0 && a.hits < 10)
-            {
-              spawnDebris(a.yw - 0x20, a.x8 + 2);
-              if (a.hits < 6)
-                spawnDebris(a.yw - 0x40, a.x8 + 1);
-              if (a.hits < 2)
-                spawnDebris(a.yw - 0x40, a.x8 + 3);
-            }
-            if (a.hits == 1 && a.id == 0x3043)
-              a.state = 0;
-            else if (a.hits <= 0)
-              a.state = 2;
-          }
-          if (a.state != 2 || b.deadCount == 0)
-          {
-            // Touching any part hurts
-            for (const int dx : {0, 2})
-              if (
-                touchesPlayer(a.x8 + dx, a.yw) ||
-                touchesPlayer(a.x8 + dx, a.yw - 0x80))
-                p.pendingHit = true;
-          }
-          break;
-        }
-      case 0x3034:
-        {
-          if (a.state != 1 || offscreen(a.yw, a.x8))
-            break;
-          if (touchesPlayer(a.x8, a.yw) && mHasCard && mSandbox.input.up)
-          {
-            for (auto& f : mActors)
-              if (f.id == 0x3021)
-              {
-                f.state = 0;
-                f.alive = false;
-              }
-            a.state = 0;
-            mHasCard = false;
-            sound(31);
-          }
-          break;
-        }
-      case 0x3035:
-        {
-          if (offscreen(a.yw, a.x8))
-          {
-            a.v1 = 0;
-            break;
-          }
-          if (touchesPlayer(a.x8, a.yw) && mSandbox.input.up && a.v0 == 0)
-          {
-            if (!mHasItem)
-              a.v1 = 1;
-            else
-            {
-              a.v0 = 1;
-              mBlast = true;
-              sound(5);
-            }
-          }
-          if (a.v1)
-          {
-            if (mPhase % 4 == 0)
-              spawnEnemyShot(a.yw - 0x24, a.x8 + 2, 1);
-            if (mPhase % 4 == 2)
-              spawnEnemyShot(a.yw - 0x24, a.x8 - 2, 2);
-          }
-          break;
-        }
-      case 0x3036:
-        {
-          if (a.state != 1 || !mBlast)
-            break;
-          spawnExplosion(a.yw, a.v0 + 2, 3);
-          const auto idx = static_cast<std::size_t>(a.row * 128 + (a.v0 >> 1));
-          if (
-            idx >= mSandbox.world.cells.size() ||
-            mSandbox.world.cells[idx] == 0x2fe0)
-          {
-            a.state = 0;
-            mBlast = false;
-          }
-          else
-          {
-            mSandbox.world.cells[idx] = 0x2fe0;
-          }
-          a.v0 += 2;
-          break;
-        }
-      case 0x3019:
-        {
-          if (a.state != 1)
-            break;
-          const int px = p.x8 + p.cameraX8;
-          const int dy =
-            ((p.y >> 4) * 0x80 + p.cameraYWords) - (a.yw - 0x20) + 2;
-          const bool on = px > 2 * a.col && px < 2 * a.col + 2 + 2 * a.v0 &&
-            dy > 0 && dy < 0x180;
-          if (!on)
-          {
-            if (a.v1 == 1)
-              a.v1 = 2;
-          }
-          else
-          {
-            if (a.v1 == 2)
-            {
-              auto& cells = mSandbox.world.cells;
-              for (int i = 0; i < a.v0; ++i)
-              {
-                const auto idx = a.cellIndex + static_cast<std::size_t>(i);
-                if (idx >= 128)
-                  cells[idx] = cells[idx - 128];
-                if (i % 2 == 0)
-                  spawnExplosion(a.yw, 2 * a.col + 4 + 2 * i, 1);
-                else
-                  spawnSparks(a.yw, 2 * a.col + 4 + 2 * i);
-              }
-              a.state = 0;
-              a.alive = false;
-              sound(21);
-            }
-            a.v1 = 1;
-          }
-          break;
-        }
-      case 0x302B:
-        {
-          if (offscreen(a.yw, a.x8))
-            break;
-          if (a.v0 == 0)
-          {
-            bool hit = false;
-            for (int dy : {0, -0x80, -0x100})
-            {
-              if (bulletHit(a.yw + dy, a.x8))
-              {
-                --a.hits;
-                spawnSparks(a.yw + dy, a.x8);
-                hit = true;
-                if (a.hits <= 0)
-                  a.v0 = 1;
-              }
-            }
-            a.v1 = hit ? 1 : 0;
-            if (a.v0 == 0)
-            {
-              // Contact box a little wider than the generic one so walking
-              // under or against the column counts
-              const int dx = std::abs(p.x8 + p.cameraX8 - a.x8);
-              const int dyc = ((p.y >> 4) * 0x80 + p.cameraYWords) - a.yw + 2;
-              if (dx <= 2 && dyc > 0x10 && dyc < 0x1c0)
-                p.health = 0; // high voltage
-            }
-          }
-          else
-          {
-            ++a.v0;
-            if (mPhase % 4 == 0 || mPhase % 4 == 2)
-              spawnDebris(a.yw, a.x8);
-            if (a.v0 > 24)
-            {
-              a.state = 0;
-              a.alive = false;
-              const auto idx = a.cellIndex;
-              mSandbox.world.cells[idx] =
-                idx > 0 ? mSandbox.world.cells[idx - 1] : 0;
-            }
-          }
-          break;
-        }
-      case 0x302F:
-      case 0x3030:
-        {
-          const auto& in = mSandbox.input;
-          const ActorInstance* partner = nullptr;
-          for (const auto& o : mActors)
-            if (o.alive && o.id == (a.id == 0x302F ? 0x3030 : 0x302F))
-            {
-              partner = &o;
-              break;
-            }
-          if (!partner)
-            break;
-          // Countdown as in the original: 8 on activation, the jump happens on
-          // the update that finds it at 1
-          if (a.v0 == 1)
-          {
-            // Move Duke to the other pad, keeping the camera rules happy
-            const int targetX = partner->x8 + 2;
-            p.cameraX8 = std::clamp(targetX - p.x8, 0, 230);
-            p.x8 = targetX - p.cameraX8;
-            p.cameraYWords = std::max(0, partner->yw - 0x300);
-            p.y = std::max(0, (partner->yw - p.cameraYWords) / 8);
-            if (p.y > 150)
-            {
-              p.cameraYWords += (p.y - 150) * 8 / 128 * 128;
-              p.y = std::max(0, (partner->yw - p.cameraYWords) / 8);
-            }
-            p.verticalScroll = true;
-            a.v0 = 0;
-            mUpConsumed =
-              true; // the key press is used up: it has to be pressed again
-            mDiscontinuity = true; // nothing should be blended across the jump
-          }
-          else if (a.v0 > 1)
-          {
-            --a.v0;
-          }
-          if (
-            a.v0 == 0 && !offscreen(a.yw, a.x8) &&
-            touchesPlayer(a.x8 + 2, a.yw) && in.up && !mUpConsumed &&
-            !in.left && !in.right && !in.jump)
-          {
-            a.v0 = 8;
-            sound(7);
-          }
-          break;
-        }
-      case 0x3015:
-      case 0x3052:
-      case 0x3018:
-      case 0x3051:
-        {
-          const bool soda = a.id == 0x3015 || a.id == 0x3052;
-          if (soda && a.state > 2 && offscreen(a.yw, a.x8))
-          {
-            a.state = 0;
-            a.alive = false;
-            mSandbox.world.cells[a.cellIndex] = a.under;
-            break;
-          }
-          if (offscreen(a.yw, a.x8))
-            break;
-          if (!floorAt(a.x8, a.yw + 0x80) && (a.state < 3 || !soda))
-            a.yw += 0x80;
-          if (soda && a.state > 2)
-          { // a shot can sends the soda flying upwards (food just keeps
-            // falling)
-            if (mPhase % 4 != 0)
-              a.yw -= 0x40;
-            if (floorAt(a.x8, a.yw - 0x40))
-            {
-              spawnExplosion(a.yw, a.x8, 1);
-              a.state = 0;
-              a.alive = false;
-              mSandbox.world.cells[a.cellIndex] = a.under;
-              break;
-            }
-            if (touchesPlayer(a.x8, a.yw))
-            {
-              addScore(1000, (a.x8 - 2) * 8, a.yw / 8);
-              sound(16);
-              a.state = 0;
-              a.alive = false;
-              mSandbox.world.cells[a.cellIndex] = a.under;
-              break;
-            }
-          }
-          if (bulletHit(a.yw, a.x8))
-          {
-            if (a.state == 1)
-            {
-              spawnSparks(a.yw, a.x8);
-              a.state = 2;
-              if (!floorAt(a.x8, a.yw + 0x80))
-                addScore(500, (a.x8 - 2) * 8, a.yw / 8);
-            }
-            else if (a.state == 2)
-            {
-              a.state = 3;
-              if (soda)
-                sound(2); // the can is hit and sent flying
-            }
-          }
-          if (
-            a.state >= 2 && touchesPlayer(a.x8, a.yw) &&
-            (soda ? a.state == 2 : true))
-          {
-            if (soda)
-            {
-              addScore(200, (a.x8 - 2) * 8, a.yw / 8);
-              if (p.health < 9)
-                ++p.health;
-            }
-            else if (a.state == 2)
-            {
-              addScore(100, (a.x8 - 2) * 8, a.yw / 8);
-              if (p.health < 9)
-                ++p.health;
-            }
-            else
-            {
-              addScore(200, (a.x8 - 2) * 8, a.yw / 8);
-              p.health = std::min(9, p.health + 2);
-            }
-            sound(1);
-            a.state = 0;
-            a.alive = false;
-            mSandbox.world.cells[a.cellIndex] = a.under;
-          }
-          break;
-        }
-      case 0x3022:
-        {
-          const int playerX = p.x8 + p.cameraX8;
-          const int step = mPhase % 4;
-          const bool moveNow = step == 0 || step == 2;
-          if (!offscreen(a.yw, a.x8) && a.v0 == 0)
-            a.v0 = floorAt(a.x8 + 3, a.yw + 0x80) ? 0x18 : 1;
-          if (a.v0 == 0)
-            break;
-          if (a.v0 > 2)
-          {
-            --a.v0;
-            a.yw -= 0x10;
-          }
-          if (a.v1 > 1 && a.v0 < 3)
-          {
-            a.yw += 0x10;
-            ++a.v1;
-            if (a.v1 > 0x17 || floorAt(a.x8 + 3, a.yw + 0x80))
-            {
-              a.v0 = 0x18;
-              a.v1 = 0;
-            }
-          }
-          if (playerX < a.x8 + 3)
-          {
-            a.state = 2;
-            if (moveNow && !wallAt(a.x8 - 2, a.yw))
-              --a.x8;
-          }
-          else if (a.x8 + 3 < playerX)
-          {
-            a.state = 3;
-            if (moveNow && !wallAt(a.x8 + 8, a.yw))
-              ++a.x8;
-          }
-          else
-          {
-            if (a.v0 < 3 && a.v1 == 0)
-              a.v1 = 2;
-            a.state = 1;
-          }
-          if (
-            (bulletHit(a.yw, a.x8) || bulletHit(a.yw, a.x8 + 8) ||
-             bulletHit(a.yw - 0x80, a.x8 + 4)) &&
-            a.hits > 0)
-            --a.hits;
-          if (a.hits < 4 && step == 0)
-            spawnDebris(a.yw - 0x60, a.x8 + 3);
-          if (a.hits < 3 && step == 1)
-            spawnDebris(a.yw - 0x60, a.x8);
-          if (a.hits < 2 && step == 2)
-            spawnDebris(a.yw - 0x80, a.x8 + 2);
-          if (a.hits == 0)
-          {
-            if (!floorAt(a.x8, a.yw + 0x80) && !floorAt(a.x8 + 8, a.yw + 0x80))
-            {
-              a.yw += 0x20; // the wreck falls
-            }
-            else
-            {
-              spawnExplosion(a.yw - 0x20, a.x8 + 1, 1);
-              spawnExplosion(a.yw - 0x40, a.x8 + 7, 1);
-              spawnExplosion(a.yw - 0x80, a.x8 + 2, 1);
-              spawnExplosion(a.yw - 0x80, a.x8 + 3, 1);
-              spawnExplosion(a.yw - 0x20, a.x8 + 5, 1);
-              for (int k = 0; k < 5; ++k)
-                spawnSparks(
-                  a.yw - (k % 2) * 0x40, a.x8 + 2 * (k / 2) + (k % 2) * 2);
-              addScore(5000, (a.x8 - 2) * 8, a.yw / 8);
-              a.state = 0;
-              a.alive = false;
-              mSandbox.world.cells[a.cellIndex] = a.under;
-            }
-          }
-          else if (
-            touchesPlayer(a.x8 + 2, a.yw - 0x40) ||
-            touchesPlayer(a.x8 + 4, a.yw - 0x40))
-          {
-            p.pendingHit = true;
-          }
-          break;
-        }
-      case 0x303B:
-        {
-          a.v1 = -1;
-          const int step = mPhase % 4;
-          const bool moveNow = step == 0 || step == 2;
-          if (a.state > 2)
-          {
-            static const int kBiteFrame[4] = {0, 6, 3, 7};
-            a.v1 = kBiteFrame[a.v0 & 3];
-            ++a.state;
-            a.v0 = (a.v0 + 1) % 4;
-            if (a.state == 0x14)
-            {
-              a.state = 0;
-              a.alive = false;
-              mSandbox.world.cells[a.cellIndex] = a.under;
-              spawnDebris(a.yw, a.x8);
-              spawnDebris(a.yw - 0x80, a.x8);
-              spawnDebris(a.yw - 0x40, a.x8 - 1);
-              spawnDebris(a.yw - 0x40, a.x8 + 1);
-              spawnDebris(a.yw - 0xc0, a.x8 + 1);
-              spawnDebris(a.yw, a.x8 - 1);
-              addScore(5000, (a.x8 - 2) * 8, a.yw / 8);
-            }
-            break;
-          }
-          if (!floorAt(a.x8, a.yw + 0x80))
-          {
-            a.yw += 0x40;
-          }
-          else if (wallAt(a.x8 - 1, a.yw) && a.state == 1)
-          {
-            a.state = 2;
-            a.v0 = 0;
-          }
-          else if (wallAt(a.x8 + 2, a.yw) && a.state == 2)
-          {
-            a.state = 1;
-            a.v0 = 0;
-          }
-          if (a.v0 == 0)
-          {
-            a.v1 = a.state == 1 ? 6 : 7;
-            if (moveNow)
-              a.v0 = 1;
-          }
-          else
-          {
-            if (a.state == 1)
-            {
-              if (moveNow)
-                --a.x8;
-              a.v1 = a.v0 < 3 ? a.v0 : 5 - a.v0;
-              if (moveNow)
-              {
-                if (floorAt(a.x8, a.yw + 0x80))
-                  ++a.v0;
-                if (a.v0 == 6)
-                  a.v0 = 1;
-              }
-            }
-            if (a.state == 2)
-            {
-              if (moveNow)
-                ++a.x8;
-              a.v1 = a.v0 < 3 ? a.v0 + 2 : 8 - a.v0;
-              if (moveNow)
-              {
-                if (floorAt(a.x8, a.yw + 0x80))
-                  ++a.v0;
-                if (a.v0 == 6)
-                  a.v0 = 1;
-              }
-            }
-          }
-          if (bulletHit(a.yw, a.x8))
-          {
-            a.state = 0;
-            a.alive = false;
-            mSandbox.world.cells[a.cellIndex] = a.under;
-            spawnDebris(a.yw, a.x8);
-            spawnDebris(a.yw - 0x80, a.x8);
-            spawnDebris(a.yw - 0x40, a.x8 - 1);
-            spawnDebris(a.yw - 0x40, a.x8 + 1);
-            spawnDebris(a.yw - 0xc0, a.x8 + 1);
-            spawnDebris(a.yw, a.x8 - 1);
-            addScore(200, (a.x8 - 2) * 8, a.yw / 8);
-          }
-          else if (touchesPlayer(a.x8, a.yw))
-          {
-            p.pendingHit = true;
-            a.state = 3;
-            a.v0 = 0;
-          }
-          break;
-        }
-      case 0x3023:
-        {
-          if (a.state == 1)
-          {
-            if (!floorAt(a.x8, a.yw + 0x80))
-              a.yw += 0x40;
-            if (!offscreen(a.yw, a.x8) && bulletHit(a.yw, a.x8))
-            {
-              spawnSparks(a.yw, a.x8);
-              if (!floorAt(a.x8, a.yw + 0x80))
-                addScore(500, (a.x8 - 2) * 8, a.yw / 8);
-              a.state = 2;
-            }
-          }
-          else
-          {
-            if ((mPhase % 4) == 0)
-              a.v0 = (a.v0 + 1) % 3;
-            if (!floorAt(a.x8, a.yw - 0x80))
-              a.yw -= 8;
-            const bool shot = bulletHit(a.yw - 0x80, a.x8) != 0;
-            if (!shot && !floorAt(a.x8, a.yw - 0x80))
-            {
-              if (touchesPlayer(a.x8, a.yw))
-              {
-                addScore(10000, (a.x8 - 2) * 8, a.yw / 8);
-                sound(3);
-                a.state = 0;
-                a.alive = false;
-                mSandbox.world.cells[a.cellIndex] = a.under;
-              }
-            }
-            else
-            {
-              spawnExplosion(a.yw - 0x80, a.x8, 4); // the balloon pops
-              spawnDebris(a.yw - 0x80, a.x8);
-              a.state = 0;
-              a.alive = false;
-              mSandbox.world.cells[a.cellIndex] = a.under;
-            }
-          }
-          break;
-        }
-      case 0x3024:
-        {
-          if (offscreen(a.yw, a.x8))
-            break;
-          if (bulletHit(a.yw, a.x8))
-          {
-            addScore(100, (a.x8 - 2) * 8, a.yw / 8);
-            spawnExplosion(a.yw, a.x8, 1);
-            a.state = 0;
-            a.alive = false;
-            mSandbox.world.cells[a.cellIndex] = a.under;
-          }
-          break;
-        }
-      case 0x3058:
-      case 0x3059:
-        if (!offscreen(a.yw, a.x8) && touchesPlayer(a.x8, a.yw))
-          p.pendingHit = true;
-        break;
-      case 0x3029:
-      case 0x3037:
-      case 0x3038:
-      case 0x3039:
-      case 0x303A:
-        {
-          if (offscreen(a.yw, a.x8))
-            break;
-          if (!floorAt(a.x8, a.yw + 0x80))
-            a.yw += 0x80;
-          if (a.v0 == 0 && bulletHit(a.yw, a.x8))
-          {
-            spawnSparks(a.yw, a.x8);
-            if (!floorAt(a.x8, a.yw + 0x80))
-              addScore(500, (a.x8 - 2) * 8, a.yw / 8);
-            a.v0 = 1;
-          }
-          if (a.v0 && touchesPlayer(a.x8, a.yw))
-          {
-            if (a.id == 0x3029)
-            {
-              addScore(1000, (a.x8 - 2) * 8, a.yw / 8);
-              p.health = 9; // the sphere restores full health
-              sound(4);
-            }
-            else
-            {
-              static const int kLetter[4] = {'D', 'U', 'K', 'E'};
-              const int letter = kLetter[a.id - 0x3037];
-              if (
-                letter == 'E' && mLetters.size() == 3 && mLetters[0] == 'D' &&
-                mLetters[1] == 'U' && mLetters[2] == 'K')
-              {
-                mDukeBonus = true; // paid when the level is left
-                mLetters.push_back(letter);
-                sound(37);
-              }
-              else
-              {
-                mLetters.push_back(letter);
-                addScore(500, (a.x8 - 2) * 8, a.yw / 8);
-                sound(16);
-              }
-            }
-            a.state = 0;
-            a.alive = false;
-            mSandbox.world.cells[a.cellIndex] = a.under;
-          }
-          break;
-        }
-      case 0x3031:
-        {
-          if (offscreen(a.yw, a.x8))
-            break;
-          static const int kBob[14] = {
-            128, 96, 64, 32, 8, 4, 1, -1, -4, -8, -32, -64, -96, -128};
-          a.yw -= kBob[a.v0 + 6];
-          if (++a.v0 == 8)
-            a.v0 = -6;
-          if (touchesPlayer(a.x8, a.yw))
-            p.pendingHit = true;
-          bulletHit(a.yw, a.x8);
-          break;
-        }
-      case 0x3057:
-        {
-          if (offscreen(a.yw, a.x8))
-            break;
-          if (!floorAt(a.x8, a.yw + 0x80))
-            a.yw += 0x40;
-          if (touchesPlayer(a.x8, a.yw))
-          {
-            p.pendingHit = true;
-            spawnExplosion(a.yw, a.x8, 2);
-            a.state = 0;
-            a.alive = false;
-            mSandbox.world.cells[a.cellIndex] = a.under;
-          }
-          break;
-        }
-      case 0x3002:
-      case 0x3004:
-        {
-          // Rewrites its tiles every update so they animate; carries Duke along
-          // while he stands on it
-          const int anim = mPhase % 4;
-          const int base = a.row * 128 + a.col;
-          for (int i = 0; i < a.v1; ++i)
-          {
-            const auto idx = static_cast<std::size_t>(base + i);
-            if (idx >= mSandbox.world.cells.size())
-              break;
-            std::uint16_t v =
-              static_cast<std::uint16_t>(0x1c00 + (anim & 1) * 0x20);
-            if (i == 0)
-              v = static_cast<std::uint16_t>(
-                a.v0 ? 0x1b80 + anim * 0x20 : 0x1be0 - anim * 0x20);
-            if (i == a.v1 - 1)
-              v = static_cast<std::uint16_t>(
-                a.v0 ? 0x1c40 + anim * 0x20 : 0x1ca0 - anim * 0x20);
-            mSandbox.world.cells[idx] = v;
-          }
-          const int playerX = p.x8 + p.cameraX8;
-          const int dy =
-            ((p.y >> 4) * 0x80 + p.cameraYWords) - (a.yw - 0x20) + 2;
-          const bool standing = playerX > a.x8 - 2 &&
-            playerX < a.x8 + 2 * a.v1 + 2 && dy > 0 && dy < 0x180;
-          if (standing)
-          {
-            std::vector<Event> scratch;
-            const bool canMove = mSandbox.world.clear(
-              a.v0 ? Sensor::Right : Sensor::Left, p, scratch);
-            if (canMove)
-              p.x8 += a.v0 ? 1 : -1;
-          }
-          // Duke hanging from the ceiling below the belt is carried the
-          // opposite way
-          const int dyUnder =
-            ((p.y >> 4) * 0x80 + p.cameraYWords) - (a.yw + 0x60) + 2;
-          if (
-            p.cling && playerX > a.x8 - 2 && playerX < a.x8 + 2 * a.v1 + 2 &&
-            dyUnder > 0 && dyUnder < 0x180)
-          {
-            std::vector<Event> scratch;
-            const bool canMove = mSandbox.world.clear(
-              a.v0 ? Sensor::Left : Sensor::Right, p, scratch);
-            if (canMove)
-              p.x8 += a.v0 ? -1 : 1;
-          }
-          break;
-        }
-      case 0x3001:
-        {
-          // Elevator: a solid carrier tile that rises when Up is pressed while
-          // standing exactly on it
-          if (offscreen(a.yw, a.x8))
-          {
-            if (a.v0 > 0)
-            { // out of view it simply settles back down
-              mSandbox.world
-                .cells[a.cellIndex - static_cast<std::size_t>(a.v0) * 128] =
-                static_cast<std::uint16_t>(a.v1);
-              --a.v0;
-              a.yw += 0x80;
-            }
-            break;
-          }
-          const int playerX = p.x8 + p.cameraX8;
-          const int dy =
-            ((p.y >> 4) * 0x80 + p.cameraYWords) - (a.yw - 0x20) + 2;
-          const bool standing = playerX == a.x8 && dy > 0 && dy < 0x180;
-          if (!standing)
-          {
-            if (a.v0 > 0)
-            { // lowers back down
-              mSandbox.world
-                .cells[a.cellIndex - static_cast<std::size_t>(a.v0) * 128] =
-                static_cast<std::uint16_t>(a.v1);
-              --a.v0;
-              a.yw += 0x80;
-            }
-          }
-          else if (
-            mSandbox.input.up && !p.cling &&
-            mSandbox.world.clear(Sensor::Head, p, mSandbox.events))
-          {
-            sound(20);
-            ++a.v0;
-            a.yw -= 0x80;
-            const auto idx = a.cellIndex - static_cast<std::size_t>(a.v0) * 128;
-            mSandbox.world.cells[idx] = 0x1ae0;
-            p.y -= 0x10;
-            if (p.y < 0x41)
-              p.verticalScroll = true;
-          }
-          break;
-        }
-      case 0x3011:
-        {
-          const auto& in = mSandbox.input;
-          if (a.v0 == 0)
-          {
-            if (
-              in.up && !in.left && !in.right && !in.jump &&
-              (touchesPlayer(a.x8 + 1, a.yw) ||
-               touchesPlayer(a.x8 + 1, a.yw - 0x80)))
-              a.v0 = 1;
-          }
-          else
-          {
-            if (mPhase % 2 == 0)
-              ++a.v0;
-            mExitState = a.v0;
-            if (a.v0 >= 8)
-            {
-              mLevelComplete = true;
-              sound(19);
-            }
-          }
-          break;
-        }
-      case 0x3044:
-      case 0x3045:
-      case 0x3046:
-      case 0x3047:
-        {
-          if (offscreen(a.yw, a.x8))
-            break;
-          if (touchesPlayer(a.x8, a.yw))
-          {
-            mKeys[a.id - 0x3044] = true;
-            sound(9);
-            addScore(1000, (a.x8 - 2) * 8, a.yw / 8);
-            a.state = 0;
-            a.alive = false;
-            mSandbox.world.cells[a.cellIndex] = a.under;
-          }
-          break;
-        }
-      case 0x3048:
-      case 0x3049:
-      case 0x304A:
-      case 0x304B:
-        {
-          if (offscreen(a.yw, a.x8) || a.v0)
-            break;
-          const int color = a.id - 0x3048;
-          if (touchesPlayer(a.x8, a.yw) && mSandbox.input.up && mKeys[color])
-          {
-            for (auto& d : mActors)
-            {
-              if (d.alive && d.id == 0x304C + color && d.v0 == 0)
-              {
-                d.v0 = 1; // start opening
-                const auto idx = d.cellIndex;
-                mSandbox.world.cells[idx] =
-                  idx > 0 ? mSandbox.world.cells[idx - 1] : 0;
-              }
-            }
-            mKeys[color] = false;
-            sound(31);
-            a.v0 = 1;
-            addScore(1000, (a.x8 - 2) * 8, a.yw / 8);
-          }
-          break;
-        }
-      case 0x304C:
-      case 0x304D:
-      case 0x304E:
-      case 0x304F:
-        {
-          if (a.v0 == 0 || offscreen(a.yw, a.x8))
-            break;
-          const int step = mPhase % 4;
-          if (step == 0 || step == 2)
-            ++a.v0;
-          if (a.v0 >= 9)
-          { // fully open: gone
-            a.state = 0;
-            a.alive = false;
-          }
-          break;
-        }
-      case 0x300C:
-        {
-          // Jump height table from the original data: (dx, dy) pairs in 8 px
-          // units / map words
-          static const int kJump[24] = {1, 256, 2, 128, 0, 64, 1, 32,
-                                        0, 16,  1, 8,   0, 4,  1, 2,
-                                        0, 1,   1, -1,  0, -2, 1, -4};
-          a.v1 = -1;
-          if (!offscreen(a.yw, a.x8) && a.v0 == 0)
-            a.v0 = 1;
-          if (a.v0 == 0)
-            break;
-          const int playerX = p.x8 + p.cameraX8;
-          const int stepPhase = mPhase % 4;
-          auto hurtCheck = [&](int frame) {
-            a.v1 = frame;
-            if (
-              touchesPlayer(a.x8 + 1, a.yw) ||
-              touchesPlayer(a.x8 + 1, a.yw - 0x80))
-              p.pendingHit = true;
-          };
-          int hitsTaken = 0;
-          if (bulletHit(a.yw - 0x80, a.x8 + 1) || bulletHit(a.yw, a.x8 + 1))
-            hitsTaken = 1;
-          a.hits -= hitsTaken; // hits counts down from 3
-          if (hitsTaken && a.hits <= 0)
-          {
-            spawnSparks(a.yw - 0x100, a.x8 + 1);
-            spawnSparks(a.yw - 0x80, a.x8);
-            spawnSparks(a.yw, a.x8 + 2);
-            spawnExplosion(a.yw - 0x80, a.x8 + 1, 1);
-            spawnExplosion(a.yw - 0x40, a.x8 + 2, 1);
-            spawnExplosion(a.yw - 0x80, a.x8 + 2, 1);
-            spawnExplosion(a.yw, a.x8 + 1, 1);
-            addScore(2000, (a.x8 - 2) * 8, a.yw / 8);
-            a.state = 0;
-            a.alive = false;
-            mSandbox.world.cells[a.cellIndex] = a.under;
-            break;
-          }
-          if (hitsTaken && a.hits == 2 && stepPhase == 0)
-            spawnDebris(a.yw - 0xc0, a.x8);
-          if (hitsTaken && a.hits == 1 && stepPhase == 0)
-          {
-            spawnDebris(a.yw - 0xc0, a.x8 + 2);
-            spawnDebris(a.yw - 0xc0, a.x8);
-          }
-          for (int guard = 0; guard < 2; ++guard)
-          {
-            if (a.state < 0x19)
-            {
-              if (!floorAt(a.x8 + 1, a.yw + 0x80))
-              { // in the air: fall a row
-                hurtCheck(playerX - 3 < a.x8 ? 2 : 5);
-                a.yw += 0x80;
-              }
-              else
-              {
-                if (playerX - 3 < a.x8)
-                {
-                  a.v0 = 1;
-                  if (a.state != 0xc)
-                    hurtCheck(0);
-                }
-                else
-                {
-                  if (a.state != 0xc)
-                    hurtCheck(3);
-                  a.v0 = 2;
-                }
-                ++a.state;
-                a.yw = (a.yw >> 7) << 7;
-                if (a.state == 0xd)
-                {
-                  if (a.v0 == 1)
-                  {
-                    spawnEnemyShot(a.yw - 0x50, a.x8 - 1, 1);
-                    hurtCheck(1);
-                  }
-                  if (a.v0 == 2)
-                  {
-                    spawnEnemyShot(a.yw - 0x50, a.x8 + 3, 2);
-                    hurtCheck(4);
-                  }
-                  ++a.state;
-                }
-              }
-              break;
-            }
-            if (a.state < 0x32)
-            {
-              const int i0 = a.state - 0x19;
-              const int dx = (i0 >= 0 && i0 < 24) ? kJump[i0] : 0;
-              const int dy = (i0 + 1 >= 0 && i0 + 1 < 24) ? kJump[i0 + 1] : 0;
-              if (a.v0 == 1)
-              {
-                if (floorAt(a.x8 + 1, a.yw - 0x100))
-                {
-                  a.yw = (a.yw >> 7) << 7;
-                  hurtCheck(2);
-                  a.state = 1;
-                  break;
-                }
-                if (!wallAt(a.x8 - 1, a.yw))
-                  a.x8 -= dx;
-                a.yw -= dy;
-                hurtCheck(2);
-                a.state += 2;
-                break;
-              }
-              if (a.v0 == 2)
-              {
-                if (!floorAt(a.x8 + 1, a.yw - 0x100))
-                {
-                  if (!wallAt(a.x8 + 4, a.yw))
-                    a.x8 += dx;
-                  a.yw -= dy;
-                  hurtCheck(5);
-                  a.state += 2;
-                }
-                else
-                {
-                  a.yw = (a.yw >> 7) << 7;
-                  hurtCheck(5);
-                  a.state = 1;
-                }
-                break;
-              }
-            }
-            a.state = 1;
-          }
-          break;
-        }
-      case 0x300E:
-        {
-          a.v1 = -1;
-          const bool vulnerable = mWalkerPhase < 0x19;
-          const bool shotNow =
-            bulletHit(a.yw, a.x8) || bulletHit(a.yw, a.x8 + 2);
-          if (shotNow && vulnerable)
-            --a.hits;
-          if (a.hits <= 0)
-          {
-            spawnSparks(a.yw, a.x8 + 2);
-            spawnSparks(a.yw, a.x8);
-            spawnDebris(a.yw - 0x80, a.x8 + 2);
-            spawnExplosion(a.yw, a.x8 + 1, 1);
-            spawnExplosion(a.yw - 0x80, a.x8 + 1, 1);
-            spawnExplosion(a.yw - 0x80, a.x8, 1);
-            addScore(5000, (a.x8 - 2) * 8, a.yw / 8);
-            a.state = 0;
-            a.alive = false;
-            mSandbox.world.cells[a.cellIndex] = a.under;
-            break;
-          }
-          if (a.hits == 1 && (mPhase % 4) == 0)
-            spawnDebris(a.yw - 0x40, a.x8 + 2);
-          const int step = mPhase % 4;
-          const bool moveNow = step == 0 || step == 2;
-          bool draw = true;
-          if (!floorAt(a.x8 + 1, a.yw + 0x80))
-          {
-            a.yw += 0x80;
-          }
-          else
-          {
-            if (a.state == 1)
-            {
-              if (wallAt(a.x8, a.yw + 0x80) && !wallAt(a.x8, a.yw))
-              {
-                if (moveNow)
-                  --a.x8;
-              }
-              else
-              {
-                a.state = 2;
-              }
-            }
-            if (a.state == 2)
-            {
-              if (!wallAt(a.x8 + 3, a.yw + 0x80) || wallAt(a.x8 + 3, a.yw))
-                a.state = 1;
-              else if (moveNow)
-                ++a.x8;
-            }
-            else if (a.state != 1)
-            {
-              draw = false;
-            }
-          }
-          if (draw)
-          {
-            a.v1 = mWalkerAnim;
-            if (
-              touchesPlayer(a.x8 + 1, a.yw) ||
-              touchesPlayer(a.x8 + 1, a.yw - 0x40))
-              p.pendingHit = true;
-          }
-          break;
-        }
-      case 0x300D:
-        {
-          if (!a.alive)
-            break;
-          a.v1 = -1;
-          const int anim = (mPhase / 2) % 2, slow = mPhase % 2;
-          int hitsTaken =
-            (bulletHit(a.yw, a.x8) || bulletHit(a.yw, a.x8 + 2)) ? 1 : 0;
-          a.hits -= hitsTaken;
-          if (a.hits <= 0)
-          {
-            spawnSparks(a.yw, a.x8 + 2);
-            spawnSparks(a.yw, a.x8);
-            spawnExplosion(a.yw, a.x8 + 1, 1);
-            addScore(2500, (a.x8 - 2) * 8, a.yw / 8);
-            a.state = 0;
-            a.alive = false;
-            mSandbox.world.cells[a.cellIndex] = a.under;
-            break;
-          }
-          if (a.hits == 1 && (mPhase % 4) == 0)
-            spawnDebris(a.yw - 0x40, a.x8 + 2);
-          auto draw = [&](int frame) {
-            a.v1 = frame;
-            if (touchesPlayer(a.x8, a.yw) || touchesPlayer(a.x8 + 2, a.yw))
-              p.pendingHit = true;
-          };
-          if (!floorAt(a.x8, a.yw + 0x80))
-          {
-            a.yw += 0x20;
-            draw(0);
-          }
-          else
-          {
-            if (a.state == 1)
-            {
-              if (!wallAt(a.x8, a.yw) && wallAt(a.x8, a.yw + 0x80))
-              {
-                if (slow == 0)
-                  --a.x8;
-                draw(anim);
-              }
-              else
-              {
-                a.state = 2;
-                spawnEnemyShot(a.yw - 0x40, a.x8 + 4, 2);
-              }
-            }
-            if (a.state == 2)
-            {
-              if (!wallAt(a.x8 + 4, a.yw) && wallAt(a.x8 + 4, a.yw + 0x80))
-              {
-                if (slow == 0)
-                  ++a.x8;
-                draw(anim + 2);
-              }
-              else
-              {
-                a.state = 1;
-                spawnEnemyShot(a.yw - 0x40, a.x8 - 2, 1);
-                draw(anim + 2);
-              }
-            }
-          }
-          break;
-        }
-      case 0x301A:
-        a.v0 = touchesPlayer(a.x8, a.yw) ? 1 : 0;
-        if (a.v0 && !offscreen(a.yw, a.x8))
-          p.pendingHit = true;
-        break;
-      case 0x302C:
-        a.v0 = touchesPlayer(a.x8, a.yw) ? 1 : 0;
-        if (a.v0 && !offscreen(a.yw, a.x8))
-          p.pendingHit = true;
-        break;
-      case 0x3021:
-        // Pushes Duke away from the field instead of hurting him
-        if (!offscreen(a.yw, a.x8))
-        {
-          if (mPhase % 4 == 0)
-            sound(21);
-          if (touchesPlayer(a.x8 + 1, a.yw) && p.x8 < 28)
-            ++p.x8;
-          if (touchesPlayer(a.x8 - 1, a.yw) && p.x8 > 0)
-            --p.x8;
-        }
-        break;
-      case 0x3009:
-      case 0x300A:
-        {
-          // Counter runs 1..0x41; from 0xf a puff, then (0x19-0x2c) a three
-          // piece flame that burns
-          ++a.state;
-          if (a.state > 0x41)
-            a.state = 1;
-          if (a.state >= 0x19 && a.state < 0x2d && !offscreen(a.yw, a.x8))
-          {
-            const int dir = a.id == 0x3009 ? 1 : -1;
-            if (
-              touchesPlayer(a.x8, a.yw) ||
-              touchesPlayer(a.x8 + 2 * dir, a.yw - 0x20) ||
-              touchesPlayer(a.x8 + 4 * dir, a.yw))
-              p.pendingHit = true;
-          }
-          break;
-        }
-      case 0x303C:
-        {
-          if (!floorAt(a.x8, a.yw + 0x80))
-            a.yw += 0x40;
-          if (wallAt(a.x8 - 1, a.yw) || !floorAt(a.x8 - 2, a.yw + 0x80))
-            a.state = 2;
-          if (wallAt(a.x8 + 2, a.yw) || !floorAt(a.x8 + 2, a.yw + 0x80))
-            a.state = 1;
-          const int step = mPhase % 4;
-          if (step == 0 || step == 2)
-            a.x8 += a.state == 1 ? -1 : 1;
-          bulletHit(a.yw, a.x8); // fire eats shots
-          if (touchesPlayer(a.x8, a.yw))
-            p.pendingHit = true;
-          break;
-        }
-      case 0x3012:
-        {
-          if (!floorAt(a.x8, a.yw + 0x80))
-            a.yw += 0x80;
-          if (a.v0 == 0 && bulletHit(a.yw, a.x8))
-          {
-            spawnSparks(a.yw, a.x8);
-            a.v0 = 1;
-            if (!floorAt(a.x8, a.yw + 0x80))
-              addScore(500, (a.x8 - 2) * 8, a.yw / 8);
-          }
-          if (a.v0 == 0)
-            break;
-          const bool visible = !offscreen(a.yw, a.x8);
-          ++a.state;
-          if (a.state > 0xc)
-          {
-            auto blast = [&](int dx) {
-              const int x = a.x8 + dx;
-              return !wallAt(x, a.yw) && wallAt(x, a.yw + 0x80);
-            };
-            if (a.state == 0xe)
-            {
-              spawnExplosion(a.yw, a.x8, 2);
-            }
-            else if (a.state == 0x11)
-            {
-              if (blast(-2))
-                spawnExplosion(a.yw, a.x8 - 2, 2);
-              else
-                a.v1 &= ~1;
-              if (blast(2))
-                spawnExplosion(a.yw, a.x8 + 2, 2);
-              else
-                a.v1 &= ~2;
-            }
-            else if (a.state == 0x13 || a.state == 0x15)
-            {
-              const int d = a.state == 0x13 ? 4 : 6;
-              if ((a.v1 & 1) && (blast(-d)))
-                spawnExplosion(a.yw, a.x8 - d, 2);
-              else if (a.v1 & 1)
-                a.v1 &= ~1;
-              if ((a.v1 & 2) && (blast(d)))
-                spawnExplosion(a.yw, a.x8 + d, 2);
-              else if (a.v1 & 2)
-                a.v1 &= ~2;
-            }
-            else if (a.state == 0x17)
-            {
-              if ((a.v1 & 1) && blast(-8))
-                spawnExplosion(a.yw, a.x8 - 8, 2);
-              if ((a.v1 & 2) && blast(8))
-                spawnExplosion(a.yw, a.x8 + 8, 2);
-            }
-            if (a.state == 0x18)
-            {
-              a.state = 0;
-              a.alive = false;
-              mSandbox.world.cells[a.cellIndex] = a.under;
-            }
-          }
-          (void)visible;
-          break;
-        }
-      case 0x3000:
-        {
-          if (offscreen(a.yw, a.x8))
-            break;
-          if (!floorAt(a.x8, a.yw + 0x80))
-            a.yw += 0x80; // crates fall a row per update
-          if (bulletHit(a.yw, a.x8))
-          {
-            a.state = 0;
-            a.alive = false;
-            mSandbox.world.cells[a.cellIndex] = a.under;
-            spawnSparks(a.yw, a.x8);
-            if (!floorAt(a.x8, a.yw + 0x80))
-              addScore(500, (a.x8 - 2) * 8, a.yw / 8);
-          }
-          break;
-        }
-      case 0x300B:
-        {
-          static const int kDyingLeft[24] = {0, -64, 1, -32, 1, -16, 0, -1,
-                                             0, 0,   1, 12,  1, 24,  0, 46,
-                                             1, 128, 0, 128, 1, 256, 0, 0};
-          static const int kDyingRight[24] = {0,  -64, -1, -32, -1, -16, 0, -1,
-                                              0,  0,   -1, 12,  -1, 24,  0, 46,
-                                              -1, 128, -1, 128, -1, 256, 0, 0};
-          if (a.state == 0xfe || a.state == 0xff)
-          { // knocked out: tumbles along a fixed path, then falls
-            const bool facingRight = a.state == 0xfe;
-            if (floorAt(a.x8, a.yw + 0x80))
-            {
-              spawnSparks(a.yw, a.x8);
-              spawnExplosion(a.yw, a.x8, 1);
-              a.state = 0;
-              a.alive = false;
-              mSandbox.world.cells[a.cellIndex] = a.under;
-              break;
-            }
-            const int limit = facingRight ? 0x15 : 0x14;
-            if (a.v0 < limit)
-            {
-              const int* t = facingRight ? kDyingLeft : kDyingRight;
-              a.x8 += t[a.v0];
-              a.yw += t[a.v0 + 1];
-              a.v0 += 2;
-            }
-            else
-            {
-              a.yw += 0x80;
-            }
-            if (offscreen(a.yw, a.x8))
-            {
-              a.state = 0;
-              a.alive = false;
-              mSandbox.world.cells[a.cellIndex] = a.under;
-            }
-            else
-              spawnDebris(
-                a.yw - 0x80, a.x8); // smoke trail while it tumbles down
-            break;
-          }
-          if (offscreen(a.yw, a.x8) || offscreen(a.yw - 0x80, a.x8))
-            break;
-          const int shot = bulletHit(a.yw - 0x80, a.x8);
-          if (shot == 0 && !touchesPlayer(a.x8, a.yw - 0x80))
-          {
-            if (!floorAt(a.x8, a.yw + 0x80))
-              a.yw += 8;
-            if (floorAt(a.x8, a.yw + 0x80))
-            {
-              a.yw -= 8;
-              if (!floorAt(a.x8, a.yw + 0x80) && mHoverAnim == 0)
-                spawnDebris(a.yw, a.x8);
-            }
-            if (mHoverAnim == 0)
-            {
-              const int playerX = p.x8 + p.cameraX8;
-              if (playerX < a.x8)
-              {
-                if (a.state < 2)
-                {
-                  if (!wallAt(a.x8 - 1, a.yw - 5))
-                  {
-                    --a.x8;
-                    if (mHoverTick == 0)
-                      spawnEnemyShot(a.yw - 0xa0, a.x8 - 1, 1);
-                  }
-                }
-                else
-                {
-                  --a.state;
-                }
-              }
-              if (a.x8 < playerX)
-              {
-                if (a.state < 6)
-                {
-                  ++a.state;
-                }
-                else if (!wallAt(a.x8 + 2, a.yw - 5))
-                {
-                  ++a.x8;
-                  if (mHoverTick == 0)
-                    spawnEnemyShot(a.yw - 0xa0, a.x8 + 1, 2);
-                }
-              }
-            }
-          }
-          else
-          {
-            if (touchesPlayer(a.x8, a.yw))
-              p.pendingHit = true;
-            a.state = (mPhase % 4) < 2
-              ? 0xfe
-              : 0xff; // original tests the shared tile animation step (0 or 32)
-            spawnExplosion(a.yw, a.x8, 1);
-            a.v0 = 0;
-            addScore(200, (a.x8 - 2) * 8, a.yw / 8);
-          }
-          break;
-        }
-      case 0x3016:
-      case 0x3017:
-        {
-          if (offscreen(a.yw, a.x8))
-            break;
-          if (a.state == 1)
-          {
-            a.yw -= 8;
-            if (!floorAt(a.x8 - 2, a.yw) || floorAt(a.x8, a.yw))
-              a.state = 2;
-          }
-          else if (a.state == 2)
-          {
-            a.yw += 8;
-            if (!floorAt(a.x8 - 2, a.yw + 0x80) || floorAt(a.x8, a.yw + 0x80))
-              a.state = 1;
-          }
-          else if (a.state == 3)
-          {
-            a.yw -= 8;
-            if (!floorAt(a.x8 + 2, a.yw) || floorAt(a.x8, a.yw))
-              a.state = 4;
-          }
-          else if (a.state == 4)
-          {
-            a.yw += 8;
-            if (!floorAt(a.x8 + 2, a.yw + 0x80) || floorAt(a.x8, a.yw + 0x80))
-              a.state = 3;
-          }
-          if (bulletHit(a.yw, a.x8))
-          {
-            spawnExplosion(a.yw, a.x8, 1);
-            spawnDebris(a.yw - 0x40, a.x8);
-            addScore(100, (a.x8 - 2) * 8, a.yw / 8);
-            a.state = 0;
-            a.alive = false;
-            mSandbox.world.cells[a.cellIndex] = a.under;
-            break;
-          }
-          if (touchesPlayer(a.x8, a.yw))
-            p.pendingHit = true;
-          break;
-        }
-      case 0x3010:
-        {
-          if (offscreen(a.yw, a.x8))
-            break;
-          if (a.state < 3)
-          {
-            if (const int hit = bulletHit(a.yw, a.x8))
-            {
-              if (hit == 1)
-                --a.x8;
-              if (hit == 2)
-                ++a.x8;
-              a.state = 3;
-            }
-          }
-          if (!floorAt(a.x8, a.yw + 0x80))
-            a.yw += 0x80; // falls a row at a time
-          if (a.state == 1)
-          {
-            if (!wallAt(a.x8 - 1, a.yw) && wallAt(a.x8 - 1, a.yw + 0x80))
-            {
-              if (mFamAnim3010 == 0)
-                --a.x8;
-            }
-            else
-            {
-              a.state = 2;
-            }
-          }
-          else if (a.state == 2)
-          {
-            if (!wallAt(a.x8 + 2, a.yw) && wallAt(a.x8 + 2, a.yw + 0x80))
-            {
-              if (mFamAnim3010 == 0)
-                ++a.x8;
-            }
-            else
-            {
-              a.state = 1;
-            }
-          }
-          else if (a.state > 2)
-          {
-            ++a.state;
-            if (a.state == 10)
-            {
-              a.state = 0;
-              a.alive = false;
-              mSandbox.world.cells[a.cellIndex] = a.under;
-              spawnExplosion(a.yw, a.x8, 1);
-              addScore(100, (a.x8 - 2) * 8, a.yw / 8);
-              break;
-            }
-          }
-          if (a.state > 0 && a.state < 3 && touchesPlayer(a.x8, a.yw))
-            p.pendingHit = true;
-          break;
-        }
-      default:
-        break;
-    }
+    updatePortedPart1(a);
+    updatePortedPart2(a);
+    updatePortedPart3(a);
+    updatePortedPart4(a);
+    updatePortedPart5(a);
   }
   bool any = false;
   for (const auto& t : mActors)
