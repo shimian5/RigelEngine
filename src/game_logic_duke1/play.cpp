@@ -468,9 +468,7 @@ void PlayWorld::update(const Input& input)
     else if (e.kind == Event::Sound)
       sound(e.value);
   mSandbox.events.clear();
-  for (const auto& [x8, yWords] : mSandbox.impacts)
-    spawnSparks(yWords, x8, true);
-  mSandbox.impacts.clear();
+  mSandbox.impacts.clear(); // no wall-hit effect yet
   for (auto& pop : mPopups)
     ++pop.age;
   mPopups.erase(
@@ -915,11 +913,9 @@ void PlayWorld::renderWorld(
       ? 0
       : static_cast<int>(std::lround(16 * (1.0 - mBlend))) *
         (b.kind == 1 ? 1 : -1);
-    // The flash is at the muzzle: the position the shot was fired from
-    const int fired = muzzle && b.age >= 1 ? (b.kind == 1 ? 2 : -2) * 8 : 0;
     blit(
       out,
-      b.x8 * 8 - left + shotShift + fired,
+      b.x8 * 8 - left + shotShift,
       b.yWords / 8 + 3 - top,
       bank[frame].data(),
       16,
@@ -942,7 +938,9 @@ void PlayWorld::renderWorld(
     const bool leftFacing = p.facing == 0;
     // MAN0 groups 0-3: walking left, 4-7: walking right; MAN1 groups 0/1:
     // standing left/right
-    const bool standing = p.grounded && p.walkFrame == 0;
+    // Standing still always shows both feet down, whatever step he stopped on
+    const bool standing =
+      p.grounded && !(mSandbox.input.left || mSandbox.input.right);
     const Tileset* pSet = standing ? &mMan[1] : &mMan[0];
     int base = standing ? (leftFacing ? 0 : 4)
                         : 4 * ((leftFacing ? 0 : 4) + p.walkFrame % 4);
