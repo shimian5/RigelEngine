@@ -650,16 +650,8 @@ void Duke1Mode::activatePauseSelection()
             showPages(mpScreens->endingPages());
           break;
         }
-        const auto message = mText->levels()[mLevelIndex].intermissionMessage;
         startLevel(mLevelIndex + 1, &mStatsCarry);
         mFadeInPending = true;
-        if (mpScreens && mpScreens->valid())
-        {
-          if (auto page = mpScreens->hallwayMessage(message); !page.empty())
-          {
-            showPages({std::move(page)});
-          }
-        }
         break;
       }
 
