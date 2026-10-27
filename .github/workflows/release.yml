@@ -1,0 +1,54 @@
+name: Release
+
+# Creates a pre-release with the Android ARM64 test APK when a tag such as
+# v1.0.0-beta.1 is pushed. No game data is built into or attached to it.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build and attach the APK to
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  android_release:
+    name: Android ARM64 pre-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ env.TAG }}
+        submodules: recursive
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
+    - uses: android-actions/setup-android@v3
+      with:
+        packages: platform-tools
+        log-accepted-android-sdk-licenses: false
+    - name: Install pinned Android toolchain
+      run: sdkmanager "platforms;android-33" "build-tools;35.0.0" "ndk;27.2.12479018"
+    - name: Build and verify APK without game data
+      env:
+        RIGEL_ANDROID_JOBS: '2'
+      run: |
+        export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"
+        bash tools/build_android.sh
+    - name: Create the pre-release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        cp build-android/output/RigelEngine-arm64-debug.apk "RigelEngine-${TAG}-arm64-debug.apk"
+        (cd build-android/output && cat SHA256SUMS) > SHA256SUMS
+        gh release create "$TAG" --prerelease --title "$TAG (test build)" \
+          --notes-file docs/RELEASE_NOTES_TEMPLATE.md \
+          "RigelEngine-${TAG}-arm64-debug.apk" SHA256SUMS
