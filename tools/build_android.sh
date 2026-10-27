@@ -100,7 +100,7 @@ mapfile -d '' classes < <(find "$stage/classes" -name '*.class' -print0)
   --manifest "$repo/android/app/AndroidManifest.xml" -I "$android_jar" \
   --min-sdk-version 26 --target-sdk-version 33
 python3 "$repo/tools/package_android.py" "$stage"
-"$tools/zipalign" -f -p 4 "$stage/unsigned.apk" "$output/RigelEngine-arm64-unsigned.apk"
+"$tools/zipalign" -f -p 4 "$stage/unsigned.apk" "$output/rigelengine-proton-arm64-unsigned.apk"
 
 # Local callers may provide their existing debug key. CI generates a throwaway key.
 key=${ANDROID_DEBUG_KEYSTORE:-"$build/debug.keystore"}
@@ -115,14 +115,14 @@ if [[ ! -f "$key" ]]; then
 fi
 "${java_bin}java" -jar "$tools/lib/apksigner.jar" sign --ks "$key" \
   --ks-pass pass:android --key-pass pass:android \
-  --out "$output/RigelEngine-arm64-debug.apk" "$output/RigelEngine-arm64-unsigned.apk"
+  --out "$output/rigelengine-proton-arm64-debug.apk" "$output/rigelengine-proton-arm64-unsigned.apk"
 "${java_bin}java" -jar "$tools/lib/apksigner.jar" verify --verbose \
-  "$output/RigelEngine-arm64-debug.apk"
-"$tools/zipalign" -c -p 4 "$output/RigelEngine-arm64-debug.apk"
-python3 "$repo/tools/package_android.py" --verify "$output/RigelEngine-arm64-debug.apk"
+  "$output/rigelengine-proton-arm64-debug.apk"
+"$tools/zipalign" -c -p 4 "$output/rigelengine-proton-arm64-debug.apk"
+python3 "$repo/tools/package_android.py" --verify "$output/rigelengine-proton-arm64-debug.apk"
 (
   cd "$output"
-  sha256sum ./*.apk > SHA256SUMS
+  sha256sum ./rigelengine-proton-arm64-debug.apk ./rigelengine-proton-arm64-unsigned.apk > SHA256SUMS
   git -C "$repo" rev-parse HEAD > COMMIT
   if git -C "$repo" diff --quiet HEAD; then
     printf 'clean tracked source tree\n' > SOURCE_STATE

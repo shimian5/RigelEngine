@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2022 Nikolai Wuttke -->
+<component type="desktop-application">
+    <id>io.github.shimian5.RigelEngineProton</id>
+    <metadata_license>CC0-1.0</metadata_license>
+    <project_license>GPL-2.0-or-later</project_license>
+    <name>RigelEngine: Proton</name>
+    <summary>Enhanced engine for Duke Nukem I and II</summary>
+    <description>
+        <p>RigelEngine: Proton is an enhanced engine for the DOS games Duke Nukem I
+        and Duke Nukem II, based on RigelEngine. It adds a shared launcher,
+        controller-friendly menus, an overlay HUD and persistent saves.</p>
+        <p>Players supply their own original shareware or registered game data.
+        No game files are included.</p>
+    </description>
+
+    <categories>
+        <category>Game</category>
+        <category>ActionGame</category>
+        <category>ArcadeGame</category>
+    </categories>
+
+    <launchable type="desktop-id">rigelengine-proton.desktop</launchable>
+
+    <url type="homepage">https://github.com/shimian5/RigelEngine-Proton</url>
+    <url type="bugtracker">https://github.com/shimian5/RigelEngine-Proton/issues</url>
+    <url type="faq">https://github.com/lethal-guitar/RigelEngine/wiki/FAQ</url>
+
+    <screenshots>
+        <screenshot type="default">
+            <caption>Duke Nukem I with the modern overlay HUD</caption>
+            <image>https://raw.githubusercontent.com/shimian5/RigelEngine-Proton/master/docs/screenshots/duke-nukem-1-overlay.png</image>
+        </screenshot>
+        <screenshot>
+            <caption>Duke Nukem II with the modern overlay HUD</caption>
+            <image>https://raw.githubusercontent.com/shimian5/RigelEngine-Proton/master/docs/screenshots/duke-nukem-2-overlay.png</image>
+        </screenshot>
+    </screenshots>
+
+    <provides>
+        <binary>rigelengine-proton</binary>
+    </provides>
+
+    <content_rating type="oars-1.0"/>
+</component>

@@ -7,33 +7,33 @@ on:
 
 jobs:
   build_package_linux:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: Install dependencies
-      run: sudo ./docker/ubuntu-deps.sh
+      run: sudo apt-get update && sudo apt-get install --no-install-recommends -y cmake g++ libsdl2-dev libsdl2-mixer-dev make
     - name: Run CMake
-      run: CC=gcc-8 CXX=g++-8 cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Release
+      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
     - name: Build
       run: cd build && make -j2
     - name: Package (deb)
-      run: cd build && cpack -G "DEB" && mv packages/rigelengine.deb packages/rigelengine_linux_x64.deb && mv packages/rigelengine.deb.sha256 packages/rigelengine_linux_x64.deb.sha256
+      run: cd build && cpack -G "DEB" && mv packages/rigelengine-proton.deb packages/rigelengine-proton_linux_x64.deb && mv packages/rigelengine-proton.deb.sha256 packages/rigelengine-proton_linux_x64.deb.sha256
     - name: Run CMake (GL ES version)
-      run: CC=gcc-8 CXX=g++-8 cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Release -DUSE_GL_ES=ON
+      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DUSE_GL_ES=ON
     - name: Build (GL ES version)
       run: cd build && make -j2
     - name: Package (deb), GL ES version
-      run: cd build && cpack -G "DEB" && mv packages/rigelengine.deb packages/rigelengine_linux_gles_x64.deb && mv packages/rigelengine.deb.sha256 packages/rigelengine_linux_gles_x64.deb.sha256
-    - uses: actions/upload-artifact@v2
+      run: cd build && cpack -G "DEB" && mv packages/rigelengine-proton.deb packages/rigelengine-proton_linux_gles_x64.deb && mv packages/rigelengine-proton.deb.sha256 packages/rigelengine-proton_linux_gles_x64.deb.sha256
+    - uses: actions/upload-artifact@v4
       with:
         name: ubuntu_deb_build
         path: build/packages/*.deb*
 #  build_package_osx:
 #    runs-on: macos-11
 #    steps:
-#    - uses: actions/checkout@v2
+#    - uses: actions/checkout@v4
 #      with:
 #        submodules: recursive
 #    - name: Install dependencies
@@ -43,8 +43,8 @@ jobs:
 #    - name: Build
 #      run: cd build && make -j2
 #    - name: Package (dmg)
-#      run: cd build && cpack -G "DragNDrop" .. && mv packages/rigelengine.dmg packages/rigelengine_mac_x64.dmg && mv packages/rigelengine.dmg.sha256 packages/rigelengine_mac_x64.dmg.sha256
-#    - uses: actions/upload-artifact@v2
+#      run: cd build && cpack -G "DragNDrop" .. && mv packages/rigelengine-proton.dmg packages/rigelengine-proton_mac_x64.dmg && mv packages/rigelengine-proton.dmg.sha256 packages/rigelengine-proton_mac_x64.dmg.sha256
+#    - uses: actions/upload-artifact@v4
 #      with:
 #        name: macos_dmg_build
 #        path: build/packages/*.dmg*
@@ -53,7 +53,7 @@ jobs:
 #  build_package_osx:
 #    runs-on: macos-11
 #    steps:
-#    - uses: actions/checkout@v2
+#    - uses: actions/checkout@v4
 #      with:
 #        submodules: recursive
 #    - name: Install dependencies
@@ -71,8 +71,8 @@ jobs:
 #    - name: Build
 #      run: cd build && make -j2
 #    - name: Package (dmg)
-#      run: cd build && cpack -G "DragNDrop" .. && mv packages/rigelengine.dmg packages/rigelengine_mac_x64.dmg && mv packages/rigelengine.dmg.sha256 packages/rigelengine_mac_x64.dmg.sha256
-#    - uses: actions/upload-artifact@v2
+#      run: cd build && cpack -G "DragNDrop" .. && mv packages/rigelengine-proton.dmg packages/rigelengine-proton_mac_x64.dmg && mv packages/rigelengine-proton.dmg.sha256 packages/rigelengine-proton_mac_x64.dmg.sha256
+#    - uses: actions/upload-artifact@v4
 #      with:
 #        name: macos_dmg_build
 #        path: build/packages/*.dmg*

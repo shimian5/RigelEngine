@@ -1,6 +1,6 @@
 {
-    "name": "RigelEngine",
-    "short_name": "RigelEngine",
+    "name": "RigelEngine: Proton",
+    "short_name": "Proton",
     "icons": [
         {
             "src": "/android-chrome-192x192.png?v=2",

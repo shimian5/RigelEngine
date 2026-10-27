@@ -33,7 +33,7 @@ before_build:
 
 build:
     parallel: true
-    project: build/RigelEngine.sln
+    project: build/RigelEngineProton.sln
     verbosity: minimal
 
 before_test:
@@ -42,11 +42,11 @@ before_test:
 test_script:
     - cd build
     - ctest
-    - C:\projects\rigelengine\build\src\%CONFIGURATION%\RigelEngine.exe --help
+    - %APPVEYOR_BUILD_FOLDER%\build\src\%CONFIGURATION%\rigelengine-proton.exe --help
 
 after_build:
-  - 7z a rigelengine_win_x64.zip C:\projects\rigelengine\build\src\%CONFIGURATION%\RigelEngine.exe %SDL2DIR%\lib\x64\SDL2.dll %SDL2MIXERDIR%\lib\x64\*.dll
+  - 7z a rigelengine-proton_win_x64.zip %APPVEYOR_BUILD_FOLDER%\build\src\%CONFIGURATION%\rigelengine-proton.exe %SDL2DIR%\lib\x64\SDL2.dll %SDL2MIXERDIR%\lib\x64\*.dll
 
 artifacts:
-    - path: rigelengine_win_x64.zip
+    - path: rigelengine-proton_win_x64.zip
       name: RigelBuild

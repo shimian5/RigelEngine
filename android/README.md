@@ -1,4 +1,4 @@
-# Android ARM64 build
+# RigelEngine: Proton Android ARM64 build
 
 The CI job cross-compiles on GitHub's Ubuntu runner and uploads an APK artifact on
 pushes, pull requests and manual CI runs. It does not emulate Android, launch the
@@ -28,8 +28,8 @@ matching the current local build; this is not an optional-music packaging job.
 
 Outputs are in build-android/output:
 
-- RigelEngine-arm64-debug.apk: signed development/test APK.
-- RigelEngine-arm64-unsigned.apk: aligned APK for separate signing.
+- rigelengine-proton-arm64-debug.apk: signed development/test APK.
+- rigelengine-proton-arm64-unsigned.apk: aligned APK for separate signing.
 - SHA256SUMS, COMMIT and SOURCE_STATE: artifact hashes and source revision/status.
 
 Packaging checks an explicit file allowlist: manifest, generated Android resource table,

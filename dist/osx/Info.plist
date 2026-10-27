@@ -7,11 +7,11 @@
   <key>CFBundleExecutable</key>
   <string>${MACOSX_BUNDLE_EXECUTABLE_NAME}</string>
   <key>CFBundleIdentifier</key>
-  <string>de.nikolai-wuttke.RigelEngine</string>
+  <string>io.github.shimian5.RigelEngineProton</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>RigelEngine</string>
+  <string>RigelEngine: Proton</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>NSHighResolutionCapable</key>

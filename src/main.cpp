@@ -120,10 +120,10 @@ void showBanner()
 {
   std::cout
     << "================================================================================\n"
-       "                            Welcome to RIGEL ENGINE!\n"
+       "                            Welcome to RigelEngine: Proton!\n"
        "\n"
-       "  A modern reimplementation of the game Duke Nukem II, originally released in\n"
-       "  1993 for MS-DOS by Apogee Software.\n"
+       "  An enhanced engine for Duke Nukem I and II, originally released for MS-DOS\n"
+       "  by Apogee Software. Based on RigelEngine by Nikolai Wuttke.\n"
        "\n"
        "You need the original game's data files in order to play, e.g. the freely\n"
        "available shareware version.\n"
@@ -148,7 +148,9 @@ bool isExpectedExeName(const char* exeName)
   namespace fs = std::filesystem;
 
   const auto executablePath = fs::u8path(exeName);
-  return strings::startsWith(executablePath.stem().u8string(), "RigelEngine");
+  const auto name = executablePath.stem().u8string();
+  return strings::startsWith(name, "rigelengine-proton") ||
+    strings::startsWith(name, "RigelEngine");
 }
 
 

@@ -259,7 +259,7 @@ std::string makeScreenshotFilename()
     "%Y-%m-%d_%H%M%S",
     pLocalTime);
 
-  return "RigelEngine_"s + dateTimeBuffer.data() + ".png";
+  return "rigelengine-proton_"s + dateTimeBuffer.data() + ".png";
 }
 
 } // namespace

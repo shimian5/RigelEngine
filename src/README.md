@@ -4,7 +4,7 @@ RigelEngine's source code is organized into a couple of packages/modules, each o
 source folder. All these modules are compiled into a static library
 `rigel_core`. Some additional files are not assigned to any module,
 but reside directly in the top level of the `src` directory. These
-files are compiled into the actual RigelEngine executable, which
+files are compiled into the actual `rigelengine-proton` executable, which
 links against the `rigel_core` library. Unit tests (in the `tests` directory) link against
 the same library as well.
 

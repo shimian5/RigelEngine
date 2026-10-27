@@ -1,36 +1,30 @@
 # enable packing
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
-set(CPACK_PACKAGE_VENDOR "Nikolai Wuttke <lethal_guitar128@web.de>")
-set(CPACK_PACKAGE_CONTACT "Nikolai Wuttke <lethal_guitar128@web.de>")
+set(CPACK_PACKAGE_VENDOR "RigelEngine: Proton contributors")
+set(CPACK_PACKAGE_CONTACT "shimian5@users.noreply.github.com")
+set(CPACK_PACKAGE_NAME "rigelengine-proton")
 set(CPACK_PACKAGE_DESCRIPTION [[
-RigelEngine is a re-implementation of the game Duke Nukem II, originally
-released by Apogee Software in 1993 for MS-DOS.  It works as a drop-in
-replacement for the original executable: It reads the game's data files and
-plays just like the original, but runs natively on modern operating systems.
-On top of that, it offers various modern enhancements like higher frame rate,
-better game controller support, a wide-screen mode, quick saving etc.
+RigelEngine: Proton is an enhanced engine for Duke Nukem I and II, based on
+RigelEngine. It offers a shared launcher, modern menus and HUD, controller
+support, widescreen rendering, motion smoothing and persistent saves.
 
-In order to run RigelEngine, the game data from the original game is required.
-Both the shareware version and the registered version work.
-
-You can grab the shareware version from archive.org:
-https://archive.org/download/msdos_DUKE2_shareware/DUKE2.zip
-]]
-)
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A modern re-implementation of the game Duke Nukem II")
-set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/lethal-guitar/RigelEngine")
+Players supply their own original shareware or registered DOS game data.
+No game files are included.
+]])
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Enhanced engine for Duke Nukem I and II")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/shimian5/RigelEngine-Proton")
 set(CPACK_PACKAGE_CHECKSUM "SHA256")
-set(CPACK_PACKAGE_INSTALL_DIRECTORY "RigelEngine")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "RigelEngine-Proton")
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
-set(CPACK_PACKAGE_EXECUTABLES "RigelEngine")
-set(CPACK_CREATE_DESKTOP_LINKS "RigelEngine")
+set(CPACK_PACKAGE_EXECUTABLES "rigelengine-proton" "RigelEngine: Proton")
+set(CPACK_CREATE_DESKTOP_LINKS "rigelengine-proton")
 set(CPACK_OUTPUT_FILE_PREFIX packages)
 set(CPACK_STRIP_FILES TRUE)
 set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
 set(CPACK_COMPONENTS_ALL bin)
-set(CPACK_PACKAGE_FILE_NAME "rigelengine")
+set(CPACK_PACKAGE_FILE_NAME "rigelengine-proton")
 
 # We don't include this in order to avoid popping up a "Agree to EULA" dialog
 # for some CPack generators, like Mac OS

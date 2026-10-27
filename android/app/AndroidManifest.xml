@@ -12,13 +12,13 @@
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="33" />
 
     <application
-        android:label="RigelEngine"
+        android:label="RigelEngine: Proton"
         android:allowBackup="true"
         android:hardwareAccelerated="true"
         android:isGame="true">
         <activity
             android:name="RigelActivity"
-            android:label="RigelEngine"
+            android:label="RigelEngine: Proton"
             android:exported="true"
             android:alwaysRetainTaskState="true"
             android:launchMode="singleInstance"

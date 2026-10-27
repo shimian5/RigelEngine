@@ -1,4 +1,4 @@
-# How to build RigelEngine from source
+# How to build RigelEngine: Proton from source
 
 * [Cloning & initializing submodules](#get-the-sources)
 * [Build configuration](#build-configuration)
@@ -24,8 +24,8 @@ RigelEngine uses Git submodules, which means you need to either use `git clone -
 or run one additional command after cloning to initialize submodules:
 
 ```bash
-git clone --branch dn1-snapshot-2026-10-26 https://github.com/shimian5/RigelEngine.git
-cd RigelEngine
+git clone --recursive https://github.com/shimian5/RigelEngine-Proton.git
+cd RigelEngine-Proton
 git submodule update --init --recursive
 ```
 
@@ -126,7 +126,7 @@ make -j$(nproc)
 # -DWARNINGS_AS_ERRORS=ON -DBUILD_TESTS=ON to the cmake command.
 
 # Now run it!
-./src/RigelEngine
+./src/rigelengine-proton
 ```
 
 #### <a name="linux-build-instructions-184">Ubuntu 18.04</a>
@@ -173,7 +173,7 @@ cmake ..
 make -j$(nproc)
 
 # Now run it!
-./src/RigelEngine
+./src/rigelengine-proton
 ```
 
 #### <a name="linux-build-instructions-fedora">Fedora 31 or newer</a>
@@ -275,7 +275,7 @@ cmake ..
 make -j$(nproc)
 
 # Now run it!
-./src/RigelEngine.app/Contents/MacOS/RigelEngine
+./src/rigelengine-proton.app/Contents/MacOS/rigelengine-proton
 ```
 
 ### <a name="mac-build-instructions-1014">Mojave (10.14) using clang 8</a>
@@ -302,7 +302,7 @@ cmake
 make -j$(nproc)
 
 # Now run it!
-./src/RigelEngine.app/Contents/MacOS/RigelEngine
+./src/rigelengine-proton.app/Contents/MacOS/rigelengine-proton
 ```
 
 ### <a name="windows-build-instructions">Windows builds</a>
@@ -334,7 +334,7 @@ cd build
 cmake .. -DCMAKE_TOOLCHAIN_FILE=<vcpkg_root>/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows -DCMAKE_GENERATOR_PLATFORM=x64
 
 # This will open the generated Visual Studio solution
-start RigelEngine.sln
+start RigelEngineProton.sln
 ```
 
 #### <a name="windows-build-instructions-32">32-bit builds</a>
@@ -354,7 +354,7 @@ cd build
 cmake .. -DCMAKE_TOOLCHAIN_FILE=<vcpkg_root>/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x86-windows -DCMAKE_GENERATOR_PLATFORM=Win32
 
 # This will open the generated Visual Studio solution
-start RigelEngine.sln
+start RigelEngineProton.sln
 ```
 
 ## Android ARM64

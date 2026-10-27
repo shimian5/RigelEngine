@@ -71,7 +71,7 @@ sdl_utils::Ptr<SDL_Window> createWindow(const data::GameOptions& options)
     width,
     height);
   auto pWindow = sdl_utils::wrap(sdl_utils::check(SDL_CreateWindow(
-    "Rigel Engine",
+    "RigelEngine: Proton",
     options.mWindowPosX,
     options.mWindowPosY,
     width,

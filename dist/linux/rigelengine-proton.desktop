@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=RigelEngine: Proton
+Comment=Enhanced engine for Duke Nukem I and II
+Icon=rigelengine-proton
+Exec=rigelengine-proton
+Terminal=false
+Categories=Game;ActionGame;

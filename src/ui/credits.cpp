@@ -47,10 +47,10 @@ void drawCredits(const float creditsBoxWidth)
   };
 
 
-  centeredTextBig("RigelEngine", 2.2f);
+  centeredTextBig("RigelEngine: Proton", 2.2f);
   ImGui::Spacing();
-  centeredText("A modern re-implementation of the game Duke Nukem II");
-  centeredText("(originally released in 1993 by Apogee Software)");
+  centeredText("An enhanced engine for Duke Nukem I and II");
+  centeredText("(original DOS games by Apogee Software)");
 
   ImGui::NewLine();
 
@@ -120,7 +120,7 @@ void drawCredits(const float creditsBoxWidth)
   ImGui::NewLine();
 
   centeredText("Find the full source code on GitHub:");
-  centeredText("https://github.com/lethal-guitar/RigelEngine");
+  centeredText("https://github.com/shimian5/RigelEngine-Proton");
 
   ImGui::NewLine();
   ImGui::NewLine();

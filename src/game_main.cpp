@@ -293,7 +293,7 @@ void logVersionAndSystemInfo()
 {
   LOG_F(
     INFO,
-    "RigelEngine v%d.%d.%d (commit %s) - %s renderer",
+    "RigelEngine: Proton v%d.%d.%d (commit %s) - %s renderer",
     VERSION_MAJOR,
     VERSION_MINOR,
     VERSION_PATCH,

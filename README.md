@@ -1,14 +1,14 @@
-# Rigel Engine [![CI](https://github.com/shimian5/RigelEngine/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/shimian5/RigelEngine/actions/workflows/ci.yml)
+# RigelEngine: Proton [![CI](https://github.com/shimian5/RigelEngine-Proton/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/shimian5/RigelEngine-Proton/actions/workflows/ci.yml)
 
-## What is Rigel Engine?
+## What is RigelEngine: Proton?
 
-RigelEngine is a modern C++ reimplementation of **Duke Nukem I** (1991) and
+RigelEngine: Proton is an enhanced C++ reimplementation of **Duke Nukem I** (1991) and
 **Duke Nukem II** (1993), originally released by Apogee Software for MS-DOS.
 It reads your original game files and runs natively on modern operating systems.
 This fork builds on [lethal-guitar's RigelEngine](https://github.com/lethal-guitar/RigelEngine),
 adding an independent Duke Nukem I implementation alongside the upstream Duke Nukem II engine.
 
-Compared to running the originals in an emulator, RigelEngine offers modern enhancements
+Compared to running the originals in an emulator, RigelEngine: Proton offers modern enhancements
 and usability improvements, including:
 
 * widescreen rendering
@@ -46,7 +46,7 @@ registered data. This fork adds a new launcher, menus and persistent saves aroun
 
 ### Supported platforms
 
-RigelEngine supports Windows, Linux and **Android ARM64**.
+RigelEngine: Proton supports Windows, Linux and **Android ARM64**.
 macOS is not supported by this fork: upstream's macOS support predates Apple silicon, it is
 not built or tested here, and the new Duke Nukem I code has never been run on it.
 The Android build targets Android 8.0 / API 26 or newer and uses OpenGL ES.
@@ -60,7 +60,7 @@ See the upstream guide to [Running on Raspberry Pi and Odroid Go Advance](https:
 
 ### System requirements
 
-RigelEngine is not very demanding, but it does require OpenGL-capable graphics hardware.
+RigelEngine: Proton is not very demanding, but it does require OpenGL-capable graphics hardware.
 Either OpenGL 3.0 or OpenGL ES 2.0 can be chosen at compile time.
 
 Any Nvidia or AMD graphics card from 2007 or later should run the game without problems.
@@ -75,13 +75,13 @@ Raspberry Pi systems.
 
 ## Contributing
 
-Contributions to RigelEngine are very welcome! Please have a look at the [contribution guide](CONTRIBUTING.md) before making a PR.
+Contributions to RigelEngine: Proton are welcome! Please have a look at the [contribution guide](CONTRIBUTING.md) before making a PR.
 
 There is a growing body of documentation on the Wiki, to help with getting into the code base. A good place to start is [Architecture Overview](https://github.com/lethal-guitar/RigelEngine/wiki/Architecture-overview)
 
-For work specific to this fork, see the [pull requests](https://github.com/shimian5/RigelEngine/pulls).
+For work specific to this fork, see the [pull requests](https://github.com/shimian5/RigelEngine-Proton/pulls).
 
-## Running RigelEngine
+## Running RigelEngine: Proton
 
 Supply your own original DOS game files. Duke Nukem I supports shareware episode 1 and
 all three registered episodes; Duke Nukem II supports shareware and registered data.
@@ -135,7 +135,7 @@ a complete file loads normally.
 For **Duke Nukem II** (needed only if you want to play it), the required file is `NUKEM2.CMP`. Include `NUKEM2.F1` through
 `NUKEM2.F5` for the optional intro movies; missing movies are skipped.
 Existing original Duke Nukem II saves, high scores and settings can be imported into
-RigelEngine's user profile on first use. The upstream
+RigelEngine: Proton's user profile on first use. The upstream
 [F.A.Q.](https://github.com/lethal-guitar/RigelEngine/wiki/FAQ) provides additional
 background for Duke Nukem II.
 
@@ -167,8 +167,8 @@ command-line options, debugging tools and engine features.
 ## Pre-built binaries
 
 For this fork's Android build, open a successful run in
-[GitHub Actions](https://github.com/shimian5/RigelEngine/actions/workflows/ci.yml)
-and download the `android-arm64-apks` artifact. It contains a signed development APK,
+[GitHub Actions](https://github.com/shimian5/RigelEngine-Proton/actions/workflows/ci.yml)
+and download the `rigelengine-proton-android-arm64-apks` artifact. It contains a signed development APK,
 an aligned unsigned APK for separate signing, checksums and source revision information.
 A GitHub sign-in is required to download workflow artifacts.
 
@@ -188,12 +188,16 @@ additions; they provide desktop builds of the upstream Duke Nukem II engine.
 Clone this fork with its submodules. On Linux, use a separate build directory:
 
 ```sh
-git clone --recursive https://github.com/shimian5/RigelEngine.git
-cd RigelEngine
+git clone --recursive https://github.com/shimian5/RigelEngine-Proton.git
+cd RigelEngine-Proton
 cmake -S . -B build-host -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBUILD_TESTS=ON
 cmake --build build-host --parallel 2
 ctest --test-dir build-host --output-on-failure
 ```
+
+The desktop executable is `rigelengine-proton` (`rigelengine-proton.exe` on Windows).
+On Android, the app appears as **RigelEngine: Proton**. Updating the existing app
+keeps its saves and settings.
 
 Install the platform dependencies described in [BUILDING.md](BUILDING.md) first.
 For Visual Studio, follow its Windows setup instructions and select the same configuration

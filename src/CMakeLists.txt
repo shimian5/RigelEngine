@@ -468,6 +468,7 @@ else()
         ${icon_file_osx}
         ${rc_file_windows}
     )
+    set_target_properties(RigelEngine PROPERTIES OUTPUT_NAME rigelengine-proton)
 endif()
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
@@ -520,7 +521,7 @@ if(APPLE)
     install(CODE [[
         include(BundleUtilities)
         set(BU_CHMOD_BUNDLE_ITEMS TRUE)
-        fixup_bundle("${CMAKE_INSTALL_PREFIX}/RigelEngine.app" "" "")
+        fixup_bundle("${CMAKE_INSTALL_PREFIX}/rigelengine-proton.app" "" "")
     ]] COMPONENT bin)
 elseif(UNIX)
     include(GNUInstallDirs)
@@ -528,22 +529,27 @@ elseif(UNIX)
         DESTINATION ${CMAKE_INSTALL_BINDIR}
         COMPONENT bin
     )
-    install(FILES ${CMAKE_SOURCE_DIR}/dist/linux/rigelengine.desktop
+    install(FILES ${CMAKE_SOURCE_DIR}/dist/linux/rigelengine-proton.desktop
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications
+        COMPONENT bin
     )
-    install(FILES ${CMAKE_SOURCE_DIR}/dist/linux/rigelengine.metainfo.xml
+    install(FILES ${CMAKE_SOURCE_DIR}/dist/linux/rigelengine-proton.metainfo.xml
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/metainfo
+        COMPONENT bin
     )
     install(FILES ${CMAKE_SOURCE_DIR}/dist/linux/rigelengine_48.png
-        RENAME rigelengine.png
+        RENAME rigelengine-proton.png
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/48x48/apps
+        COMPONENT bin
     )
     install(FILES ${CMAKE_SOURCE_DIR}/dist/linux/rigelengine_64.png
-        RENAME rigelengine.png
+        RENAME rigelengine-proton.png
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/64x64/apps
+        COMPONENT bin
     )
     install(FILES ${CMAKE_SOURCE_DIR}/dist/linux/rigelengine_128.png
-        RENAME rigelengine.png
+        RENAME rigelengine-proton.png
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/128x128/apps
+        COMPONENT bin
     )
 endif()
