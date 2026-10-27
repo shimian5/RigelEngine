@@ -22,6 +22,7 @@ option(USE_GL_ES "Use OpenGL ES instead of regular OpenGL" OFF)
 option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(BUILD_BENCHMARKS "Build benchmarks" OFF)
 option(BUILD_TESTS "Build tests" OFF)
+option(RIGEL_DEV_SCREENSHOT "Dev only: RIGEL_SCREENSHOT=<png> env var saves a frame" OFF)
 
 include("${CMAKE_SOURCE_DIR}/cmake/rigel_sanitizers.cmake")
 
@@ -45,11 +46,13 @@ if("${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
     set(WEBASSEMBLY_GAME_PATH "" CACHE PATH "Path to folder containing Duke Nukem II files")
     set(USE_GL_ES ON)
 
-    if (NOT WEBASSEMBLY_GAME_PATH)
-        message(FATAL_ERROR
-            "WEBASSEMBLY_GAME_PATH not defined. This is required for a Webassembly build. Point it to a folder containing Duke Nukem II data files. Remove any trailing '/' from the path.")
+    if(WEBASSEMBLY_GAME_PATH)
+        if(NOT IS_DIRECTORY "${WEBASSEMBLY_GAME_PATH}")
+            message(FATAL_ERROR "WEBASSEMBLY_GAME_PATH is not a directory")
+        endif()
+        message(STATUS "Bundling user-supplied game data from: ${WEBASSEMBLY_GAME_PATH}")
     else()
-        message(STATUS "Bundling game data from path: ${WEBASSEMBLY_GAME_PATH}")
+        message(STATUS "Building WebAssembly without game data (compile check only)")
     endif()
 
     if("${CMAKE_BUILD_TYPE}" STREQUAL "Release" OR "${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")

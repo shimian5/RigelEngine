@@ -73,6 +73,8 @@ public:
     bool enableTopLevelMods,
     std::vector<std::filesystem::path> modPaths);
 
+  const std::filesystem::path& gamePath() const { return mGamePath; }
+
   data::Image loadUiSpriteSheet() const;
   data::Image loadUiSpriteSheet(const data::Palette16& overridePalette) const;
 

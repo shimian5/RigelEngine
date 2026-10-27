@@ -998,6 +998,20 @@ TEST_CASE("Player movement")
               });
           }
 
+          SECTION("Can jump right off ladder while turning around")
+          {
+            resetOrientation(Orientation::Left);
+            testMovementSequence(
+              player,
+              {
+                {jumpButtonTriggered & pressingRight, {1, -2}, 6},
+                {pressingRight, {1, -2}, 6},
+                {pressingRight, {1, -1}, 6},
+              });
+
+            CHECK(player.orientation() == Orientation::Right);
+          }
+
           SECTION(
             "Doesn't re-attach immediately when pressing up while jumping")
           {
@@ -1005,7 +1019,7 @@ TEST_CASE("Player movement")
               player,
               {
                 {jumpButtonTriggered & pressingUp, {0, -2}, 6},
-                {{}, {0, -2}, 6},
+                {pressingUp, {0, -2}, 6},
               });
           }
         }

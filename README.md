@@ -1,50 +1,62 @@
-# Rigel Engine [![Windows build status](https://ci.appveyor.com/api/projects/status/7yen9qaccci2vklw/branch/master?svg=true)](https://ci.appveyor.com/project/lethal-guitar/rigelengine/branch/master) [![CI](https://github.com/lethal-guitar/RigelEngine/workflows/CI/badge.svg)](https://github.com/lethal-guitar/RigelEngine/actions?query=event%3Apush+branch%3Amaster) [![Discord](https://img.shields.io/discord/798281609437642752?color=7289DA&label=Discord&logo=discord&logoColor=white)](https://discord.gg/QKYB6u4Kew) [![GitHub All Releases](https://img.shields.io/github/downloads/lethal-guitar/RigelEngine/total.svg?style=flat)](https://github.com/lethal-guitar/RigelEngine/releases)
+# Rigel Engine [![CI](https://github.com/shimian5/RigelEngine/actions/workflows/ci.yml/badge.svg?branch=dn1-snapshot-2026-10-26)](https://github.com/shimian5/RigelEngine/actions/workflows/ci.yml)
 
 ## What is Rigel Engine?
 
-This project is a re-implementation of the game [Duke Nukem II](
-https://en.wikipedia.org/wiki/Duke_Nukem_II), originally released by Apogee
-Software in 1993 for MS-DOS. RigelEngine works as a drop-in replacement for the original executable: It reads the game's data files and plays just like the original,
-but runs natively on modern operating systems and is written in modern C++ code.
+RigelEngine is a modern C++ reimplementation of **Duke Nukem I** (1991) and
+**Duke Nukem II** (1993), originally released by Apogee Software for MS-DOS.
+It reads your original game files and runs natively on modern operating systems.
+This fork builds on [lethal-guitar's RigelEngine](https://github.com/lethal-guitar/RigelEngine),
+adding an independent Duke Nukem I implementation alongside the upstream Duke Nukem II engine.
 
-Compared to running the original in an emulator, RigelEngine offers many modern enhancements and usability improvements, including:
+Compared to running the originals in an emulator, RigelEngine offers modern enhancements
+and usability improvements, including:
 
-* wide-screen mode
-* smooth scrolling & movement mode with increased frame rate
-* quick saving
-* improved game controller support
-* extended modding features
+* widescreen rendering
+* motion smoothing for scrolling and movement at higher display frame rates
+* a shared, controller-friendly launcher and menus for both games
+* an overlay HUD and improved game controller support
+* persistent save slots, quick saves, level-start autosaves, and Continue for both games
+* extended modding features for Duke Nukem II
 
-<img src="https://nikolai-wuttke.de/RigelEngine/assets/screenshot.png" width="500"/>
+<img src="docs/screenshots/duke-nukem-1-overlay.png" alt="Duke Nukem I in this fork with the modern overlay HUD" width="700"/>
 
-There was never any source code released for the original game, so this project
-is based on reverse engineering (specifically, disassembly of the original binaries).
-See [Duke2Reconstructed](https://github.com/lethal-guitar/Duke2Reconstructed) for a complete reconstruction of the original code.
+*Duke Nukem I with the modern overlay HUD (Retroid Pocket G2).*
 
-~~Try the [web version](https://rigelengine.nikolai-wuttke.de)! (compiled to wasm via Emscripten)~~ (currently not working, hopefully coming back soon)
+<img src="docs/screenshots/duke-nukem-2-overlay.png" alt="Duke Nukem II in this fork with the modern overlay HUD" width="700"/>
 
-Read the [F.A.Q.](https://github.com/lethal-guitar/RigelEngine/wiki/FAQ)
+*Duke Nukem II with the modern overlay HUD (Retroid Pocket G2).*
 
-Watch a [showcase video (outdated)](http://www.youtube.com/watch?v=U7-eotm8Xoo)
+The original games did not have publicly released source code. Their behaviour is studied
+through reverse engineering of the DOS executables and comparison with the original games.
+The new Duke Nukem I implementation is developed from the DOS executables, data and
+behavioural tests. For Duke Nukem II, see
+[Duke2Reconstructed](https://github.com/lethal-guitar/Duke2Reconstructed). Game files are supplied by the player;
+no game data is included in builds.
+
+Read the upstream [F.A.Q.](https://github.com/lethal-guitar/RigelEngine/wiki/FAQ).
 
 ## Current state
 
-RigelEngine is stable and fairly complete in terms of feature set.
-All four episodes of the game (shareware and registered version) are fully playable and on par with the original game.
+Duke Nukem I supports the shareware episode and all three registered episodes, with
+episode-aware campaign progression and level selection. It remains under active development
+and playtesting; some presentation work, including animated endings, is incomplete.
 
-I currently don't have any plans for significant future development - consider the project to be in "maintenance" mode.
-This means I'll try my best to fix major problems/bugs that come up and keep CI running, but I won't add any new features. 
+The upstream Duke Nukem II engine supports all four episodes, including shareware and
+registered data. This fork adds a new launcher, menus and persistent saves around it.
 
 ### Supported platforms
 
-RigelEngine runs on Windows, Linux, and Mac OS X.
+RigelEngine supports Windows, Linux and **Android ARM64**.
+macOS is not supported by this fork: upstream's macOS support predates Apple silicon, it is
+not built or tested here, and the new Duke Nukem I code has never been run on it.
+The Android build targets Android 8.0 / API 26 or newer and uses OpenGL ES.
+A controller is recommended for Android handhelds; a complete touch-control interface
+is not currently provided.
 
-It's fairly easy to [install on Steam Deck](https://github.com/lethal-guitar/RigelEngine/wiki/Steam-Deck-setup), too.
+It's also possible to [install on Steam Deck](https://github.com/lethal-guitar/RigelEngine/wiki/Steam-Deck-setup).
 
-The Linux version also runs well on small single-board computers (SBCs) like the Raspberry Pi and Odroid Go Advance.
-See [Running on Raspberry Pi and Odroid Go Advance](https://github.com/lethal-guitar/RigelEngine/wiki/Running-on-Raspberry-Pi-and-Odroid-Go-Advance).
-
-There's also a (3rd party) [PS Vita port](https://vitadb.rinnegatamante.it/#/info/988).
+The Linux version supports small single-board computers such as Raspberry Pi.
+See the upstream guide to [Running on Raspberry Pi and Odroid Go Advance](https://github.com/lethal-guitar/RigelEngine/wiki/Running-on-Raspberry-Pi-and-Odroid-Go-Advance).
 
 ### System requirements
 
@@ -57,9 +69,9 @@ On Linux, using GL ES can be an option for those older Intel GPUs.
 
 See [Supported Graphics cards](https://github.com/lethal-guitar/RigelEngine/wiki/Supported-graphics-cards-(GPUs)) for more info.
 
-Aside from the graphics card, you don't need much.
-The game needs less than 64 MB of RAM,
-and runs fine on a single-core ARMv6 CPU clocked at 700 MHz (Raspberry Pi 1).
+Minimum hardware requirements for this fork's Duke Nukem I implementation and Android
+build have not been established. Duke Nukem II's upstream engine also supports older
+Raspberry Pi systems.
 
 ## Contributing
 
@@ -67,51 +79,141 @@ Contributions to RigelEngine are very welcome! Please have a look at the [contri
 
 There is a growing body of documentation on the Wiki, to help with getting into the code base. A good place to start is [Architecture Overview](https://github.com/lethal-guitar/RigelEngine/wiki/Architecture-overview)
 
-If you are looking for some easy tasks to get started, take a look at issues labeled [good first issue](https://github.com/lethal-guitar/RigelEngine/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
+For work specific to this fork, see the [pull requests](https://github.com/shimian5/RigelEngine/pulls).
 
 ## Running RigelEngine
 
-In order to run RigelEngine, the game data from the original game is required. Both the shareware version and the registered version work.
-When launching RigelEngine for the first time, it will show a file browser UI and ask you to select the location of your Duke Nukem II installation.
-The chosen path will be stored in the game's user profile, so that you don't have to select it again next time.
+Supply your own original DOS game files. Duke Nukem I supports shareware episode 1 and
+all three registered episodes; Duke Nukem II supports shareware and registered data.
 
-It's also possible to pass the path to the game files as argument on the command line, which can be handy during development.
+You only need the files for the game or games you want to play. Duke Nukem I does not
+need any Duke Nukem II data, and Duke Nukem II does not need Duke Nukem I's. If a game's
+files are missing, its entry in the launcher is greyed out.
+
+Put each game in its own folder and select one folder at first launch (or later via
+Options > Choose game data folder). A simple layout:
+
+```text
+Games/
+  Duke1/
+    DN1.EXE         (Duke Nukem I episode 1 program)
+    WORLDAL1.DN1    (episode 1 data, and so on)
+    DN2.EXE         (Duke Nukem I episode 2 program)
+    WORLDAL1.DN2
+    DN3.EXE         (Duke Nukem I episode 3 program)
+    WORLDAL1.DN3
+    ...
+  Duke2/
+    NUKEM2.CMP
+    NUKEM2.F1       (optional intro movies, through .F5)
+```
+
+Note that `DN1.EXE`, `DN2.EXE` and `DN3.EXE` are the three *episodes of Duke Nukem I*; they
+have nothing to do with Duke Nukem II, which uses `NUKEM2.CMP`.
+
+* **Both games:** select `Games/Duke2`. The launcher finds `Duke1` next to it.
+* **Duke Nukem I only:** select `Games/Duke1`.
+* **Duke Nukem II only:** select `Games/Duke2`.
+
+The launcher looks for the Duke Nukem I files in a folder named `Duke1` or `DN1`, inside
+the selected folder or next to it, and also in the selected folder itself. Without Duke
+Nukem II's data there is no Duke Nukem II menu music, since Duke Nukem I's level songs are
+borrowed from it; Duke Nukem I's own sound effects are unaffected. The selected path is
+saved in your user profile. Desktop builds also accept it on the command line. On Android,
+store the files in a location accessible to the app.
 
 ### Acquiring the game data
 
-You can download the shareware version for free from [archive.org](https://archive.org/download/msdos_DUKE2_shareware/DUKE2.zip).
-The full version (aka registered version) can be bought on [Zoom Platform](https://www.zoom-platform.com/product/duke-nukem-2),
-a store which still has a license to sell the game (unlike other digital stores like Steam and Gog).
+Use an existing DOS installation or obtain the original shareware or registered release.
+For **Duke Nukem I**, keep each episode's original EXE and all matching loose data files
+together: `DN1.EXE` with `*.DN1`, `DN2.EXE` with `*.DN2`, and `DN3.EXE` with `*.DN3`.
+Install only the episodes you own; filenames are case-insensitive. The episode EXE supplies
+level order, backdrops and story text, so it is required as well as the data files.
+The known incomplete shareware `DROP3.DN1` is supported with a visible compatibility warning;
+a complete file loads normally.
 
-If you already have a copy of the game, you can also point RigelEngine to that existing installation.
+For **Duke Nukem II** (needed only if you want to play it), the required file is `NUKEM2.CMP`. Include `NUKEM2.F1` through
+`NUKEM2.F5` for the optional intro movies; missing movies are skipped.
+Existing original Duke Nukem II saves, high scores and settings can be imported into
+RigelEngine's user profile on first use. The upstream
+[F.A.Q.](https://github.com/lethal-guitar/RigelEngine/wiki/FAQ) provides additional
+background for Duke Nukem II.
 
-The only files actually required for RigelEngine are:
+### Launcher, menus and saves
 
-* `NUKEM2.CMP` (the main data file)
-* `NUKEM2.F1`, `.F2`, `.F3` etc. up to `.F5` (intro movie files)
+The shared launcher lets you choose Duke Nukem I or Duke Nukem II (whichever you have files for), start a new game,
+continue your most recent save, or load a saved game. Both games use controller-friendly
+menus and an overlay HUD. In Duke Nukem I, New Game offers the installed episodes and
+their main levels. Starting directly at a later level gives Duke default equipment.
 
-The intro movies aren't mandatory, RigelEngine simply skips movie playback if the files aren't found.
-They are still part of the experience though, so I do recommend including them when copying the game files somewhere.
+Both games provide eight numbered save slots, a quick-save slot and a level-start autosave.
+Use the pause menu to save or load; Continue resumes the latest save for the selected game.
+Saves live in the application user profile, separately from your original game files.
 
-If there are existing saved games, high score lists, or settings found in the game files,
-RigelEngine imports them into its own user profile when running for the first time.
+Persistent saves record the starting state and your inputs, then reconstruct your progress
+when loaded. Loading a long session can therefore take longer. Keep the matching game data;
+compatibility across engine changes is not guaranteed.
 
 ### Command line options, debugging tools, more info
 
-You can find more info that didn't quite fit in this README over on [the Wiki](https://github.com/lethal-guitar/RigelEngine/wiki). For example, you'll find info on how to activate the built-in debugging tools, a list of bugs in the original version that have been fixed in Rigel Engine, etc.
+Duke Nukem I setup and the shared launcher and saves are documented above. For Android,
+see the [build guide](android/README.md). The upstream
+[Wiki](https://github.com/lethal-guitar/RigelEngine/wiki) covers Duke Nukem II's
+command-line options, debugging tools and engine features.
 
 ## Pre-built binaries
 
-Pre-built binaries are provided with each [Release](https://github.com/lethal-guitar/RigelEngine/releases).
-As of version 0.8.0, this includes Windows (x64),
-Mac OS (x64),
-and `deb` packages for Debian/Ubuntu/Mint Linux distros (also x64).
+For this fork's Android build, open a successful run in
+[GitHub Actions](https://github.com/shimian5/RigelEngine/actions/workflows/ci.yml)
+and download the `android-arm64-apks` artifact. It contains a signed development APK,
+an aligned unsigned APK for separate signing, checksums and source revision information.
+A GitHub sign-in is required to download workflow artifacts.
 
-A [Flatpak](https://flathub.org/apps/details/io.github.lethal_guitar.RigelEngine) is also available.
+CI uses a disposable debug signing key, so APKs from different runs may not update an
+existing installation. See [Android signing and updates](android/README.md#signing-and-device-updates)
+before updating an installation with saves you want to keep. These are development builds,
+not signed release packages, and contain no game data.
 
-Also see [third-party Linux builds](https://github.com/lethal-guitar/RigelEngine/wiki/Third-party-Linux-builds)
-for a list of other Linux packages/builds provided by distros and other projects.
+The [upstream releases](https://github.com/lethal-guitar/RigelEngine/releases), upstream
+[Flatpak](https://flathub.org/apps/details/io.github.lethal_guitar.RigelEngine) and
+[third-party Linux packages](https://github.com/lethal-guitar/RigelEngine/wiki/Third-party-Linux-builds)
+do not include this fork's Duke Nukem I implementation, launcher or persistent-save
+additions; they provide desktop builds of the upstream Duke Nukem II engine.
 
 ## Building from source
 
-See [BUILDING.md](BUILDING.md) for detailed instructions for each platform.
+Clone this fork with its submodules. On Linux, use a separate build directory:
+
+```sh
+git clone --recursive --branch dn1-snapshot-2026-10-26 https://github.com/shimian5/RigelEngine.git
+cd RigelEngine
+cmake -S . -B build-host -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBUILD_TESTS=ON
+cmake --build build-host --parallel 2
+ctest --test-dir build-host --output-on-failure
+```
+
+Install the platform dependencies described in [BUILDING.md](BUILDING.md) first.
+For Visual Studio, follow its Windows setup instructions and select the same configuration
+when building and testing (for example, `--config Debug` and `--build-config Debug`).
+The normal engine build includes both games. For Android, follow
+[android/README.md](android/README.md) and run `bash tools/build_android.sh` from a Linux host
+with the documented Java, SDK and NDK setup. No game files are needed to build.
+
+### CI in this fork
+
+Pushes, pull requests and manual runs of the [CI workflow](.github/workflows/ci.yml) check:
+
+* Linux x86-64 and ARM64 builds and tests in Debug and Release
+* Windows/MSVC x64 builds and tests in Debug
+* source formatting with clang-format 11
+* Android ARM64 APK compilation, signing and package verification
+
+Linux builds treat compiler warnings as errors. The native test suites include
+Duke Nukem I core and frontend regressions alongside Duke Nukem II tests, using generated
+fixtures without original game files. Additional standalone Duke Nukem I checks can be
+configured with `cmake -S src/duke1 -B build-host-dn1 -DBUILD_TESTING=ON`; some optional
+research checks require separately supplied DOS data or local probe traces.
+
+Android CI uploads the APK artifact for 14 days and verifies its allowed contents and
+native architecture. It does not launch the game or test device performance, controllers
+or Android lifecycle behaviour; those require separate device testing.

@@ -153,6 +153,11 @@ public:
   void quickLoad() override;
   bool canQuickLoad() const override;
 
+  base::Size simulationViewport() const override;
+  void setSimulationViewportOverride(
+    const std::optional<base::Size>& size) override;
+  std::uint64_t debugStateHash() const override;
+
   void debugToggleBoundingBoxDisplay() override { }
   void debugToggleWorldCollisionDataDisplay() override { }
   void debugToggleGridDisplay() override { }

@@ -31,8 +31,10 @@
 #include "game_logic_common/igame_world.hpp"
 #include "game_logic_common/input.hpp"
 #include "ui/hud_renderer.hpp"
+#include "ui/hud_skin.hpp"
 #include "ui/ingame_message_display.hpp"
 #include "ui/menu_element_renderer.hpp"
+#include "ui/overlay_hud.hpp"
 
 RIGEL_DISABLE_WARNINGS
 #include <entityx/entityx.h>
@@ -76,6 +78,8 @@ public:
 
   bool levelFinished() const override;
   std::set<data::Bonus> achievedBonuses() const override;
+  std::set<data::Bonus> availableBonuses() const override;
+  double levelSeconds() const override { return double(mElapsedTicks) / 15.0; }
 
   void receive(const rigel::events::CheckPointActivated& event);
   void receive(const rigel::events::ExitReached& event);
@@ -110,6 +114,11 @@ public:
   void quickSave() override;
   void quickLoad() override;
   bool canQuickLoad() const override;
+
+  base::Size simulationViewport() const override;
+  void setSimulationViewportOverride(
+    const std::optional<base::Size>& size) override;
+  std::uint64_t debugStateHash() const override;
 
   void debugToggleBoundingBoxDisplay() override;
   void debugToggleWorldCollisionDataDisplay() override;
@@ -146,6 +155,7 @@ private:
   ViewportParams determineSmoothScrollViewport(
     const base::Size& viewportSizeOriginal,
     const float interpolationFactor) const;
+  bool submitOverlayHud(const std::vector<base::Vec2>& radarDots);
   void updateMotionSmoothingStates();
 
   void
@@ -170,6 +180,12 @@ private:
 
   data::PersistentPlayerState mPlayerModelAtLevelStart;
   ui::HudRenderer mHudRenderer;
+  std::optional<ui::HudSkin> mHudSkin;
+  std::optional<ui::HudSkin> mGeneratedHudSkin;
+  std::optional<ui::HudTier> mHudSkinTierTried;
+  std::uint32_t mHudAnimationFrame = 0;
+  std::uint32_t mElapsedTicks = 0;
+  std::optional<base::Size> mSimulationViewportOverride;
   ui::IngameMessageDisplay mMessageDisplay;
   engine::SpecialEffectsRenderer mSpecialEffects;
   renderer::RenderTargetTexture mLowResLayer;

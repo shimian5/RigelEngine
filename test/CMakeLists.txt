@@ -9,6 +9,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Catch2)
 
 add_executable(tests
+    test_duke1_saves.cpp
+    test_camera.cpp
     test_array_view.cpp
     test_duke_script_loader.cpp
     test_elevator.cpp
@@ -21,6 +23,7 @@ add_executable(tests
     test_spike_ball.cpp
     test_string_utils.cpp
     test_timing.cpp
+    test_unicycle_bot.cpp
 )
 
 target_link_libraries(tests
@@ -40,3 +43,12 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 add_test(all-tests tests)
+
+
+# Separate process: portable-mode preference lookup is cached globally.
+# The fixture supplies generated resources and isolated temporary saves.
+add_executable(duke1_frontend_tests test_duke1_frontend.cpp)
+target_link_libraries(duke1_frontend_tests PRIVATE rigel_core Catch2::Catch2WithMain)
+rigel_enable_warnings(duke1_frontend_tests)
+add_test(NAME duke1-frontend-flow COMMAND duke1_frontend_tests)
+set_tests_properties(duke1-frontend-flow PROPERTIES TIMEOUT 60)

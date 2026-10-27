@@ -30,6 +30,7 @@ class RandomNumberGenerator
 {
 public:
   int gen();
+  std::uint8_t state() const { return mNextNumberIndex; }
 
 private:
   std::uint8_t mNextNumberIndex = 0;

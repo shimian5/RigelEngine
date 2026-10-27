@@ -37,6 +37,9 @@ constexpr auto IMGUI_DEFAULT_FONT_SIZE = 13;
 constexpr auto INITIAL_UI_SCALE = 3.0f;
 
 std::string gIniFilePath;
+ImFont* gHudFont = nullptr;
+
+#include "russo_one_font.ipp"
 
 bool shouldConsumeEvent(const SDL_Event& event)
 {
@@ -101,6 +104,15 @@ void init(
     config.SizePixels = IMGUI_DEFAULT_FONT_SIZE * INITIAL_UI_SCALE;
     ImGui::GetIO().Fonts->AddFontDefault(&config);
 
+    // Font for the in-game overlay HUD. Rasterized large and scaled down.
+    ImFontConfig hudFontConfig;
+    hudFontConfig.FontDataOwnedByAtlas = false;
+    gHudFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(
+      const_cast<unsigned char*>(RUSSO_ONE_TTF),
+      int(sizeof(RUSSO_ONE_TTF)),
+      72.0f,
+      &hudFontConfig);
+
     int width = 0;
     int height = 0;
     SDL_GL_GetDrawableSize(pWindow, &width, &height);
@@ -163,6 +175,11 @@ void endFrame()
 {
   ImGui::Render();
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
+void* hudFont()
+{
+  return gHudFont;
 }
 
 } // namespace rigel::ui::imgui_integration

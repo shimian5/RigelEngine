@@ -25,6 +25,7 @@
 #include "base/math_utils.hpp"
 #include "base/string_utils.hpp"
 #include "base/warnings.hpp"
+#include "frontend/duke1_mode.hpp"
 #include "frontend/game_service_provider.hpp"
 #include "frontend/user_profile.hpp"
 #include "renderer/opengl.hpp"
@@ -243,7 +244,7 @@ OptionsMenu::OptionsMenu(
   , mType(type)
   , mIsRunningInDesktopEnvironment(sdl_utils::isRunningInDesktopEnvironment())
 {
-  mGamePathBrowser.SetTitle("Choose Duke Nukem II installation");
+  mGamePathBrowser.SetTitle("Choose game data folder");
 }
 
 
@@ -836,7 +837,7 @@ void OptionsMenu::updateAndRender(engine::TimeDelta dt)
           ImGui::Combo(
             "HUD style",
             &hudStyleIndex,
-            "Classic\0Remixed 1 (bottom + overlays)\0Remixed 2 (bottom only)\0");
+            "Classic\0Remixed 1 (bottom + overlays)\0Remixed 2 (bottom only)\0Overlay (panels over map)\0");
           mpOptions->mWidescreenHudStyle =
             static_cast<data::WidescreenHudStyle>(hudStyleIndex);
         });
@@ -861,6 +862,9 @@ void OptionsMenu::updateAndRender(engine::TimeDelta dt)
       }
 
       ImGui::Checkbox("Quick saving", &mpOptions->mQuickSavingEnabled);
+      ImGui::Checkbox("Console-style pause menu", &mpOptions->mConsoleMenus);
+      ImGui::Checkbox(
+        "Show level timer (overlay HUD)", &mpOptions->mShowLevelTimer);
       ImGui::Checkbox("Skip intro sequence", &mpOptions->mSkipIntro);
 
       if (mpOptions->mGameplayStyle == data::GameplayStyle::Classic)
@@ -953,7 +957,9 @@ void OptionsMenu::updateAndRender(engine::TimeDelta dt)
     if (mGamePathBrowser.HasSelected())
     {
       const auto newGamePath = mGamePathBrowser.GetSelected();
-      if (fs::exists(newGamePath / "NUKEM2.CMP"))
+      if (
+        fs::exists(newGamePath / "NUKEM2.CMP") ||
+        Duke1Mode::findDataDirIn(newGamePath))
       {
         mGamePathBrowser.Close();
         mpServiceProvider->switchGamePath(newGamePath);
@@ -972,7 +978,7 @@ void OptionsMenu::updateAndRender(engine::TimeDelta dt)
     if (ImGui::BeginPopupModal("Error", &mShowErrorBox, flags))
     {
       ImGui::TextUnformatted(
-        "No game data (file NUKEM2.CMP) found at chosen path!");
+        "No game data (NUKEM2.CMP or Duke Nukem 1 files) found at chosen path!");
       if (ImGui::Button("Ok"))
       {
         mShowErrorBox = false;
@@ -1084,7 +1090,7 @@ void OptionsMenu::drawGamePathChooser(const ImVec2& sizeToUse)
   }
 
   ImGui::NewLine();
-  if (ImGui::Button("Choose Duke Nukem II installation"))
+  if (ImGui::Button("Choose game data folder"))
   {
     if (mpUserProfile->mGamePath)
     {

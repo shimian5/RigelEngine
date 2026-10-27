@@ -203,6 +203,14 @@ void IntroMovie::start()
 }
 
 
+void IntroMovie::startWithLogoOnly()
+{
+  mpServiceProvider->playMusic("RANGEA.IMF");
+  mCurrentConfiguration = mMovieConfigurations.size() - 1;
+  startNextMovie();
+}
+
+
 void IntroMovie::updateAndRender(engine::TimeDelta dt)
 {
   if (isFinished())

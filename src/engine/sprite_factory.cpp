@@ -433,15 +433,18 @@ int SPIDER_FRAME_MAP[] = {
 };
 
 
+// Logical frames: 0/1 are the two idle poses, 2/3 the two riding poses. The
+// riding frames of the original are 3/4 when riding left and 1/2 when riding
+// right.
 int UNICYCLE_FRAME_MAP[] = {
   0,
   5,
-  1,
-  2, // left
+  3,
+  4, // left
   0,
   5,
-  3,
-  4, // right
+  1,
+  2, // right
 };
 
 

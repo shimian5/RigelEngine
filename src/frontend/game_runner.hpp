@@ -22,9 +22,11 @@
 #include "data/saved_game.hpp"
 #include "frontend/game_mode.hpp"
 #include "frontend/input_handler.hpp"
+#include "frontend/replay_save.hpp"
 #include "game_logic_common/igame_world.hpp"
 #include "game_logic_common/input.hpp"
 #include "ui/ingame_menu.hpp"
+#include "ui/pause_menu.hpp"
 
 RIGEL_DISABLE_WARNINGS
 #include <SDL.h>
@@ -46,6 +48,14 @@ public:
     std::optional<base::Vec2> playerPositionOverride = std::nullopt,
     bool showWelcomeMessage = false);
 
+  /** Resume a level from a replay save, fast-forwarding to the saved moment */
+  GameRunner(
+    data::PersistentPlayerState* pPersistentPlayerState,
+    const ReplaySave& replay,
+    GameMode::Context context);
+
+  ~GameRunner();
+
   void handleEvent(const SDL_Event& event);
   void updateAndRender(engine::TimeDelta dt);
   bool needsPerElementUpscaling() const;
@@ -53,10 +63,37 @@ public:
   bool levelFinished() const;
   bool gameQuit() const;
   std::optional<data::SavedGame> requestedGameToLoad() const;
+  std::optional<ReplaySave> requestedReplayToLoad() const
+  {
+    return mRequestedReplay;
+  }
+
+  /** Snapshot of the current level as a replay save */
+  ReplaySave makeReplaySave() const;
 
   std::set<data::Bonus> achievedBonuses() const;
+  double levelSeconds() const;
+  std::set<data::Bonus> availableBonuses() const;
 
 private:
+  class FastForwardServiceProvider;
+
+  GameRunner(
+    data::PersistentPlayerState* pPersistentPlayerState,
+    const data::GameSessionId& sessionId,
+    GameMode::Context context,
+    std::optional<base::Vec2> playerPositionOverride,
+    bool showWelcomeMessage,
+    const ReplaySave* pReplay);
+
+  void fastForward(const ReplaySave& replay);
+  void runReplaySelfTest();
+  void writeDiskSave(const char* slotName) const;
+  void doQuickSave(bool alwaysWriteToDisk);
+  void doQuickLoad(bool allowDiskWithoutOption);
+  void loadNewestSave();
+  void openPauseMenu();
+  void executePauseMenuAction();
   float interpolationFactor(engine::TimeDelta dt) const;
   void updateWorld(engine::TimeDelta dt);
   bool updateMenu(engine::TimeDelta dt);
@@ -65,10 +102,24 @@ private:
 
   GameMode::Context mContext;
 
+  // Parameters the level was started with, for replay saves
+  data::PersistentPlayerState* mpPlayerState;
+  data::PersistentPlayerState mPlayerStateAtStart;
+  data::GameSessionId mSessionId;
+  std::optional<base::Vec2> mPlayerPositionOverride;
+  bool mShowWelcomeMessage;
+  std::vector<std::uint16_t> mInputLog;
+  std::optional<ReplaySave> mRequestedReplay;
+  int mSelfTestTicks = 0;
+  int mDevSaveAtTick = 0;
+
+  std::unique_ptr<FastForwardServiceProvider> mpServiceProviderProxy;
   std::unique_ptr<game_logic::IGameWorld> mpWorld;
   InputHandler mInputHandler;
   engine::TimeDelta mAccumulatedTime = 0.0;
   ui::IngameMenu mMenu;
+  ui::PauseMenu mPauseMenu;
+  bool mQuitRequestedFromPauseMenu = false;
   bool mShowDebugText = false;
   bool mSingleStepping = false;
   bool mDoNextSingleStep = false;

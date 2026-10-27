@@ -290,6 +290,7 @@ WorldState::WorldState(
   mBonusInfo.mInitialWeaponCount = counts.mWeaponCount;
   mBonusInfo.mInitialLaserTurretCount = counts.mLaserTurretCount;
   mBonusInfo.mInitialBonusGlobeCount = counts.mBonusGlobeCount;
+  mBonusInfo.mInitialFireBombCount = counts.mFireBombCount;
 
   if (loadedLevel.mEarthquake)
   {

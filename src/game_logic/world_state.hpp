@@ -97,6 +97,7 @@ struct LevelBonusInfo
   int mInitialWeaponCount = 0;
   int mInitialLaserTurretCount = 0;
   int mInitialBonusGlobeCount = 0;
+  int mInitialFireBombCount = 0;
 
   int mNumShotBonusGlobes = 0;
   bool mPlayerTookDamage = false;

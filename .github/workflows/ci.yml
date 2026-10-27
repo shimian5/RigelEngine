@@ -2,9 +2,18 @@ name: CI
 
 on:
   push:
-    branches: [ master ]
+    branches: ['**']
   pull_request:
-    branches: [ master ]
+  workflow_dispatch:
+    inputs:
+      build_web:
+        description: Build the experimental web target without game data
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
 
 env:
   EM_VERSION: 2.0.13
@@ -12,23 +21,27 @@ env:
 
 jobs:
   clang_format_check:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v3
-    - uses: DoozyX/clang-format-lint-action@v0.12
-      with:
-        source: 'benchmark src test'
-        extensions: 'hpp,cpp,ipp'
-        clangFormatVersion: 11
+    - uses: actions/checkout@v4
+    - name: Install pinned clang-format
+      run: |
+        python3 -m venv .ci-format
+        .ci-format/bin/python -m pip install clang-format==11.1.0.2
+    - name: Check formatting
+      run: |
+        find benchmark src test -type f \( -name '*.hpp' -o -name '*.cpp' -o -name '*.ipp' \) -print0 |
+          xargs -0 .ci-format/bin/clang-format --dry-run --Werror
   build_wasm:
-    runs-on: ubuntu-20.04
+    if: github.event_name == 'workflow_dispatch' && inputs.build_web
+    runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: Setup cache for Emscripten
       id: cache-system-libraries
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ${{env.EM_CACHE_DIR}}
         key: ${{env.EM_VERSION}}-${{ runner.os }}
@@ -36,59 +49,92 @@ jobs:
       with:
         version: ${{env.EM_VERSION}}
         actions-cache-folder: ${{env.EM_CACHE_DIR}}
-    - name: Setup cache for game data
-      id: cache-game-data
-      uses: actions/cache@v3
-      with:
-        path: DUKE2
-        key: duke2-shareware
-    - name: Fetch game data
-      run: bash -c '[ -d DUKE2 ] || (wget https://archive.org/download/msdos_DUKE2_shareware/DUKE2.zip && unzip DUKE2.zip)'
     - name: Run CMake
-      run: emcmake cmake -H. -Bbuild_wasm -DCMAKE_BUILD_TYPE=Release -DWARNINGS_AS_ERRORS=ON -DWEBASSEMBLY_GAME_PATH=$(pwd)/DUKE2
+      run: emcmake cmake -S . -Bbuild_wasm -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=Release -DWARNINGS_AS_ERRORS=ON -DWEBASSEMBLY_GAME_PATH=
     - name: Build
       run: make -j2 -Cbuild_wasm
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: wasm_build
         path: build_wasm/src/RigelEngine.*
   build_linux:
-    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
+        build_type: [Debug, Release]
+    runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: Install dependencies
-      run: sudo ./docker/ubuntu-deps.sh
-    - name: Run CMake (debug)
-      run: CC=gcc-8 CXX=g++-8 cmake -H. -Bbuild_dbg -DCMAKE_BUILD_TYPE=Debug -DWARNINGS_AS_ERRORS=ON -DBUILD_TESTS=ON
-    - name: Run CMake (release)
-      run: CC=gcc-8 CXX=g++-8 cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Release -DWARNINGS_AS_ERRORS=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON
-    - name: Build (debug)
-      run: cd build_dbg && make -j2
-    - name: Build (release)
-      run: cd build && make -j2
-    - name: Test (debug)
-      run: cd build_dbg && ctest
-    - name: Test (release)
-      run: cd build && ctest
-  build_osx:
-    runs-on: macos-latest
+      run: sudo apt-get update && sudo apt-get install --no-install-recommends -y cmake g++ libsdl2-dev libsdl2-mixer-dev make
+    - name: Configure with tests
+      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DWARNINGS_AS_ERRORS=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=${{ matrix.build_type == 'Release' }}
+    - name: Build
+      run: cmake --build build --parallel 2
+    - name: Test
+      run: ctest --test-dir build --output-on-failure
+
+  build_windows:
+    runs-on: windows-2022
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Install dependencies
-      run: brew install sdl2 sdl2_mixer
-    - name: Run CMake (debug)
-      run: cmake -H. -Bbuild_dbg -DCMAKE_BUILD_TYPE=Debug -DWARNINGS_AS_ERRORS=ON -DBUILD_TESTS=ON
-    - name: Run CMake (release)
-      run: cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Release -DWARNINGS_AS_ERRORS=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON
-    - name: Build (debug)
-      run: cd build_dbg && make -j2
-    - name: Build (release)
-      run: cd build && make -j2
-    - name: Test (debug)
-      run: cd build_dbg && ctest
-    - name: Test (release)
-      run: cd build_dbg && ctest
+    - name: Install SDL dependencies
+      shell: pwsh
+      run: |
+        $root = $env:VCPKG_INSTALLATION_ROOT
+        if (-not (Test-Path -LiteralPath "$root/vcpkg.exe")) { throw "vcpkg not found at $root" }
+        & "$root/vcpkg.exe" install sdl2:x64-windows sdl2-mixer:x64-windows
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        "VCPKG_ROOT=$root" >> $env:GITHUB_ENV
+        "$root/installed/x64-windows/bin" >> $env:GITHUB_PATH
+        "VCPKG_DEFAULT_TRIPLET=x64-windows" >> $env:GITHUB_ENV
+    - name: Configure with tests
+      shell: pwsh
+      run: |
+        cmake -S . -B build "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" "-DSDL2_PATH=$env:VCPKG_ROOT/installed/x64-windows" "-DSDL2_MIXER_PATH=$env:VCPKG_ROOT/installed/x64-windows" -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBUILD_TESTS=ON
+    - name: Build
+      run: cmake --build build --config Debug --parallel 2
+    - name: Test
+      run: ctest --test-dir build --build-config Debug --output-on-failure
+
+  build_android:
+    name: Android ARM64 APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
+    - uses: android-actions/setup-android@v3
+      with:
+        packages: platform-tools
+        log-accepted-android-sdk-licenses: false
+    - name: Install pinned Android toolchain
+      run: sdkmanager "platforms;android-33" "build-tools;35.0.0" "ndk;27.2.12479018"
+    - name: Cache verified SDL downloads
+      uses: actions/cache@v4
+      with:
+        path: build-android/downloads
+        key: android-sdl-2.30.9-mixer-2.8.0
+    - name: Build and verify APK without game data
+      env:
+        RIGEL_ANDROID_JOBS: '2'
+      run: |
+        export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"
+        bash tools/build_android.sh
+    - name: Upload Android APKs
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-arm64-apks
+        path: build-android/output/
+        if-no-files-found: error
+        retention-days: 14

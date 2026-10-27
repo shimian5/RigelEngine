@@ -49,9 +49,9 @@ namespace
 {
 
 // This is the path in the virtual file system (provided by emscripten, defined
-// in cmake) where Duke Nukem II game data can be found. A path to valid data
-// has to be given to cmake via the WEBASSEMBLY_GAME_PATH argument, and will be
-// included in the build output.
+// in cmake) where Duke Nukem II game data can be found. Local playable builds
+// can bundle user-supplied files via WEBASSEMBLY_GAME_PATH. CI leaves that path
+// empty and produces a compile-check artifact without game data.
 constexpr auto WASM_GAME_PATH = "/duke/";
 
 void runOneFrameWrapper(void* pData)

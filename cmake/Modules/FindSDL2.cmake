@@ -126,6 +126,24 @@ This needed to change because "proper" SDL convention is #include
 because not all systems place things in SDL/ (see FreeBSD).
 #]=======================================================================]
 
+# vcpkg keeps SDL2main in manual-link and exports configuration-specific paths.
+if(MSVC)
+  find_package(SDL2 ${SDL2_FIND_VERSION} CONFIG QUIET)
+  if(TARGET SDL2::SDL2 AND TARGET SDL2::SDL2main)
+    if(NOT TARGET SDL2::Core)
+      add_library(SDL2::Core INTERFACE IMPORTED)
+      target_link_libraries(SDL2::Core INTERFACE SDL2::SDL2)
+    endif()
+    if(NOT TARGET SDL2::Main)
+      add_library(SDL2::Main INTERFACE IMPORTED)
+      target_link_libraries(SDL2::Main INTERFACE SDL2::SDL2main SDL2::Core)
+    endif()
+    set(SDL2_FOUND TRUE)
+    set(SDL2MAIN_FOUND TRUE)
+    return()
+  endif()
+endif()
+
 # Define options for searching SDL2 Library in a custom path
 
 set(SDL2_PATH "" CACHE STRING "Custom SDL2 Library path")

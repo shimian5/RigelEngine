@@ -1095,7 +1095,7 @@ void Player::updateMovement(
       // clang-format on
       {
         position.y -= 1;
-        jumpFromLadder(movementVector);
+        jumpFromPipe(movementVector);
         return;
       }
 
@@ -1882,6 +1882,31 @@ void Player::jump()
 
 
 void Player::jumpFromLadder(const base::Vec2& movementVector)
+{
+  // DOS starts a ladder jump at its first non-zero jump-arc step. Rigel's arc
+  // omits the zero-offset entry used by ordinary DOS jumps, so this update
+  // must process index zero.
+  if (movementVector.x != 0)
+  {
+    if (movementVector.x != engine::orientation::toMovement(orientation()))
+    {
+      switchOrientation();
+    }
+
+    mEntity.component<c::WorldPosition>()->x += movementVector.x;
+  }
+
+  auto newState = Jumping{Jumping::FromLadder{}};
+  updateJumpMovement(newState, base::Vec2{0, movementVector.y}, true);
+
+  mState = newState;
+  setVisualState(VisualState::Jumping);
+  mpServiceProvider->playSound(data::SoundId::DukeJumping);
+  mJumpRequested = false;
+}
+
+
+void Player::jumpFromPipe(const base::Vec2& movementVector)
 {
   auto newState = Jumping{Jumping::FromLadder{}};
   updateJumpMovement(newState, movementVector, true);

@@ -41,6 +41,7 @@
 #include "game_logic_common/utils.hpp"
 #include "renderer/upscaling.hpp"
 #include "renderer/viewport_utils.hpp"
+#include "ui/hud_skin_generator.hpp"
 #include "ui/menu_element_renderer.hpp"
 #include "ui/utils.hpp"
 
@@ -103,8 +104,12 @@ auto viewportSizeWideScreen(
     ui::effectiveHudStyle(options.mWidescreenHudStyle, pRenderer);
   const auto hudWidth =
     style == data::WidescreenHudStyle::Classic ? ui::HUD_WIDTH_RIGHT : 0;
-  return base::Size{
-    info.mWidthTiles - hudWidth, data::GameTraits::mapViewportSize.height};
+  // The overlay HUD doesn't take up any space, so the map can use the entire
+  // in-game viewport height (everything below the 1-tile top row).
+  const auto height = style == data::WidescreenHudStyle::Overlay
+    ? data::GameTraits::viewportHeightTiles - 1
+    : data::GameTraits::mapViewportSize.height;
+  return base::Size{info.mWidthTiles - hudWidth, height};
 }
 
 
@@ -237,7 +242,8 @@ GameWorld::GameWorld(
       renderer::Texture{
         mpRenderer,
         context.mpResources->loadUltrawideHudFrameImage()},
-      mpSpriteFactory)
+      mpSpriteFactory,
+      &mTextRenderer)
   , mMessageDisplay(mpServiceProvider, &mTextRenderer)
   , mSpecialEffects(mpRenderer, *mpOptions)
   , mLowResLayer(
@@ -348,6 +354,26 @@ std::set<data::Bonus> GameWorld::achievedBonuses() const
   }
 
   return bonuses;
+}
+
+
+std::set<data::Bonus> GameWorld::availableBonuses() const
+{
+  const auto& info = mpState->mBonusInfo;
+  std::set<data::Bonus> result{data::Bonus::NoDamageTaken};
+  if (info.mInitialCameraCount > 0)
+    result.insert(data::Bonus::DestroyedAllCameras);
+  if (info.mInitialWeaponCount > 0)
+    result.insert(data::Bonus::CollectedEveryWeapon);
+  if (info.mInitialMerchandiseCount > 0)
+    result.insert(data::Bonus::CollectedAllMerchandise);
+  if (info.mInitialLaserTurretCount > 0)
+    result.insert(data::Bonus::DestroyedAllSpinningLaserTurrets);
+  if (info.mInitialFireBombCount > 0)
+    result.insert(data::Bonus::DestroyedAllFireBombs);
+  if (info.mInitialBonusGlobeCount > 0)
+    result.insert(data::Bonus::ShotAllBonusGlobes);
+  return result;
 }
 
 
@@ -584,6 +610,8 @@ void GameWorld::updateGameLogic(const PlayerInput& input)
   }
 
   mHudRenderer.updateAnimation();
+  ++mHudAnimationFrame;
+  ++mElapsedTicks;
   mMessageDisplay.update();
 
   updateMotionSmoothingStates();
@@ -598,9 +626,7 @@ void GameWorld::updateGameLogic(const PlayerInput& input)
     mpState->mBossDeathAnimationStartPending = false;
   }
 
-  const auto& viewportSize = widescreenModeOn()
-    ? viewportSizeWideScreen(mpRenderer, *mpOptions)
-    : data::GameTraits::mapViewportSize;
+  const auto viewportSize = simulationViewport();
 
   mpState->mMapRenderer.updateAnimatedMapTiles();
   engine::updateAnimatedSprites(mpState->mEntities);
@@ -745,7 +771,10 @@ void GameWorld::render(const float interpolationFactor)
   };
 
   auto drawTopRow = [&, this](int maxWidthPx) {
-    if (mpState->mActiveBossEntity)
+    // The overlay HUD shows the boss health bar itself
+    const auto overlayShowsBossBar = widescreenModeOn() &&
+      mpOptions->mWidescreenHudStyle == data::WidescreenHudStyle::Overlay;
+    if (mpState->mActiveBossEntity && !overlayShowsBossBar)
     {
       drawBossHealthBar(
         healthOrZero(mpState->mActiveBossEntity),
@@ -769,6 +798,14 @@ void GameWorld::render(const float interpolationFactor)
   auto drawWidescreenHud = [&](const int viewportWidth) {
     const auto radarDots =
       collectRadarDots(mpState->mEntities, mpState->mPlayer.orientedPosition());
+
+    if (
+      mpOptions->mWidescreenHudStyle == data::WidescreenHudStyle::Overlay &&
+      submitOverlayHud(radarDots))
+    {
+      return;
+    }
+
     mHudRenderer.renderWidescreenHud(
       viewportWidth,
       mpOptions->mWidescreenHudStyle,
@@ -844,6 +881,71 @@ void GameWorld::render(const float interpolationFactor)
   mWidescreenModeWasOn = widescreenModeOn();
   mPerElementUpscalingWasEnabled = mpOptions->mPerElementUpscalingEnabled;
   mPreviousWindowSize = mpRenderer->windowSize();
+}
+
+
+bool GameWorld::submitOverlayHud(const std::vector<base::Vec2>& radarDots)
+{
+  const auto tier = ui::hudTierForWindowHeight(mpRenderer->windowSize().height);
+  if (!mHudSkinTierTried || *mHudSkinTierTried != tier)
+  {
+    mHudSkin = ui::HudSkin::tryLoad(mpRenderer, mpResources->gamePath(), tier);
+    if (!mHudSkin)
+    {
+      // Only generate once, the artwork is the same for all window sizes
+      if (!mGeneratedHudSkin)
+      {
+        mGeneratedHudSkin = ui::HudSkin::generateDefault(
+          mpRenderer, ui::HudArt::fromDuke2(*mpResources));
+      }
+    }
+    mHudSkinTierTried = tier;
+  }
+
+  const auto* pSkin =
+    mHudSkin ? &*mHudSkin : (mGeneratedHudSkin ? &*mGeneratedHudSkin : nullptr);
+  if (!pSkin)
+  {
+    return false;
+  }
+
+  const auto& player = *mpPersistentPlayerState;
+
+  ui::OverlayHudState state;
+  state.health = player.health();
+  state.score = player.score();
+  state.ammo = player.ammo();
+  state.maxAmmo = player.currentMaxAmmo();
+  state.weapon = player.weapon();
+  state.rapidFire = player.hasItem(data::InventoryItemType::RapidFire);
+  state.inventory = player.inventory();
+  state.letters = player.collectedLetters();
+  state.radarDots = radarDots;
+  state.showRadar = mpOptions->mShowRadarInModernHud;
+  state.animationFrame = mHudAnimationFrame;
+  state.showTimer = mpOptions->mShowLevelTimer;
+  state.levelSeconds = double(mElapsedTicks) / 15.0;
+  if (mpState->mActiveBossEntity)
+  {
+    state.bossHealthRatio = std::clamp(
+      float(healthOrZero(mpState->mActiveBossEntity)) /
+        float(std::max(1, mpState->mBossStartingHealth)),
+      0.0f,
+      1.0f);
+  }
+#ifdef RIGEL_DEV_SCREENSHOT
+  if (const auto* pRatio = std::getenv("RIGEL_DEV_BOSS_RATIO"))
+  {
+    state.bossHealthRatio = float(std::atof(pRatio));
+  }
+#endif
+  state.timeSeconds = double(SDL_GetTicks()) / 1000.0;
+
+  mpServiceProvider->setNativeOverlay(
+    [pRenderer = mpRenderer, pSkin, state = std::move(state)](const int alpha) {
+      ui::drawOverlayHud(pRenderer, *pSkin, state, alpha);
+    });
+  return true;
 }
 
 
@@ -1359,6 +1461,48 @@ void GameWorld::flashScreen(const base::Color& color)
   {
     mpState->mScreenFlashColor = color;
   }
+}
+
+
+base::Size GameWorld::simulationViewport() const
+{
+  if (mSimulationViewportOverride)
+  {
+    return *mSimulationViewportOverride;
+  }
+
+  return widescreenModeOn() ? viewportSizeWideScreen(mpRenderer, *mpOptions)
+                            : data::GameTraits::mapViewportSize;
+}
+
+
+void GameWorld::setSimulationViewportOverride(
+  const std::optional<base::Size>& size)
+{
+  mSimulationViewportOverride = size;
+}
+
+
+std::uint64_t GameWorld::debugStateHash() const
+{
+  std::uint64_t hash = 1469598103934665603ull;
+  auto mix = [&hash](const std::int64_t value) {
+    hash ^= std::uint64_t(value);
+    hash *= 1099511628211ull;
+  };
+
+  const auto& player = *mpPersistentPlayerState;
+  mix(mpState->mPlayer.position().x);
+  mix(mpState->mPlayer.position().y);
+  mix(mpState->mCamera.position().x);
+  mix(mpState->mCamera.position().y);
+  mix(player.score());
+  mix(player.health());
+  mix(player.ammo());
+  mix(int(player.weapon()));
+  mix(std::int64_t(mpState->mEntities.size()));
+  mix(mpState->mRandomGenerator.state());
+  return hash;
 }
 
 

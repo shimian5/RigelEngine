@@ -17,11 +17,14 @@
 #pragma once
 
 
+#include "base/spatial_types.hpp"
 #include "data/bonus.hpp"
 #include "engine/timing.hpp"
 #include "game_logic_common/input.hpp"
 
+#include <cstdint>
 #include <iosfwd>
+#include <optional>
 #include <set>
 
 
@@ -47,6 +50,22 @@ struct IGameWorld
 
   virtual bool levelFinished() const = 0;
   virtual std::set<data::Bonus> achievedBonuses() const = 0;
+
+  /** The bonuses this level offers at all (those with something to find) */
+  virtual std::set<data::Bonus> availableBonuses() const
+  {
+    return {
+      data::Bonus::DestroyedAllCameras,
+      data::Bonus::NoDamageTaken,
+      data::Bonus::CollectedEveryWeapon,
+      data::Bonus::CollectedAllMerchandise,
+      data::Bonus::DestroyedAllSpinningLaserTurrets,
+      data::Bonus::DestroyedAllFireBombs,
+      data::Bonus::ShotAllBonusGlobes};
+  }
+
+  /** Time spent in the level; negative if not tracked */
+  virtual double levelSeconds() const { return -1.0; }
   virtual bool needsPerElementUpscaling() const = 0;
   virtual void updateGameLogic(const PlayerInput& input) = 0;
   virtual void render(float interpolationFactor = 0.0f) = 0;
@@ -60,6 +79,16 @@ struct IGameWorld
   virtual void quickSave() = 0;
   virtual void quickLoad() = 0;
   virtual bool canQuickLoad() const = 0;
+
+  // Replay save support: see frontend/replay_save.hpp
+  /** The viewport (in tiles) the game logic currently simulates with */
+  virtual base::Size simulationViewport() const = 0;
+  /** Force a viewport for game logic, e.g. to reproduce a recorded session */
+  virtual void
+    setSimulationViewportOverride(const std::optional<base::Size>& size) = 0;
+  /** Hash of the gameplay-relevant state, for verifying determinism */
+  virtual std::uint64_t debugStateHash() const = 0;
+
   virtual void debugToggleBoundingBoxDisplay() = 0;
   virtual void debugToggleWorldCollisionDataDisplay() = 0;
   virtual void debugToggleGridDisplay() = 0;

@@ -16,7 +16,10 @@
 
 #include "game_session_mode.hpp"
 
+#include "console_launcher_mode.hpp"
+
 // TODO: Remove this cyclic include
+#include "console_menu_mode.hpp"
 #include "menu_mode.hpp"
 
 #include "base/match.hpp"
@@ -59,6 +62,18 @@ GameSessionMode::GameSessionMode(const data::SavedGame& save, Context context)
   , mEpisode(save.mSessionId.mEpisode)
   , mCurrentLevelNr(save.mSessionId.mLevel)
   , mDifficulty(save.mSessionId.mDifficulty)
+  , mContext(context)
+{
+}
+
+
+GameSessionMode::GameSessionMode(const ReplaySave& replay, Context context)
+  : mPersistentPlayerState(replay.mPlayerStateAtStart)
+  , mCurrentStage(
+      std::make_unique<GameRunner>(&mPersistentPlayerState, replay, context))
+  , mEpisode(replay.mSessionId.mEpisode)
+  , mCurrentLevelNr(replay.mSessionId.mLevel)
+  , mDifficulty(replay.mSessionId.mDifficulty)
   , mContext(context)
 {
 }
@@ -118,6 +133,13 @@ void GameSessionMode::handleEvent(const SDL_Event& event)
       mContext.mpScriptRunner->handleEvent(event);
     },
 
+    [&event](ConsoleBonusStage& stage) {
+      if (ui::isMenuConfirmButton(event) || ui::isCancelButton(event))
+      {
+        stage.mDone = stage.mScreen.confirm();
+      }
+    },
+
     [&event](auto&& stage) { stage.handleEvent(event); });
 }
 
@@ -140,6 +162,14 @@ std::unique_ptr<GameMode> GameSessionMode::updateAndRender(
 
       if (pIngameMode->gameQuit())
       {
+        if (mContext.mpUserProfile->mOptions.mConsoleMenus)
+        {
+          // The console-style menus return to the game selection when quitting
+          mContext.mpServiceProvider->stopMusic();
+          mContext.mpServiceProvider->fadeOutScreen();
+          return std::make_unique<ConsoleLauncherMode>(mContext);
+        }
+
         finishGameSession();
         return nullptr;
       }
@@ -150,9 +180,26 @@ std::unique_ptr<GameMode> GameSessionMode::updateAndRender(
         return std::make_unique<GameSessionMode>(*maybeSavedGame, mContext);
       }
 
+      if (auto maybeReplay = pIngameMode->requestedReplayToLoad())
+      {
+        mContext.mpServiceProvider->fadeOutScreen();
+        return std::make_unique<GameSessionMode>(*maybeReplay, mContext);
+      }
+
       if (pIngameMode->levelFinished())
       {
-        const auto achievedBonuses = pIngameMode->achievedBonuses();
+        auto achievedBonuses = pIngameMode->achievedBonuses();
+        const auto availableBonuses = pIngameMode->availableBonuses();
+        if (mContext.mpUserProfile->mOptions.mConsoleMenus)
+        {
+          // Only what the level offers can be earned (the original also paid
+          // for categories with nothing in them)
+          for (auto it = achievedBonuses.begin(); it != achievedBonuses.end();)
+          {
+            it = availableBonuses.count(*it) == 0 ? achievedBonuses.erase(it)
+                                                  : std::next(it);
+          }
+        }
         const auto scoreWithoutBonuses = mPersistentPlayerState.score();
 
         data::addBonusScore(mPersistentPlayerState, achievedBonuses);
@@ -165,6 +212,61 @@ std::unique_ptr<GameMode> GameSessionMode::updateAndRender(
             mContext, mEpisode, achievedBonuses, scoreWithoutBonuses};
           mContext.mpServiceProvider->fadeOutScreen();
           mCurrentStage = std::move(endScreens);
+        }
+        else if (mContext.mpUserProfile->mOptions.mConsoleMenus)
+        {
+          mContext.mpServiceProvider->playMusic("OPNGATEA.IMF");
+
+          using data::Bonus;
+          static const std::pair<Bonus, const char*> CATEGORIES[] = {
+            {Bonus::DestroyedAllCameras, "CAMERAS"},
+            {Bonus::CollectedEveryWeapon, "WEAPONS"},
+            {Bonus::CollectedAllMerchandise, "MERCHANDISE"},
+            {Bonus::DestroyedAllSpinningLaserTurrets, "TURRETS"},
+            {Bonus::DestroyedAllFireBombs, "NAPALM BOMBS"},
+            {Bonus::ShotAllBonusGlobes, "CRYSTAL BALLS"},
+            {Bonus::NoDamageTaken, "NO DAMAGE"}};
+          std::vector<ui::ConsoleResultsScreen::Row> rows;
+          for (const auto& [bonus, label] : CATEGORIES)
+          {
+            if (availableBonuses.count(bonus) > 0)
+            {
+              rows.push_back({label, achievedBonuses.count(bonus) > 0});
+            }
+          }
+
+          const auto seconds = int(pIngameMode->levelSeconds());
+          char time[16];
+          if (seconds >= 0)
+          {
+            std::snprintf(
+              time, sizeof(time), "%d:%02d", seconds / 60, seconds % 60);
+          }
+          else
+          {
+            std::snprintf(time, sizeof(time), "--:--");
+          }
+
+          auto* pServices = mContext.mpServiceProvider;
+          ui::ConsoleResultsScreen::Sounds sounds;
+          sounds.mRowEarned = [pServices] {
+            pServices->playSound(data::SoundId::BigExplosion);
+          };
+          sounds.mScoreTick = [pServices] {
+            pServices->playSound(data::SoundId::DukeJumping);
+          };
+          sounds.mTotal = [pServices] {
+            pServices->playSound(data::SoundId::BigExplosion);
+          };
+
+          auto stage = ConsoleBonusStage{ui::ConsoleResultsScreen{
+            "LEVEL " + std::to_string(mCurrentLevelNr + 1) + " COMPLETE",
+            time,
+            scoreWithoutBonuses,
+            100000,
+            std::move(rows),
+            std::move(sounds)}};
+          mCurrentStage = std::move(stage);
         }
         else
         {
@@ -210,6 +312,22 @@ std::unique_ptr<GameMode> GameSessionMode::updateAndRender(
       return nullptr;
     },
 
+    [this, &dt](ConsoleBonusStage& stage) -> GameModePtr {
+      stage.mScreen.update(dt);
+      stage.mScreen.draw();
+
+      if (stage.mDone)
+      {
+        mPersistentPlayerState.resetForNewLevel();
+        return std::unique_ptr<GameSessionMode>{new GameSessionMode{
+          data::GameSessionId{mEpisode, ++mCurrentLevelNr, mDifficulty},
+          mPersistentPlayerState,
+          mContext}};
+      }
+
+      return nullptr;
+    },
+
     [this, &dt](ui::EpisodeEndSequence& endScreens) -> GameModePtr {
       endScreens.updateAndRender(dt);
 
@@ -234,7 +352,7 @@ std::unique_ptr<GameMode> GameSessionMode::updateAndRender(
       if (mContext.mpScriptRunner->hasFinishedExecution())
       {
         mContext.mpServiceProvider->fadeOutScreen();
-        return std::make_unique<MenuMode>(mContext);
+        return createMainMenuMode(mContext);
       }
 
       return nullptr;

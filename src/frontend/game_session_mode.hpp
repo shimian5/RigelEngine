@@ -19,6 +19,7 @@
 #include "data/player_model.hpp"
 #include "frontend/game_mode.hpp"
 #include "ui/bonus_screen.hpp"
+#include "ui/console_results.hpp"
 #include "ui/episode_end_sequence.hpp"
 
 #include "game_runner.hpp"
@@ -43,6 +44,7 @@ public:
     std::optional<base::Vec2> playerPositionOverride = std::nullopt);
 
   GameSessionMode(const data::SavedGame& save, Context context);
+  GameSessionMode(const ReplaySave& replay, Context context);
 
   std::unique_ptr<GameMode> updateAndRender(
     engine::TimeDelta dt,
@@ -72,9 +74,16 @@ private:
   {
   };
 
+  struct ConsoleBonusStage
+  {
+    ui::ConsoleResultsScreen mScreen;
+    bool mDone = false;
+  };
+
   using SessionStage = std::variant<
     std::unique_ptr<GameRunner>,
     ui::BonusScreen,
+    ConsoleBonusStage,
     ui::EpisodeEndSequence,
     HighScoreNameEntry,
     HighScoreListDisplay>;

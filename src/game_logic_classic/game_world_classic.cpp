@@ -456,7 +456,8 @@ GameWorld_Classic::GameWorld_Classic(
       renderer::Texture{
         mpRenderer,
         context.mpResources->loadUltrawideHudFrameImage()},
-      mpSpriteFactory)
+      mpSpriteFactory,
+      &mTextRenderer)
   , mMessageDisplay(mpServiceProvider, &mTextRenderer)
   , mSpecialEffects(mpRenderer, *mpOptions)
   , mLowResLayer(
@@ -1118,6 +1119,34 @@ void GameWorld_Classic::quickLoad()
 bool GameWorld_Classic::canQuickLoad() const
 {
   return mpOptions->mQuickSavingEnabled && mpQuickSave;
+}
+
+
+base::Size GameWorld_Classic::simulationViewport() const
+{
+  return data::GameTraits::mapViewportSize;
+}
+
+
+void GameWorld_Classic::setSimulationViewportOverride(
+  const std::optional<base::Size>&)
+{
+  // The classic game logic doesn't depend on the viewport size
+}
+
+
+std::uint64_t GameWorld_Classic::debugStateHash() const
+{
+  std::uint64_t hash = 1469598103934665603ull;
+  auto mix = [&hash](const std::int64_t value) {
+    hash ^= std::uint64_t(value);
+    hash *= 1099511628211ull;
+  };
+
+  mix(mpPersistentPlayerState->score());
+  mix(mpPersistentPlayerState->health());
+  mix(mpPersistentPlayerState->ammo());
+  return hash;
 }
 
 

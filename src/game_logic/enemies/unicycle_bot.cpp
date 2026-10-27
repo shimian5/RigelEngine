@@ -72,7 +72,7 @@ void UnicycleBot::update(
     },
 
     [&, this](Accelerating& state) {
-      animationFrame = s.mpPerFrameState->mIsOddFrame ? 2 : 1;
+      animationFrame = s.mpPerFrameState->mIsOddFrame ? 3 : 2;
 
       if (s.mpPerFrameState->mIsOddFrame)
       {
@@ -81,6 +81,25 @@ void UnicycleBot::update(
 
       --mFramesUntilNextTurn;
       ++state.mFramesElapsed;
+
+      // The original already tests for obstacles while the wheel is spinning
+      // up (without moving), and gives up as soon as something is in the way.
+      // When it does, the undo step of its collision handling nudges the
+      // bot one step away from the obstacle.
+      const auto movement = engine::orientation::toMovement(orientation);
+      const auto positionBefore = position;
+      auto& mutablePosition =
+        *entity.component<engine::components::WorldPosition>();
+      const auto probe = engine::moveHorizontallyWithStairStepping(
+        *d.mpCollisionChecker, entity, movement);
+      mutablePosition = positionBefore;
+      if (probe != engine::MovementResult::Completed)
+      {
+        mutablePosition.x -= movement;
+        mState = Waiting{};
+        return;
+      }
+
       if (state.mFramesElapsed == 10)
       {
         mState = Moving{};
@@ -88,7 +107,7 @@ void UnicycleBot::update(
     },
 
     [&, this](Moving& state) {
-      animationFrame = s.mpPerFrameState->mIsOddFrame ? 2 : 1;
+      animationFrame = s.mpPerFrameState->mIsOddFrame ? 3 : 2;
 
       --mFramesUntilNextTurn;
 

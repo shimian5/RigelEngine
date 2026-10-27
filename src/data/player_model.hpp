@@ -18,6 +18,8 @@
 
 #include "data/tutorial_messages.hpp"
 
+#include <cstdint>
+#include <optional>
 #include <vector>
 
 
@@ -126,6 +128,11 @@ public:
    * This implements the "eat" cheat code.
    */
   void resetHealthAndScore();
+
+  /** Binary (de)serialization, used for replay based save files */
+  void serialize(std::vector<std::uint8_t>& out) const;
+  static std::optional<PersistentPlayerState>
+    deserialize(const std::uint8_t*& pData, const std::uint8_t* pEnd);
 
   TutorialMessageState& tutorialMessages();
   const TutorialMessageState& tutorialMessages() const;

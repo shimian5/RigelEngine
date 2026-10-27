@@ -123,7 +123,29 @@ set(core_sources
     frontend/game.hpp
     frontend/game_mode.cpp
     frontend/game_mode.hpp
+    frontend/console_menu_mode.cpp
+    duke1/assets.cpp
+    duke1/exe_text.cpp
+    duke1/exe_text.hpp
+    duke1/core.cpp
+    duke1/play.cpp
+    duke1/actors.cpp
+    frontend/duke1_mode.cpp
+    frontend/duke1_saves.cpp
+    frontend/duke1_sound.cpp
+    frontend/duke1_story.cpp
+    frontend/duke1_story.hpp
+    frontend/duke1_sound.hpp
+    frontend/duke1_saves.hpp
+    frontend/duke1_mode.hpp
+    frontend/console_launcher_mode.cpp
+    frontend/console_launcher_mode.hpp
+    frontend/console_title_mode.cpp
+    frontend/console_title_mode.hpp
+    frontend/console_menu_mode.hpp
     frontend/game_runner.cpp
+    frontend/replay_save.cpp
+    frontend/replay_save.hpp
     frontend/game_runner.hpp
     frontend/game_service_provider.hpp
     frontend/game_session_mode.cpp
@@ -339,6 +361,18 @@ set(core_sources
     ui/high_score_list.hpp
     ui/hud_renderer.cpp
     ui/hud_renderer.hpp
+    ui/hud_skin.cpp
+    ui/hud_skin.hpp
+    ui/hud_skin_generator.cpp
+    ui/hud_skin_generator.hpp
+    ui/overlay_hud.cpp
+    ui/overlay_hud.hpp
+    ui/console_menu.cpp
+    ui/console_results.cpp
+    ui/console_menu.hpp
+    ui/console_results.hpp
+    ui/pause_menu.cpp
+    ui/pause_menu.hpp
     ui/imgui_integration.cpp
     ui/imgui_integration.hpp
     ui/ingame_menu.cpp
@@ -410,6 +444,10 @@ if(USE_GL_ES)
     )
 endif()
 
+if(RIGEL_DEV_SCREENSHOT)
+    target_compile_definitions(rigel_core PRIVATE RIGEL_DEV_SCREENSHOT=1)
+endif()
+
 
 # Main executable
 set(icon_file_osx "${CMAKE_SOURCE_DIR}/dist/osx/RigelEngine.icns")
@@ -419,10 +457,16 @@ set_source_files_properties(${icon_file_osx} PROPERTIES
 
 set(rc_file_windows "${CMAKE_SOURCE_DIR}/dist/win/RigelEngine.rc")
 
-add_executable(RigelEngine WIN32 MACOSX_BUNDLE
-    ${icon_file_osx}
-    ${rc_file_windows}
-)
+if(ANDROID)
+    # SDLActivity loads libmain.so and calls SDL_main() in it
+    add_library(RigelEngine SHARED)
+    set_target_properties(RigelEngine PROPERTIES OUTPUT_NAME main)
+else()
+    add_executable(RigelEngine WIN32 MACOSX_BUNDLE
+        ${icon_file_osx}
+        ${rc_file_windows}
+    )
+endif()
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
     target_sources(RigelEngine PRIVATE emscripten_main.cpp)
@@ -436,10 +480,14 @@ if("${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
         "SHELL:-s MIN_WEBGL_VERSION=1"
         "SHELL:-s MAX_WEBGL_VERSION=2"
         "SHELL:-s FULL_ES2=1"
-        "SHELL:--preload-file \"${WEBASSEMBLY_GAME_PATH}/@/duke\""
         "SHELL:--shell-file \"${CMAKE_SOURCE_DIR}/dist/emscripten/shell.html\""
         --no-heap-copy
     )
+    if(WEBASSEMBLY_GAME_PATH)
+        target_link_options(RigelEngine PRIVATE
+            "SHELL:--preload-file \"${WEBASSEMBLY_GAME_PATH}/@/duke\""
+        )
+    endif()
     set_target_properties(RigelEngine PROPERTIES
         SUFFIX
         ".html"
