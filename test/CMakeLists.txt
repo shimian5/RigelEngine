@@ -10,6 +10,7 @@ FetchContent_MakeAvailable(Catch2)
 
 add_executable(tests
     test_duke1_saves.cpp
+    test_camera.cpp
     test_array_view.cpp
     test_duke_script_loader.cpp
     test_elevator.cpp
@@ -22,6 +23,7 @@ add_executable(tests
     test_spike_ball.cpp
     test_string_utils.cpp
     test_timing.cpp
+    test_unicycle_bot.cpp
 )
 
 target_link_libraries(tests
