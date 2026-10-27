@@ -16,6 +16,8 @@
 
 #include "file_utils.hpp"
 
+#include "base/string_utils.hpp"
+
 #include <cassert>
 #include <fstream>
 #include <stdexcept>
@@ -32,6 +34,36 @@ namespace
 
 const char* OUT_OF_DATA_ERROR_MSG = "No more data in stream";
 
+}
+
+
+std::optional<std::filesystem::path> findFileIgnoringCase(
+  const std::filesystem::path& directory,
+  const std::string_view filename)
+{
+  namespace fs = std::filesystem;
+  std::error_code error;
+  const auto exact = directory / fs::u8path(filename);
+  if (fs::is_regular_file(exact, error))
+    return exact;
+
+  error.clear();
+  const auto expected = strings::toUppercase(filename);
+  std::optional<fs::path> match;
+  for (fs::directory_iterator it(directory, error), end; !error && it != end;
+       it.increment(error))
+  {
+    std::error_code fileError;
+    if (
+      it->is_regular_file(fileError) && !fileError &&
+      strings::toUppercase(it->path().filename().u8string()) == expected)
+    {
+      if (match)
+        return std::nullopt;
+      match = it->path();
+    }
+  }
+  return error ? std::nullopt : match;
 }
 
 

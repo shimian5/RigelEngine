@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="org.rigelengine.android"
+    package="org.rigelengineproton.android"
     android:versionCode="100001"
     android:versionName="0.10.0-beta.1"
     android:installLocation="auto">
@@ -17,18 +17,25 @@
         android:hardwareAccelerated="true"
         android:isGame="true">
         <activity
-            android:name="RigelActivity"
+            android:name=".SetupActivity"
+            android:launchMode="singleTask"
             android:label="RigelEngine: Proton"
             android:exported="true"
-            android:alwaysRetainTaskState="true"
-            android:launchMode="singleInstance"
             android:screenOrientation="landscape"
-            android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
-            android:preferMinimalPostProcessing="true">
+            android:theme="@android:style/Theme.Material.NoActionBar"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+        <activity
+            android:name=".RigelActivity"
+            android:label="RigelEngine: Proton"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
+            android:preferMinimalPostProcessing="true">
         </activity>
     </application>
 </manifest>

@@ -20,12 +20,14 @@
 #include "game_session_mode.hpp"
 #include "menu_mode.hpp"
 
+#include "assets/resource_loader.hpp"
 #include "data/game_session_data.hpp"
 #include "data/high_score_list.hpp"
 #include "frontend/game_service_provider.hpp"
 #include "frontend/replay_save.hpp"
 #include "frontend/user_profile.hpp"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 
@@ -249,10 +251,22 @@ std::unique_ptr<GameMode> ConsoleMenuMode::activateSelected()
         {
           mPendingSession = sessionId;
           mScreen = Screen::Story;
-          mIntroMovie.emplace(mContext);
-          mIntroMovie->startWithLogoOnly();
-          mIntroMovie->updateAndRender(0.0);
-          mContext.mpServiceProvider->fadeInScreen();
+          const char* movies[] = {
+            "NUKEM2.F1", "NUKEM2.F2", "NUKEM2.F3", "NUKEM2.F4"};
+          if (std::all_of(
+                std::begin(movies), std::end(movies), [this](auto name) {
+                  return mContext.mpResources->hasMovie(name);
+                }))
+          {
+            mIntroMovie.emplace(mContext);
+            mIntroMovie->startWithLogoOnly();
+            mIntroMovie->updateAndRender(0.0);
+            mContext.mpServiceProvider->fadeInScreen();
+          }
+          else
+          {
+            startStory();
+          }
           return nullptr;
         }
         return std::make_unique<GameSessionMode>(sessionId, mContext);

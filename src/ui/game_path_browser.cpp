@@ -41,7 +41,7 @@ std::filesystem::path runFolderBrowser(SDL_Window* pWindow)
   // or not, we'll leave it like this. Should we decide against showing the
   // options menu at first launch, we should extract some constants and helper
   // functions to avoid this duplication.
-  folderBrowser.SetTitle("Choose Duke Nukem II installation");
+  folderBrowser.SetTitle("Choose Duke Nukem I and/or II game folder");
 
   {
     int windowWidth = 0;

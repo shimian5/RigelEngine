@@ -177,11 +177,7 @@ struct GameOptions
 #else
   bool mShowLevelTimer = false;
 #endif
-#ifdef __ANDROID__
   bool mConsoleMenus = true;
-#else
-  bool mConsoleMenus = false;
-#endif
 #ifdef __ANDROID__
   bool mMotionSmoothing = true;
 #else

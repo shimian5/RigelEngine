@@ -40,6 +40,8 @@ jobs:
         log-accepted-android-sdk-licenses: false
     - name: Install pinned Android toolchain
       run: sdkmanager "platforms;android-33" "build-tools;35.0.0" "ndk;27.2.12479018"
+    - name: Test Android game-data imports
+      run: bash tools/test_android_import.sh
     - name: Restore permanent Android signing identity
       env:
         KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}

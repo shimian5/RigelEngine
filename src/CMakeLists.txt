@@ -120,6 +120,8 @@ set(core_sources
     frontend/demo_player.cpp
     frontend/demo_player.hpp
     frontend/game.cpp
+    frontend/game_data_paths.cpp
+    frontend/game_data_paths.hpp
     frontend/game.hpp
     frontend/game_mode.cpp
     frontend/game_mode.hpp

@@ -149,6 +149,10 @@ bool isExpectedExeName(const char* exeName)
 
   const auto executablePath = fs::u8path(exeName);
   const auto name = executablePath.stem().u8string();
+#ifdef __ANDROID__
+  if (name == "app_process")
+    return true;
+#endif
   return strings::startsWith(name, "rigelengine-proton") ||
     strings::startsWith(name, "RigelEngine");
 }

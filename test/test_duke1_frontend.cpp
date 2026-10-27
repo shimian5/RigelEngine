@@ -1,5 +1,8 @@
 #include "duke1_frontend_fixture.hpp"
 
+#include "assets/file_utils.hpp"
+#include "frontend/game_data_paths.hpp"
+
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators.hpp>
 
@@ -334,4 +337,61 @@ TEST_CASE(
   start.cbutton.button = SDL_CONTROLLER_BUTTON_START;
   Access::events(mode, {start});
   CHECK(Access::pauseRequested(mode));
+}
+
+TEST_CASE("Desktop discovers both games from a chosen folder", "[duke1][flow]")
+{
+  Duke1Fixture fixture;
+  namespace fs = std::filesystem;
+  const auto root = fixture.mData;
+  CHECK(rigel::Duke1Mode::findDataDirIn(root) == root);
+  CHECK_FALSE(rigel::findDuke2DataDir(root));
+
+  const auto child = root / "dUkE2";
+  fs::create_directory(child);
+  rigel::test::writeBytes(child / "nukem2.cmp", {1});
+  CHECK(rigel::findDuke2DataDir(root) == child);
+  CHECK(
+    rigel::assets::findFileIgnoringCase(child, "NUKEM2.CMP") ==
+    child / "nukem2.cmp");
+
+  const auto firstGame = root / "DN1";
+  fs::create_directory(firstGame);
+  CHECK(rigel::findDuke2DataDir(firstGame) == child);
+  CHECK(rigel::findDuke2DataDir(child) == child);
+
+  rigel::test::writeBytes(root / "NUKEM2.CMP", {2});
+  CHECK(rigel::findDuke2DataDir(root) == root);
+  CHECK(rigel::Duke1Mode::findDataDirIn(root) == root);
+
+  const auto layout = root / "layout";
+  const auto mixedCaseDn1 = layout / "dUkE1";
+  const auto mixedCaseDn2 = layout / "dN2";
+  fs::create_directories(mixedCaseDn1);
+  fs::create_directories(mixedCaseDn2);
+  fs::copy_file(root / "DN1.EXE", mixedCaseDn1 / "DN1.EXE");
+  fs::copy_file(root / "WORLDAL1.DN1", mixedCaseDn1 / "WORLDAL1.DN1");
+  rigel::test::writeBytes(mixedCaseDn2 / "NUKEM2.CMP", {3});
+  CHECK(rigel::Duke1Mode::findDataDirIn(layout) == mixedCaseDn1);
+  CHECK(rigel::Duke1Mode::findDataDirIn(mixedCaseDn2) == mixedCaseDn1);
+  CHECK(rigel::findDuke2DataDir(layout) == mixedCaseDn2);
+
+  const auto unrelated = root / "other";
+  fs::create_directory(unrelated);
+  CHECK_FALSE(rigel::findDuke2DataDir(unrelated));
+  CHECK(rigel::data::GameOptions{}.mConsoleMenus);
+}
+
+TEST_CASE("Older profiles enter the shared launcher", "[duke1][flow]")
+{
+  Duke1Fixture fixture;
+  auto old = rigel::createEmptyUserProfile();
+  old.mOptions.mConsoleMenus = false;
+  old.mOptions.mMusicOn = false;
+  old.saveToDisk();
+
+  const auto loaded = rigel::loadUserProfile();
+  REQUIRE(loaded);
+  CHECK(loaded->mOptions.mConsoleMenus);
+  CHECK_FALSE(loaded->mOptions.mMusicOn);
 }

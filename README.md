@@ -90,8 +90,8 @@ You only need the files for the game or games you want to play. Duke Nukem I doe
 need any Duke Nukem II data, and Duke Nukem II does not need Duke Nukem I's. If a game's
 files are missing, its entry in the launcher is greyed out.
 
-Put each game in its own folder and select one folder at first launch (or later via
-Options > Choose game data folder). A simple layout:
+On desktop, select a game-data folder at first launch (or later via Options > Choose
+game data folder). Files can be mixed together or placed in named subfolders:
 
 ```text
 Games/
@@ -111,7 +111,7 @@ Games/
 Note that `DN1.EXE`, `DN2.EXE` and `DN3.EXE` are the three *episodes of Duke Nukem I*; they
 have nothing to do with Duke Nukem II, which uses `NUKEM2.CMP`.
 
-* **Both games:** select `Games/Duke2`. The launcher finds `Duke1` next to it.
+* **Both games:** select `Games`, or select either game folder.
 * **Duke Nukem I only:** select `Games/Duke1`.
 * **Duke Nukem II only:** select `Games/Duke2`.
 
@@ -123,6 +123,35 @@ saved in your user profile. Desktop builds also accept it on the command line. O
 store the files in a location accessible to the app.
 
 ### Acquiring the game data
+
+### Android game files
+
+On first launch, use **Choose game folder** and Android's system folder picker.
+Select a normal shared-storage folder such as `Duke`, with either layout:
+
+```text
+Duke/                    Duke/
+  DN1/                     DN1.EXE, *.DN1, DN2.EXE, *.DN2, ...
+    DN1.EXE, *.DN1, ...     NUKEM2.CMP, NUKEM2.F1, ...
+  DN2/
+    NUKEM2.CMP, ...
+```
+
+You can also select a folder containing just one game. Filenames and the DN1/DN2
+folder names are matched regardless of case. The DN1 folder holds Duke I, including
+its three episodes; DN2 holds Duke II. Avoid multiple copies of the same game file
+in the chosen root and subfolders.
+
+The setup screen imports recognized DOS files into the app and shows the detected
+games before you press **Play**. Originals are unchanged. After adding or replacing
+source files, choose **Reimport selected folder** on the next launch. No ADB, broad
+storage permission or access to `Android/data` is required. Cancellation and failed
+imports keep the previous library. Importing uses additional storage; uninstalling
+the app removes its imported library and saves, while your original folder remains.
+
+The Android package ID is `org.rigelengineproton.android`. This installs separately
+from earlier private test builds using `org.rigelengine.android`; no migration is
+performed.
 
 Use an existing DOS installation or obtain the original shareware or registered release.
 For **Duke Nukem I**, keep each episode's original EXE and all matching loose data files
@@ -199,8 +228,8 @@ ctest --test-dir build-host --output-on-failure
 ```
 
 The desktop executable is `rigelengine-proton` (`rigelengine-proton.exe` on Windows).
-On Android, the app appears as **RigelEngine: Proton**. Updating the existing app
-keeps its saves and settings.
+On Android, the app appears as **RigelEngine: Proton**. Future updates with the same package ID and signing key
+keep its saves and settings.
 
 Install the platform dependencies described in [BUILDING.md](BUILDING.md) first.
 For Visual Studio, follow its Windows setup instructions and select the same configuration

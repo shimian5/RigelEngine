@@ -26,4 +26,5 @@ Never put either value in an issue, commit, build artifact or release notes.
 All tags currently produce prereleases, even without a beta suffix. After validation,
 a maintainer can edit the GitHub release to remove its prerelease status.
 Development CI APKs have disposable signing keys; the public APK is the one attached
-to the release. The package ID stays org.rigelengine.android for update compatibility.
+to the release. The public package ID is org.rigelengineproton.android. Earlier private builds used
+org.rigelengine.android and install separately; no settings migration is required.

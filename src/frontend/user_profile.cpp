@@ -666,7 +666,8 @@ data::GameOptions deserialize<data::GameOptions>(const nlohmann::json& json)
   extractValueIfExists(
     "showRadarInModernHud", result.mShowRadarInModernHud, json);
   extractValueIfExists("quickSavingEnabled", result.mQuickSavingEnabled, json);
-  extractValueIfExists("consoleMenus", result.mConsoleMenus, json);
+  // Proton always starts in the shared launcher, including older profiles.
+  result.mConsoleMenus = true;
   extractValueIfExists("showLevelTimer", result.mShowLevelTimer, json);
   extractValueIfExists("skipIntro", result.mSkipIntro, json);
   extractValueIfExists("motionSmoothing", result.mMotionSmoothing, json);

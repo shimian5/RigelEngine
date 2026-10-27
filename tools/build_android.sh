@@ -106,7 +106,7 @@ cp "$prefix/lib/libSDL2.so" "$prefix/lib/libSDL2_mixer.so" \
 "${java_bin}javac" -encoding UTF-8 -source 8 -target 8 -Xlint:-options \
   -cp "$android_jar" -d "$stage/classes" \
   "$sources/SDL2-2.30.9/android-project/app/src/main/java/org/libsdl/app/"*.java \
-  "$repo/android/app/java/org/rigelengine/android/"*.java
+  "$repo/android/app/java/org/rigelengineproton/android/"*.java
 mapfile -d '' classes < <(find "$stage/classes" -name '*.class' -print0)
 "${java_bin}java" -cp "$tools/lib/d8.jar" com.android.tools.r8.D8 \
   --lib "$android_jar" --min-api 26 --output "$stage" "${classes[@]}"

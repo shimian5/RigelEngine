@@ -31,6 +31,7 @@
 #include "console_menu_mode.hpp"
 #include "demo_player.hpp"
 #include "duke1_mode.hpp"
+#include "game_data_paths.hpp"
 #include "game_session_mode.hpp"
 #include "intro_demo_loop_mode.hpp"
 #include "menu_mode.hpp"
@@ -201,7 +202,7 @@ std::unique_ptr<GameMode> createInitialGameMode(
   }
   else if (commandLineOptions.mSkipIntro)
   {
-    return createMainMenuMode(context);
+    return createLauncherMode(context);
   }
   else if (
     context.mpUserProfile->mOptions.mConsoleMenus &&
@@ -315,15 +316,15 @@ Game::Game(
     const auto gamePath = effectiveGamePath(commandLineOptions, *pUserProfile);
     Duke1Mode::setGamePath(gamePath);
 
-    std::error_code ec;
-    if (!std::filesystem::exists(gamePath / "NUKEM2.CMP", ec) || ec)
+    const auto duke2Path = findDuke2DataDir(gamePath);
+    if (!duke2Path)
     {
       LOG_F(
         INFO, "No Duke Nukem II data found, only Duke Nukem 1 is available");
       return nullptr;
     }
     return std::make_unique<Duke2Resources>(
-      gamePath, *pUserProfile, &mRenderer, this);
+      *duke2Path, *pUserProfile, &mRenderer, this);
   }())
   , mpSoundSystem([&]() -> std::unique_ptr<audio::SoundSystem> {
     if (commandLineOptions.mDisableAudio || !mpDuke2)

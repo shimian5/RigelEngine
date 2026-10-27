@@ -145,7 +145,8 @@ ResourceLoader::ResourceLoader(
   : mGamePath(std::move(gamePath))
   , mModPaths(std::move(modPaths))
   , mEnableTopLevelMods(enableTopLevelMods)
-  , mFilePackage(mGamePath / "NUKEM2.CMP")
+  , mFilePackage(assets::findFileIgnoringCase(mGamePath, "NUKEM2.CMP")
+                   .value_or(mGamePath / "NUKEM2.CMP"))
   , mActorImagePackage(
       file(ActorImagePackage::IMAGE_DATA_FILE),
       file(ActorImagePackage::ACTOR_INFO_FILE))
@@ -412,20 +413,27 @@ TileSet ResourceLoader::loadCZone(std::string_view name) const
 }
 
 
+bool ResourceLoader::hasMovie(std::string_view name) const
+{
+  for (auto path = mModPaths.rbegin(); path != mModPaths.rend(); ++path)
+  {
+    if (assets::findFileIgnoringCase(*path, name))
+      return true;
+  }
+  return assets::findFileIgnoringCase(mGamePath, name).has_value();
+}
+
+
 data::Movie ResourceLoader::loadMovie(std::string_view name) const
 {
-  // We don't use tryLoadReplacement here, because we don't look for movies
-  // in the top-level path.
-  for (auto iPath = mModPaths.rbegin(); iPath != mModPaths.rend(); ++iPath)
+  for (auto path = mModPaths.rbegin(); path != mModPaths.rend(); ++path)
   {
-    const auto moddedFile = *iPath / fs::u8path(name);
-    if (fs::exists(moddedFile))
-    {
-      return assets::loadMovie(loadFile(moddedFile));
-    }
+    if (const auto file = assets::findFileIgnoringCase(*path, name))
+      return assets::loadMovie(loadFile(*file));
   }
-
-  return assets::loadMovie(loadFile(mGamePath / fs::u8path(name)));
+  const auto file = assets::findFileIgnoringCase(mGamePath, name);
+  return assets::loadMovie(
+    loadFile(file.value_or(mGamePath / fs::u8path(name))));
 }
 
 

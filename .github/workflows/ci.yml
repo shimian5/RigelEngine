@@ -157,6 +157,8 @@ jobs:
         log-accepted-android-sdk-licenses: false
     - name: Install pinned Android toolchain
       run: sdkmanager "platforms;android-33" "build-tools;35.0.0" "ndk;27.2.12479018"
+    - name: Test Android game-data imports
+      run: bash tools/test_android_import.sh
     - name: Cache verified SDL downloads
       uses: actions/cache@v4
       with:

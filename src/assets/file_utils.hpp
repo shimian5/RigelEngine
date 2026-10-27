@@ -27,6 +27,11 @@
 namespace rigel::assets
 {
 
+// Resolve a DOS filename on case-sensitive filesystems.
+std::optional<std::filesystem::path> findFileIgnoringCase(
+  const std::filesystem::path& directory,
+  std::string_view filename);
+
 std::optional<ByteBuffer> tryLoadFile(const std::filesystem::path& path);
 
 /** Load entire contents of file with given name into ByteBuffer

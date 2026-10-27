@@ -26,6 +26,7 @@
 #include "base/string_utils.hpp"
 #include "base/warnings.hpp"
 #include "frontend/duke1_mode.hpp"
+#include "frontend/game_data_paths.hpp"
 #include "frontend/game_service_provider.hpp"
 #include "frontend/user_profile.hpp"
 #include "renderer/opengl.hpp"
@@ -862,7 +863,6 @@ void OptionsMenu::updateAndRender(engine::TimeDelta dt)
       }
 
       ImGui::Checkbox("Quick saving", &mpOptions->mQuickSavingEnabled);
-      ImGui::Checkbox("Console-style pause menu", &mpOptions->mConsoleMenus);
       ImGui::Checkbox(
         "Show level timer (overlay HUD)", &mpOptions->mShowLevelTimer);
       ImGui::Checkbox("Skip intro sequence", &mpOptions->mSkipIntro);
@@ -958,8 +958,7 @@ void OptionsMenu::updateAndRender(engine::TimeDelta dt)
     {
       const auto newGamePath = mGamePathBrowser.GetSelected();
       if (
-        fs::exists(newGamePath / "NUKEM2.CMP") ||
-        Duke1Mode::findDataDirIn(newGamePath))
+        findDuke2DataDir(newGamePath) || Duke1Mode::findDataDirIn(newGamePath))
       {
         mGamePathBrowser.Close();
         mpServiceProvider->switchGamePath(newGamePath);

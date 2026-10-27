@@ -21,6 +21,7 @@
 #include "base/defer.hpp"
 #include "frontend/duke1_mode.hpp"
 #include "frontend/game.hpp"
+#include "frontend/game_data_paths.hpp"
 #include "renderer/opengl.hpp"
 #include "sdl_utils/error.hpp"
 #include "ui/game_path_browser.hpp"
@@ -72,10 +73,7 @@ void loadGameControllerDbForOldSdl()
 
 bool isValidGamePath(const std::filesystem::path& path)
 {
-  namespace fs = std::filesystem;
-
-  std::error_code ec;
-  if (fs::exists(path / "NUKEM2.CMP", ec) && !ec)
+  if (findDuke2DataDir(path))
   {
     return true;
   }
@@ -124,25 +122,8 @@ void setupForFirstLaunch(
     }
   }
 
-#ifdef __ANDROID__
-  // Android: look for the game files in the app's external storage directory,
-  // i.e. /sdcard/Android/data/<package>/files, which can be populated via adb
-  // or a file manager without needing any special permissions.
-  if (gamePath.empty())
-  {
-    if (const auto pExternalPath = SDL_AndroidGetExternalStoragePath())
-    {
-      const auto externalPath = fs::u8path(pExternalPath);
-      if (isValidGamePath(externalPath))
-      {
-        gamePath = externalPath;
-      }
-    }
-  }
-#endif
-
   // Case 3: Neither case 1 nor case 2 apply. Show a folder browser to let
-  // the user select their Duke Nukem II installation.
+  // the user select their game data folder.
   if (gamePath.empty())
   {
     gamePath = ui::runFolderBrowser(pWindow);
@@ -152,10 +133,7 @@ void setupForFirstLaunch(
   if (gamePath.empty())
   {
     throw std::runtime_error(
-      R"(No game path given. RigelEngine needs the original Duke Nukem II data files in order to function.
-You can download the Shareware version for free, see
-https://github.com/lethal-guitar/RigelEngine/blob/master/README.md#acquiring-the-game-data
-for more info.)");
+      "No game folder selected. Choose a folder containing Duke Nukem I or II data.");
   }
 
   // Make sure there is a data file at the game path.
@@ -168,7 +146,8 @@ for more info.)");
   // Import original game's profile data, if our profile is still 'empty'
   if (!userProfile.hasProgressData())
   {
-    importOriginalGameProfileData(userProfile, gamePath.u8string() + "/");
+    if (const auto duke2 = findDuke2DataDir(gamePath))
+      importOriginalGameProfileData(userProfile, duke2->u8string() + "/");
   }
 
   // Finally, persist the chosen game path in the user profile for the next
@@ -223,13 +202,14 @@ void initAndRunGame(
 
     const auto gamePath = effectiveGamePath(commandLineOptions, userProfile);
 
-    createModsDirIfNoneFound(gamePath);
+    const auto modPath = findDuke2DataDir(gamePath).value_or(gamePath);
+    createModsDirIfNoneFound(modPath);
 
     // Set up mod library with effective game path. This will automatically do
     // a rescan, which is important in case available mods have changed since
     // the last run.
     LOG_F(INFO, "Setting up mod library");
-    userProfile.mModLibrary.updateGamePath(gamePath);
+    userProfile.mModLibrary.updateGamePath(modPath);
 
     // The mod library might now have the changed flag set, but we don't want
     // the game to see the flag since that would cause the game to immediately

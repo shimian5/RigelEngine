@@ -21,6 +21,7 @@
 
 #include "assets/resource_loader.hpp"
 #include "base/image.hpp"
+#include "base/string_utils.hpp"
 #include "frontend/game_service_provider.hpp"
 #include "frontend/replay_save.hpp"
 #include "frontend/user_profile.hpp"
@@ -105,15 +106,28 @@ std::optional<std::filesystem::path> Duke1Mode::findDataDir()
     gGamePath.filename().empty() ? gGamePath.parent_path() : gGamePath;
   std::optional<std::filesystem::path> found;
   std::size_t episodeCount = 0;
-  for (const auto& candidate :
-       {base / "Duke1",
-        base / "DN1",
-        base / "dn1",
-        base.parent_path() / "Duke1",
-        base.parent_path() / "DN1",
-        base / "DN1-full" / "pc",
-        base.parent_path() / "DN1-full" / "pc",
-        base})
+  std::vector<std::filesystem::path> candidates{
+    base / "Duke1",
+    base / "DN1",
+    base / "dn1",
+    base.parent_path() / "Duke1",
+    base.parent_path() / "DN1",
+    base / "DN1-full" / "pc",
+    base.parent_path() / "DN1-full" / "pc",
+    base};
+  for (const auto& parent : {base, base.parent_path()})
+  {
+    std::error_code error;
+    for (std::filesystem::directory_iterator it(parent, error), end;
+         !error && it != end;
+         it.increment(error))
+    {
+      const auto name = strings::toUppercase(it->path().filename().u8string());
+      if (name == "DN1" || name == "DUKE1")
+        candidates.push_back(it->path());
+    }
+  }
+  for (const auto& candidate : candidates)
   {
     std::error_code error;
     if (!std::filesystem::is_directory(candidate, error))

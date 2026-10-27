@@ -106,6 +106,7 @@ public:
   data::Image loadBackdrop(std::string_view name) const;
   TileSet loadCZone(std::string_view name) const;
   data::Movie loadMovie(std::string_view name) const;
+  bool hasMovie(std::string_view name) const;
 
   data::Song loadMusic(std::string_view name) const;
   bool hasSoundBlasterSound(data::SoundId id) const;

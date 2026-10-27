@@ -7,10 +7,13 @@ Downloads:
 - Linux x64/ARM64 deb and tar.gz packages, built on Ubuntu 24.04; compatible system
   SDL2/SDL2_mixer libraries are required. Choose gl for OpenGL or gles for OpenGL ES.
 
-**Supply your own DOS game files.** No game data is included. On Android put Duke
-Nukem I files in a Duke1 folder under Android/data/org.rigelengine.android/files,
-and/or put NUKEM2.CMP there for Duke Nukem II. Desktop builds prompt for the data path.
-See the README for episode file requirements. Either game works independently.
+**Supply your own DOS game files.** No game data is included. On Android select a
+normal folder using Choose game folder. Files may be mixed together or inside DN1/
+DN2 subfolders. The app imports recognized data without changing your originals;
+use Reimport after updating the source folder. No ADB setup is needed.
+Desktop builds prompt for the data path. See README for required episode files.
+Either game works independently. The Android package is org.rigelengineproton.android;
+it installs separately from earlier private test builds.
 
 This is a beta. A controller is recommended on Android; touch controls are incomplete.
 Keep save backups. Report problems with the platform, version and reproduction steps.
