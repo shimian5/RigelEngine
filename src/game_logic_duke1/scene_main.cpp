@@ -1,4 +1,4 @@
-#include "assets.hpp"
+#include "assets/duke1_assets.hpp"
 #include <algorithm>
 #include <array>
 #include <cctype>

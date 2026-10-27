@@ -211,7 +211,7 @@ Pushes, pull requests and manual runs of the [CI workflow](.github/workflows/ci.
 Linux builds treat compiler warnings as errors. The native test suites include
 Duke Nukem I core and frontend regressions alongside Duke Nukem II tests, using generated
 fixtures without original game files. Additional standalone Duke Nukem I checks can be
-configured with `cmake -S src/duke1 -B build-host-dn1 -DBUILD_TESTING=ON`; some optional
+configured with `cmake -S src/game_logic_duke1 -B build-host-dn1 -DBUILD_TESTING=ON`; some optional
 research checks require separately supplied DOS data or local probe traces.
 
 Android CI uploads the APK artifact for 14 days and verifies its allowed contents and

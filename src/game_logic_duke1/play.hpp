@@ -2,7 +2,7 @@
 // deterministic core sandbox.
 #pragma once
 
-#include "assets.hpp"
+#include "assets/duke1_assets.hpp"
 #include "core.hpp"
 
 #include <array>

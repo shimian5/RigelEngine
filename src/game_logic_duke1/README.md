@@ -2,14 +2,14 @@
 
 Independent C++17 DOS asset/still-scene adapter and deterministic core sandbox. These new files intentionally have **no dependency on Duke II game state, renderer constants, physics or launcher code**. Existing DN2 files and the launcher entry hook are untouched; the user will add that hook.
 
-This coding milestone explicitly supersedes M4's read-only assumption **for additions under src/duke1**. Source evidence is the original 1991 DOS shareware and the independently authored research in re-notes/dn1. No commercial/cart/Evercade input, decompiled game source, bundled EXE or game asset is included. Generated maps/exports/tests belong in build-host-dn1 or dn1-work/out, never in this source directory.
+This coding milestone explicitly supersedes M4's read-only assumption **for additions under src/game_logic_duke1**. Source evidence is the original 1991 DOS shareware and the independently authored research in re-notes/dn1. No commercial/cart/Evercade input, decompiled game source, bundled EXE or game asset is included. Generated maps/exports/tests belong in build-host-dn1 or dn1-work/out, never in this source directory.
 
 ## Standalone build
 
 From any directory, configure the new build directory; this does not configure the parent project or use its existing build tree:
 
 ```sh
-cmake -S /home/matt/rigel/rigel-upstream/src/duke1 \
+cmake -S /home/matt/rigel/rigel-upstream/src/game_logic_duke1 \
   -B /home/matt/rigel/build-host-dn1 -DCMAKE_BUILD_TYPE=Debug \
   -DDN1_RESEARCH_ROOT=/home/matt/rigel/dn1-work \
   -DDN1_DATA_DIR=/home/matt/rigel/DN1 \

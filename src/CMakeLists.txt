@@ -124,18 +124,19 @@ set(core_sources
     frontend/game_mode.cpp
     frontend/game_mode.hpp
     frontend/console_menu_mode.cpp
-    duke1/assets.cpp
-    duke1/exe_text.cpp
-    duke1/exe_text.hpp
-    duke1/core.cpp
-    duke1/play.cpp
-    duke1/actors.cpp
+    assets/duke1_assets.cpp
+    assets/duke1_assets.hpp
+    assets/duke1_exe_text.cpp
+    assets/duke1_exe_text.hpp
+    game_logic_duke1/core.cpp
+    game_logic_duke1/play.cpp
+    game_logic_duke1/actors.cpp
     frontend/duke1_mode.cpp
     frontend/duke1_saves.cpp
-    frontend/duke1_sound.cpp
+    audio/duke1_speaker.cpp
     frontend/duke1_story.cpp
     frontend/duke1_story.hpp
-    frontend/duke1_sound.hpp
+    audio/duke1_speaker.hpp
     frontend/duke1_saves.hpp
     frontend/duke1_mode.hpp
     frontend/console_launcher_mode.cpp

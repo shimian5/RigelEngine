@@ -17,12 +17,12 @@
 
 #pragma once
 
-#include "duke1/core.hpp"
-#include "duke1/play.hpp"
+#include "audio/duke1_speaker.hpp"
 #include "frontend/duke1_saves.hpp"
-#include "frontend/duke1_sound.hpp"
 #include "frontend/duke1_story.hpp"
 #include "frontend/game_mode.hpp"
+#include "game_logic_duke1/core.hpp"
+#include "game_logic_duke1/play.hpp"
 #include "renderer/texture.hpp"
 #include "ui/console_menu.hpp"
 #include "ui/console_results.hpp"

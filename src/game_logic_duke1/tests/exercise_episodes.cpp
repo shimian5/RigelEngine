@@ -1,6 +1,6 @@
 // Headless stress/replay checks against the player's own registered episode
 // data.
-#include "exe_text.hpp"
+#include "assets/duke1_exe_text.hpp"
 #include "play.hpp"
 
 #include <iostream>

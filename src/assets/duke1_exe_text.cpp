@@ -14,8 +14,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "exe_text.hpp"
-#include "assets.hpp"
+#include "assets/duke1_exe_text.hpp"
+#include "assets/duke1_assets.hpp"
 
 #include <algorithm>
 #include <cctype>

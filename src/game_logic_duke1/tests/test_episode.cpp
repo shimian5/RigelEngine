@@ -1,6 +1,6 @@
-#include "assets.hpp"
+#include "assets/duke1_assets.hpp"
+#include "assets/duke1_exe_text.hpp"
 #include "episode_fixture.hpp"
-#include "exe_text.hpp"
 
 #include <algorithm>
 #include <stdexcept>

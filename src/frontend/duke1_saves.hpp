@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "duke1/play.hpp"
+#include "game_logic_duke1/play.hpp"
 
 #include <cstdint>
 #include <optional>

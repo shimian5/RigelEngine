@@ -14,8 +14,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "duke1_sound.hpp"
-#include "duke1/assets.hpp"
+#include "audio/duke1_speaker.hpp"
+#include "assets/duke1_assets.hpp"
 
 #include "data/sound_ids.hpp"
 

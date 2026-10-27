@@ -1,10 +1,10 @@
 // All files here are generated test inputs, never copied game data.
 #pragma once
 
-#include "duke1/tests/episode_fixture.hpp"
 #include "frontend/duke1_mode.hpp"
 #include "frontend/replay_save.hpp"
 #include "frontend/user_profile.hpp"
+#include "game_logic_duke1/tests/episode_fixture.hpp"
 #include "utils.hpp"
 
 #include <chrono>

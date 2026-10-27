@@ -1,5 +1,5 @@
 #include "play.hpp"
-#include "exe_text.hpp"
+#include "assets/duke1_exe_text.hpp"
 
 #include <algorithm>
 #include <cmath>

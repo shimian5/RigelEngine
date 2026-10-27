@@ -1,6 +1,6 @@
 // Generated metadata and instruction-pattern fixtures, containing no game data.
 #pragma once
-#include "../assets.hpp"
+#include "assets/duke1_assets.hpp"
 #include <algorithm>
 #include <string>
 #include <vector>

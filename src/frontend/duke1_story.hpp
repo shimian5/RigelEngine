@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "duke1/exe_text.hpp"
+#include "assets/duke1_exe_text.hpp"
 
 #include <cstdint>
 #include <filesystem>

@@ -16,7 +16,7 @@
 
 #include "duke1_story.hpp"
 
-#include "duke1/assets.hpp"
+#include "assets/duke1_assets.hpp"
 
 #include <algorithm>
 #include <array>
