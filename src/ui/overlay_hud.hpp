@@ -66,6 +66,12 @@ struct OverlayHudState
   bool showTimer = false;
   double levelSeconds = 0.0;
 
+  // The panels at the top move down by this fraction (0-1) of the distance
+  // between their resting position and topRowBottomPx, so that they don't
+  // cover the message line while one is showing
+  float topSlide = 0.0f;
+  int topRowBottomPx = 0;
+
   std::uint32_t animationFrame = 0;
   double timeSeconds = 0.0;
 };

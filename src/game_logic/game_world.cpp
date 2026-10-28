@@ -941,6 +941,28 @@ bool GameWorld::submitOverlayHud(const std::vector<base::Vec2>& radarDots)
 #endif
   state.timeSeconds = double(SDL_GetTicks()) / 1000.0;
 
+  // Slide the top panels down while a message is showing in the top row, and
+  // back up when it is gone
+  {
+    const auto now = SDL_GetTicks();
+    const auto elapsed = mHudLastTicks == 0
+      ? 0.0f
+      : std::min(0.1f, float(now - mHudLastTicks) / 1000.0f);
+    mHudLastTicks = now;
+
+    const auto target = mMessageDisplay.isActive() ? 1.0f : 0.0f;
+    const auto speed = target > mHudMessageSlide ? 8.0f : 3.0f;
+    const auto step = elapsed * speed;
+    mHudMessageSlide = target > mHudMessageSlide
+      ? std::min(target, mHudMessageSlide + step)
+      : std::max(target, mHudMessageSlide - step);
+
+    const auto viewport = renderer::determineViewport(mpRenderer);
+    state.topSlide = mHudMessageSlide;
+    state.topRowBottomPx = renderer::determineWidescreenOffsetY(mpRenderer) +
+      base::round(data::GameTraits::tileSize * viewport.mScale.y);
+  }
+
   mpServiceProvider->setNativeOverlay(
     [pRenderer = mpRenderer, pSkin, state = std::move(state)](const int alpha) {
       ui::drawOverlayHud(pRenderer, *pSkin, state, alpha);

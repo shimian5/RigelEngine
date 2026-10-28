@@ -54,6 +54,10 @@ public:
   void update();
   void render();
 
+  /** True from the moment a message starts printing until it has disappeared,
+   * including the pauses between its lines */
+  bool isActive() const { return !std::holds_alternative<Idle>(mState); }
+
 private:
   // Multi-line messages are displayed line by line. The '*' character is used
   // as "line break" indicator. Each line is printed character by character,

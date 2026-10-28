@@ -169,6 +169,16 @@ bool canUsePixelPerfectScaling(
 }
 
 
+int determineWidescreenOffsetY(const Renderer* pRenderer)
+{
+  const auto windowWidth = float(pRenderer->windowSize().width);
+  const auto windowHeight = float(pRenderer->windowSize().height);
+  const auto isNarrowerThan4by3 =
+    windowWidth / windowHeight <= data::GameTraits::aspectRatio;
+  return isNarrowerThan4by3 ? determineViewport(pRenderer).mOffset.y : 0;
+}
+
+
 WidescreenViewportInfo determineWidescreenViewport(const Renderer* pRenderer)
 {
   const auto info = determineViewport(pRenderer);
@@ -330,13 +340,8 @@ void UpscalingBuffer::present(
     {
       const auto offset =
         renderer::determineWidescreenViewport(mpRenderer).mLeftPaddingPx;
-
-      // Windows wider than 4:3 are filled from top to bottom. Narrower ones
-      // leave black bars above and below, center the picture between them.
-      const auto isNarrowerThan4by3 =
-        windowWidth / windowHeight <= data::GameTraits::aspectRatio;
       mpRenderer->setGlobalTranslation(
-        {offset, isNarrowerThan4by3 ? info.mOffset.y : 0});
+        {offset, renderer::determineWidescreenOffsetY(mpRenderer)});
     }
     else
     {

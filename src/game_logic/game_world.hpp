@@ -184,6 +184,8 @@ private:
   std::optional<ui::HudSkin> mGeneratedHudSkin;
   std::optional<ui::HudTier> mHudSkinTierTried;
   std::uint32_t mHudAnimationFrame = 0;
+  float mHudMessageSlide = 0.0f;
+  std::uint32_t mHudLastTicks = 0;
   std::uint32_t mElapsedTicks = 0;
   std::optional<base::Size> mSimulationViewportOverride;
   ui::IngameMessageDisplay mMessageDisplay;

@@ -66,6 +66,13 @@ bool canUsePixelPerfectScaling(
 
 WidescreenViewportInfo determineWidescreenViewport(const Renderer* pRenderer);
 
+/** Vertical position in the window of the top of a widescreen frame
+ *
+ * Windows wider than 4:3 are filled from top to bottom, narrower ones show the
+ * frame centered between black bars.
+ */
+int determineWidescreenOffsetY(const Renderer* pRenderer);
+
 int determineLowResBufferWidth(
   const Renderer* pRenderer,
   const bool widescreenModeWanted);

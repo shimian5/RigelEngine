@@ -213,14 +213,21 @@ void drawOverlayHud(
   const auto windowSize = pRenderer->windowSize();
   const auto margin = p.s(L.margin);
 
+  // While a message is showing, the top panels make room for it
+  const auto slide = std::clamp(state.topSlide, 0.0f, 1.0f);
+  const auto eased = slide * slide * (3.0f - 2.0f * slide);
+  const auto slideDistance =
+    std::max(0, state.topRowBottomPx + p.s(L.margin / 2) - margin);
+  const auto topMargin = margin + int(std::lround(eased * slideDistance));
+
   // ------------------------------------------------------------------
   // Top left: status panel with health pips, weapon and ammo
   // ------------------------------------------------------------------
-  p.draw(StatusPanel, 0, margin);
+  p.draw(StatusPanel, 0, topMargin);
 
   {
     const auto pipX = p.s(L.pipX);
-    const auto pipY = margin + p.s(L.pipY);
+    const auto pipY = topMargin + p.s(L.pipY);
     const auto pipStep = p.s(L.pipStep);
     constexpr auto NUM_PIPS = 8;
 
@@ -250,7 +257,7 @@ void drawOverlayHud(
       WeaponFirst + std::min(int(state.weapon), WeaponLast - WeaponFirst);
     const auto slotCenterX = p.s(L.weaponSlotX) + p.s(L.weaponSlotW) / 2;
     const auto slotCenterY =
-      margin + p.s(L.weaponSlotY) + p.s(L.weaponSlotH) / 2;
+      topMargin + p.s(L.weaponSlotY) + p.s(L.weaponSlotH) / 2;
     p.drawCentered(weaponIndex, slotCenterX, slotCenterY);
 
     // Projectile icon(s) next to it. Rapid fire and the flame thrower show
@@ -258,7 +265,7 @@ void drawOverlayHud(
     const auto projectileIndex =
       ProjectileNormal + std::min(int(state.weapon), 4);
     const auto cx = p.s(L.ammoIconCenterX);
-    const auto cy = margin + p.s(L.ammoIconCenterY);
+    const auto cy = topMargin + p.s(L.ammoIconCenterY);
     if (state.rapidFire || state.weapon == data::WeaponType::FlameThrower)
     {
       const auto step = p.s(L.ammoIconStep);
@@ -281,7 +288,7 @@ void drawOverlayHud(
       AmmoBarMiddle,
       AmmoBarRight,
       p.s(L.ammoBarX),
-      margin + p.s(L.ammoBarY),
+      topMargin + p.s(L.ammoBarY),
       int(std::lround(p.s(L.ammoBarWidth) * ratio)));
   }
 
@@ -291,7 +298,7 @@ void drawOverlayHud(
   {
     const auto panelSize = p.sizeOf(ScorePanel);
     const auto panelX = windowSize.width - panelSize.width;
-    p.draw(ScorePanel, panelX, margin);
+    p.draw(ScorePanel, panelX, topMargin);
 
     for (const auto letter : state.letters)
     {
@@ -299,7 +306,7 @@ void drawOverlayHud(
       p.drawScaled(
         LetterFirst + i,
         panelX + p.s(L.letterX) + i * p.s(L.letterStep),
-        margin + p.s(L.letterY),
+        topMargin + p.s(L.letterY),
         {p.s(L.letterSize), p.s(L.letterSize)});
     }
 
@@ -308,7 +315,7 @@ void drawOverlayHud(
       std::to_string(state.score),
       L.scoreFontSize,
       windowSize.width - p.s(L.scoreInsetRight),
-      margin + p.s(L.scoreCenterY),
+      topMargin + p.s(L.scoreCenterY),
       alpha);
 
     // Level timer below the panel
@@ -328,7 +335,7 @@ void drawOverlayHud(
         buffer,
         L.timerFontSize,
         windowSize.width - p.s(L.scoreInsetRight),
-        margin + panelSize.height + p.s(L.timerFontSize),
+        topMargin + panelSize.height + p.s(L.timerFontSize),
         alpha);
     }
   }
