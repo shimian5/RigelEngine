@@ -296,9 +296,12 @@ void drawOverlayHud(
   // Top right: score panel with collected letters
   // ------------------------------------------------------------------
   {
-    const auto panelSize = p.sizeOf(ScorePanel);
+    Painter scorePainter{
+      pRenderer, state.duke1ScoreSkin ? *state.duke1ScoreSkin : skin, alpha};
+    const auto& S = scorePainter.layout();
+    const auto panelSize = scorePainter.sizeOf(ScorePanel);
     const auto panelX = windowSize.width - panelSize.width;
-    p.draw(ScorePanel, panelX, topMargin);
+    scorePainter.draw(ScorePanel, panelX, topMargin);
 
     for (const auto letter : state.letters)
     {
@@ -310,12 +313,29 @@ void drawOverlayHud(
         {p.s(L.letterSize), p.s(L.letterSize)});
     }
 
+    for (int i = 0; i < 4; ++i)
+    {
+      const char letter = "DUKE"[i];
+      if (state.duke1Letters.find(letter) == std::string::npos)
+      {
+        continue;
+      }
+      const auto x = panelX + scorePainter.s(S.letterX + i * S.letterStep);
+      const auto size = scorePainter.s(S.letterSize);
+      const auto& icon = state.duke1LetterIcons[std::size_t(i)];
+      if (icon)
+        icon->render(
+          base::Rect<int>{{0, 0}, {16, 16}},
+          base::Rect<int>{
+            {x, topMargin + scorePainter.s(S.letterY)}, {size, size}});
+    }
+
     drawScoreText(
-      p,
+      scorePainter,
       std::to_string(state.score),
-      L.scoreFontSize,
-      windowSize.width - p.s(L.scoreInsetRight),
-      topMargin + p.s(L.scoreCenterY),
+      S.scoreFontSize,
+      windowSize.width - scorePainter.s(S.scoreInsetRight),
+      topMargin + scorePainter.s(S.scoreCenterY),
       alpha);
 
     // Level timer below the panel

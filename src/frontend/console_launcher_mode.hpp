@@ -42,12 +42,12 @@ public:
     const std::vector<SDL_Event>& events) override;
 
 private:
+  friend struct ConsoleLauncherModeTestAccess;
   enum class Screen
   {
     Games,
     Dn1Menu,
     Dn1Episodes,
-    Dn1Levels,
     LoadAll,
     Credits,
     QuitConfirm
@@ -68,8 +68,6 @@ private:
 
   std::vector<SaveItem> mSaveItems;
   std::vector<int> mDn1Episodes;
-  int mDn1Episode = 0;
-  std::size_t mDn1LevelCount = 0;
   /** Duke Nukem II needs its own data file, which may not be there */
   bool duke2Available() const { return mContext.mpResources != nullptr; }
 

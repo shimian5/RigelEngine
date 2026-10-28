@@ -116,6 +116,12 @@ public class SetupActivity extends Activity {
         gameStarted = false;
         leftForGame = false;
         updateStatus(null);
+        // A singleTask activity can be reused when the launcher is tapped.
+        // Treat that like a fresh launch, while retaining the explicit
+        // in-game request to manage the selected folder.
+        if (!intent.getBooleanExtra("manage", false) && play.isEnabled()) {
+            startGame();
+        }
     }
 
     private void updateStatus(String message) {

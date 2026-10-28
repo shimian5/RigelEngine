@@ -129,6 +129,7 @@ ui::HudArt Duke1Mode::duke1HudArt() const
   }
 
   ui::HudArt art;
+  art.mDuke1 = true;
   art.mGun = data::Image{std::move(pixels), GRID_W, GRID_H};
   art.mProjectiles[0] = data::Image{std::move(shot), 32, 16};
   return art;
@@ -142,7 +143,7 @@ void Duke1Mode::submitOverlayHud()
   if (!mHudSkinTierTried || *mHudSkinTierTried != tier)
   {
     mHudSkin = ui::HudSkin::tryLoad(mContext.mpRenderer, gamePath(), tier);
-    if (!mHudSkin && !mGeneratedHudSkin)
+    if (!mGeneratedHudSkin)
     {
       mGeneratedHudSkin =
         ui::HudSkin::generateDefault(mContext.mpRenderer, duke1HudArt());
@@ -165,6 +166,28 @@ void Duke1Mode::submitOverlayHud()
   state.maxAmmo = 4;
   state.showRadar = false;
   state.showRadarDisc = false;
+  const auto height = mContext.mpRenderer->windowSize().height;
+  state.topSlide = mHudMessageSlide;
+  state.duke1ScoreSkin = mGeneratedHudSkin ? &*mGeneratedHudSkin : nullptr;
+  state.topRowBottomPx = int(height * 0.01f) + std::max(12, height / 36);
+
+  for (int i = 0; i < 4; ++i)
+  {
+    if (!mLetterIcons[std::size_t(i)])
+    {
+      data::PixelBuffer pixels;
+      const auto& rgba = mpWorld->letterIcon(i);
+      for (std::size_t k = 0; k + 3 < rgba.size(); k += 4)
+        pixels.emplace_back(rgba[k], rgba[k + 1], rgba[k + 2], rgba[k + 3]);
+      mLetterIcons[std::size_t(i)] = std::make_shared<renderer::Texture>(
+        mContext.mpRenderer, data::Image{std::move(pixels), 16, 16});
+    }
+    state.duke1LetterIcons[std::size_t(i)] = mLetterIcons[std::size_t(i)];
+  }
+  for (const auto letter : mpWorld->collectedLetters())
+  {
+    state.duke1Letters.push_back(static_cast<char>(letter));
+  }
   for (int i = 0; i < 8; ++i)
   {
     if (!mpWorld->hasKey(i))

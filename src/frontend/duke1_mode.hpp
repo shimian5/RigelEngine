@@ -18,6 +18,7 @@
 #pragma once
 
 #include "audio/duke1_speaker.hpp"
+#include "engine/tiled_texture.hpp"
 #include "frontend/duke1_saves.hpp"
 #include "frontend/duke1_story.hpp"
 #include "frontend/game_mode.hpp"
@@ -28,10 +29,13 @@
 #include "ui/console_results.hpp"
 #include "ui/hud_skin.hpp"
 #include "ui/hud_skin_generator.hpp"
+#include "ui/ingame_message_display.hpp"
+#include "ui/menu_element_renderer.hpp"
 #include "ui/menu_navigation.hpp"
 #include "ui/pause_menu.hpp"
 
 #include <array>
+#include <deque>
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -82,6 +86,14 @@ private:
   void handleEvent(const SDL_Event& event);
   void handleEvents(const std::vector<SDL_Event>& events);
   void submitOverlayHud();
+  static std::string formatHint(const std::string& hint);
+  void queueHint(std::string hint, bool first = false, int actorIndex = -1);
+  void queueOriginalHint(int sequenceIndex, bool first = false);
+  void nextHint();
+  void detectActorHints(
+    const std::array<bool, 8>& oldInventory,
+    int oldCapacity,
+    std::size_t oldLetters);
   void renderFrame(double dt, bool paused);
   ui::HudArt duke1HudArt() const;
 
@@ -141,8 +153,22 @@ private:
   bool mBackHeld = false;
   bool mQuickSaveRequested = false;
   bool mQuickLoadRequested = false;
-  std::string mToast;
-  double mToastSeconds = 0.0;
+  // Original contextual hints are read from the player's episode executable.
+  std::string mLevelHint;
+  std::unique_ptr<renderer::Texture> mHintTexture;
+  std::string mHintTextureText;
+  ui::IngameMessageDisplay mHintDisplay;
+  double mHintClock = 0.0;
+  float mHudMessageSlide = 0.0f;
+  struct QueuedHint
+  {
+    std::string text;
+    int actorIndex = -1;
+  };
+  std::deque<QueuedHint> mPendingHints;
+  int mCurrentActorHint = -1;
+  std::array<bool, 22> mActorHintsShown{};
+  std::array<bool, 22> mActorHintsQueued{};
   bool mHideToastOnce = false; // keeps the message out of a save's picture
 
   void enterPauseScreen(PauseScreen screen);
@@ -155,6 +181,7 @@ private:
   void drawPauseMenu();
   static std::string levelLabel(std::size_t index);
   std::array<std::shared_ptr<renderer::Texture>, 8> mKeyIcons;
+  std::array<std::shared_ptr<renderer::Texture>, 4> mLetterIcons;
   std::optional<ui::HudSkin> mHudSkin;
   std::optional<ui::HudSkin> mGeneratedHudSkin;
   std::optional<ui::HudTier> mHudSkinTierTried;

@@ -286,6 +286,20 @@ void Duke1Speaker::play(const int index)
 }
 
 
+void Duke1Speaker::playHintTick()
+{
+  constexpr int WALKING_SOUND = 22;
+  if (
+    mFirstChannel < 0 || mSounds.size() <= WALKING_SOUND ||
+    !mSounds[WALKING_SOUND].mpChunk)
+    return;
+  Mix_PlayChannel(
+    mFirstChannel + NUM_CHANNELS - 1,
+    static_cast<Mix_Chunk*>(mSounds[WALKING_SOUND].mpChunk),
+    0);
+}
+
+
 void Duke1Speaker::setVolume(const float volume)
 {
   if (mFirstChannel >= 0)

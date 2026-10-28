@@ -589,7 +589,7 @@ GeneratedHudAtlas generateDefaultHudAtlas(const HudArt& art)
       p.y + 6,
       3,
       Color{190, 190, 190, 230});
-    for (auto i = 0; i < 5; ++i)
+    for (auto i = 0; i < (art.mDuke1 ? 4 : 5); ++i)
     {
       c.slot({p.x + 21 + 46 * i, p.y + 83, 40, 40}, 8);
     }

@@ -129,7 +129,9 @@ void ConsoleResultsScreen::draw() const
     out.mEarned = row.mEarned;
     if (i < revealed)
     {
-      out.mValue = row.mEarned ? formatScoreWithCommas(mPointsPerBonus) : "--";
+      out.mValue = row.mProgress.empty()
+        ? (row.mEarned ? formatScoreWithCommas(mPointsPerBonus) : "--")
+        : row.mProgress;
     }
     view.mRows.push_back(std::move(out));
   }

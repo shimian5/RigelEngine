@@ -129,13 +129,21 @@ private:
           unsigned(image[pointer]) | (unsigned(image[pointer + 1]) << 8);
         duke1::test::put(image, pointer, old + 0xb80);
       }
-    for (int i = 0; i < 19 * 4; ++i)
+    for (int group = 0; group < 19; ++group)
     {
-      duke1::test::put(image, 0x100 + 0xba1 + std::size_t(i) * 4, 0x1a00);
-      duke1::test::put(image, 0x100 + 0xba3 + std::size_t(i) * 4, 0x10);
+      const auto tip = "GENERATED TEST TIP " + std::to_string(group);
+      const auto offset = std::size_t(0x1a00 + group * 32);
+      std::copy(tip.begin(), tip.end(), image.begin() + 0x100 + offset);
+      for (int row = 0; row < 4; ++row)
+      {
+        const auto entry = std::size_t(group * 4 + row) * 4;
+        duke1::test::put(image, 0x100 + 0xba1 + entry, offset);
+        duke1::test::put(image, 0x100 + 0xba3 + entry, 0x10);
+      }
     }
-    const std::string tip = "GENERATED TEST TIP";
-    std::copy(tip.begin(), tip.end(), image.begin() + 0x1b00);
+    const std::string reminder = "SAVE TEST REMINDER";
+    std::copy(reminder.begin(), reminder.end(), image.begin() + 0x1e00);
+    duke1::test::put(image, 0x100 + 0xba1 + (3 * 4 + 3) * 4, 0x1d00);
     writeBytes(
       mData / ("DN" + std::to_string(episode + 1) + ".EXE"), packImage(image));
 

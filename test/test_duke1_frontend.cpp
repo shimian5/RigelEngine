@@ -1,6 +1,7 @@
 #include "duke1_frontend_fixture.hpp"
 
 #include "assets/file_utils.hpp"
+#include "frontend/console_launcher_mode.hpp"
 #include "frontend/game_data_paths.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -16,6 +17,33 @@ struct Duke1ModeTestAccess
   static const auto& log(const Duke1Mode& mode) { return mode.mInputLog; }
   static bool finished(const Duke1Mode& mode) { return mode.mEpisodeFinished; }
   static const auto& pages(const Duke1Mode& mode) { return mode.mPages; }
+  static std::string formatHint(const std::string& hint)
+  {
+    return Duke1Mode::formatHint(hint);
+  }
+  static const auto& levelHint(const Duke1Mode& mode)
+  {
+    return mode.mLevelHint;
+  }
+  static void
+    queueHint(Duke1Mode& mode, const std::string& hint, bool first = false)
+  {
+    mode.queueHint(hint, first);
+  }
+  static void nextHint(Duke1Mode& mode) { mode.nextHint(); }
+  static void originalHint(Duke1Mode& mode, int index)
+  {
+    mode.queueOriginalHint(index, true);
+  }
+  static void collectAllHints(Duke1Mode& mode)
+  {
+    mode.mpWorld->grantAll();
+    mode.detectActorHints({}, 1, 0);
+  }
+  static std::size_t queuedHints(const Duke1Mode& mode)
+  {
+    return mode.mPendingHints.size();
+  }
   static void events(Duke1Mode& mode, const std::vector<SDL_Event>& events)
   {
     mode.handleEvents(events);
@@ -76,6 +104,27 @@ struct Duke1ModeTestAccess
          ->hallwayMessage(
            mode.mText->levels()[mode.mLevelIndex].intermissionMessage)
          .empty();
+  }
+};
+struct ConsoleLauncherModeTestAccess
+{
+  static void newGame(ConsoleLauncherMode& launcher)
+  {
+    launcher.enter(ConsoleLauncherMode::Screen::Dn1Menu);
+    while (launcher.mList.selected() != 1)
+      launcher.mList.move(1);
+    launcher.activateSelected();
+  }
+  static const auto& items(const ConsoleLauncherMode& launcher)
+  {
+    return launcher.mList.items();
+  }
+  static std::unique_ptr<GameMode>
+    selectEpisode(ConsoleLauncherMode& launcher, int index)
+  {
+    while (launcher.mList.selected() != index)
+      launcher.mList.move(1);
+    return launcher.activateSelected();
   }
 };
 } // namespace rigel
@@ -148,6 +197,8 @@ TEST_CASE(
   Access::start(mode, 0, CARRY);
   Access::record(mode, INPUTS);
   REQUIRE(Access::validTips(mode)); // would expose the old extra page
+  CHECK(
+    Access::levelHint(mode).find("GENERATED TEST TIP") != std::string::npos);
   Access::results(mode);
   Access::confirm(mode);
   CHECK(Access::inResults(mode)); // first press finishes the tally only
@@ -157,6 +208,11 @@ TEST_CASE(
   CHECK_FALSE(Access::finished(mode));
   CHECK(Access::level(mode) == 1);
   CHECK(Access::pages(mode).empty());
+  CHECK(
+    Access::levelHint(mode).find("GENERATED TEST TIP 1") != std::string::npos);
+  Access::nextHint(mode);
+  CHECK(
+    Access::levelHint(mode).find("GENERATED TEST TIP 2") != std::string::npos);
   CHECK(Access::log(mode).empty());
   auto expected = Access::world(mode).carry();
   CHECK(expected.score == CARRY.score + 10000);
@@ -399,4 +455,141 @@ TEST_CASE("Older profiles enter the shared launcher", "[duke1][flow]")
   REQUIRE(loaded);
   CHECK(loaded->mOptions.mConsoleMenus);
   CHECK_FALSE(loaded->mOptions.mMusicOn);
+}
+
+TEST_CASE("DN1 hints queue without blocking game flow", "[duke1][hints]")
+{
+  Duke1Fixture fixture;
+  rigel::Duke1Mode mode(fixture.context(), fixture.mData);
+  const auto levelHint = Access::levelHint(mode);
+  REQUIRE_FALSE(levelHint.empty());
+  Access::queueHint(mode, "TEST ITEM HINT");
+  CHECK(Access::levelHint(mode) == levelHint);
+  Access::queueHint(mode, "TEST PREVIOUS HALLWAY", true);
+  CHECK(Access::levelHint(mode) == "TEST PREVIOUS HALLWAY");
+  Access::nextHint(mode);
+  CHECK(Access::levelHint(mode) == levelHint);
+  Access::nextHint(mode);
+  CHECK(Access::levelHint(mode) == "TEST ITEM HINT");
+  Access::nextHint(mode);
+  CHECK(Access::levelHint(mode).empty());
+}
+
+TEST_CASE("DN1 item hints are queued once", "[duke1][hints]")
+{
+  Duke1Fixture fixture;
+  rigel::Duke1Mode mode(fixture.context(), fixture.mData);
+  Access::collectAllHints(mode);
+  CHECK(Access::queuedHints(mode) == 6);
+  Access::collectAllHints(mode);
+  CHECK(Access::queuedHints(mode) == 6);
+}
+
+TEST_CASE(
+  "DN1 original advice omits the separate save reminder",
+  "[duke1][hints]")
+{
+  Duke1Fixture fixture;
+  rigel::Duke1Mode mode(fixture.context(), fixture.mData);
+  Access::originalHint(mode, 3);
+  CHECK(
+    Access::levelHint(mode).find("GENERATED TEST TIP 3") != std::string::npos);
+  CHECK(
+    Access::levelHint(mode).find("SAVE TEST REMINDER") == std::string::npos);
+}
+
+TEST_CASE("DN1 and DN2 hints share typewriter timing", "[duke1][hints]")
+{
+  ui::IngameMessageDisplay message(nullptr, nullptr);
+  message.setMessage("AB*CD");
+  REQUIRE(message.isActive());
+  message.update();
+  CHECK(message.printedMessage() == "A");
+  message.update();
+  CHECK(message.printedMessage() == "AB");
+  message.update();
+  for (int i = 0; i < 20; ++i)
+    message.update();
+  CHECK(message.printedMessage() == "AB");
+  message.update();
+  CHECK(message.printedMessage().empty());
+  message.update();
+  CHECK(message.printedMessage() == "C");
+  message.clear();
+  CHECK_FALSE(message.isActive());
+  CHECK(message.printedMessage().empty());
+}
+
+TEST_CASE(
+  "DN1 hints wrap at word boundaries without empty lines",
+  "[duke1][hints]")
+{
+  const auto formatted =
+    Access::formatHint("A LONGER HINT WITH A WORD AT THE VERY END");
+  CHECK(formatted == "A LONGER HINT WITH A WORD AT THE*VERY END");
+  CHECK(Access::formatHint("ONE\nTWO") == "ONE*TWO");
+  CHECK(
+    Access::formatHint(std::string(37, 'A')) == std::string(36, 'A') + "*A");
+  CHECK(
+    Access::formatHint(std::string(36, 'A') + " Z") ==
+    std::string(36, 'A') + "*Z");
+  CHECK(Access::formatHint("   ").empty());
+}
+
+TEST_CASE("DN1 hint font comes from the episode files", "[duke1][hints]")
+{
+  Duke1Fixture fixture;
+  const auto text = duke1::ExeText::load(fixture.mData, 0);
+  REQUIRE(text);
+  rigel::Duke1Screens screens(fixture.mData, *text);
+  REQUIRE(screens.hasFont());
+  CHECK(screens.hintPixels("DUKE").size() == 4 * 8 * 8 * 4);
+  const auto font = duke1::parse_tiles(
+    duke1::read_file(fixture.mData, text->assetName("FONT1")));
+  REQUIRE(font.tiles.size() > 43);
+  const auto rendered = screens.hintPixels("A");
+  const auto glyph = font.tiles[43].rgba();
+  REQUIRE(glyph.size() >= rendered.size());
+  CHECK(std::equal(rendered.begin(), rendered.end(), glyph.begin()));
+  CHECK(screens.hintPixels("").empty());
+}
+
+TEST_CASE(
+  "DN1 new game lists installed episodes and starts at level one",
+  "[duke1][launcher]")
+{
+  const bool singleEpisode = GENERATE(false, true);
+  Duke1Fixture fixture;
+  if (singleEpisode)
+  {
+    std::filesystem::remove(fixture.mData / "DN2.EXE");
+    std::filesystem::remove(fixture.mData / "DN3.EXE");
+  }
+  Duke1Mode::setGamePath(fixture.mData);
+  ConsoleLauncherMode launcher(fixture.context());
+  rigel::ConsoleLauncherModeTestAccess::newGame(launcher);
+  const auto& items = rigel::ConsoleLauncherModeTestAccess::items(launcher);
+  REQUIRE(items.size() == (singleEpisode ? 2u : 4u));
+  CHECK(items.front().mLabel == "EPISODE 1");
+  CHECK(items.back().mLabel == "BACK");
+  const int selected = singleEpisode ? 0 : 2;
+  auto next =
+    rigel::ConsoleLauncherModeTestAccess::selectEpisode(launcher, selected);
+  auto* game = dynamic_cast<Duke1Mode*>(next.get());
+  REQUIRE(game != nullptr);
+  CHECK(Access::episode(*game) == (singleEpisode ? 0 : 2));
+  CHECK(Access::level(*game) == 0);
+}
+
+TEST_CASE("DN1 queued item hints survive level changes", "[duke1][hints]")
+{
+  Duke1Fixture fixture;
+  rigel::Duke1Mode mode(fixture.context(), fixture.mData);
+  Access::collectAllHints(mode);
+  REQUIRE(Access::queuedHints(mode) == 6);
+  Access::start(mode, 1, CARRY);
+  CHECK(Access::queuedHints(mode) == 6);
+  Access::nextHint(mode);
+  CHECK_FALSE(Access::levelHint(mode).empty());
+  CHECK(Access::queuedHints(mode) == 5);
 }

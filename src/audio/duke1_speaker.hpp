@@ -44,6 +44,8 @@ public:
 
   /** Play sound request 0-47 (0-23 first bank, 24-47 second bank) */
   void play(int index);
+  // A short DN1 step sound on a separate channel for message typing.
+  void playHintTick();
   void stop();
   /** 0..1, follows the game's sound volume option */
   void setVolume(float volume);
@@ -58,7 +60,7 @@ private:
 
   std::vector<Sound> mSounds;
   int mFirstChannel = -1; // first of the channels reserved for these sounds
-  static constexpr int NUM_CHANNELS = 4 + 48;
+  static constexpr int NUM_CHANNELS = 4 + 48 + 1;
 };
 
 } // namespace rigel

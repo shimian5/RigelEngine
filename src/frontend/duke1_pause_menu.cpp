@@ -145,8 +145,7 @@ void Duke1Mode::runPauseMenuAction()
   using Action = ui::PauseMenu::Action;
 
   const auto report = [this](const bool ok, const char* good, const char* bad) {
-    mToast = ok ? good : bad;
-    mToastSeconds = 1.5;
+    queueHint(ok ? good : bad, true);
   };
 
   int slot = 0;
@@ -223,7 +222,10 @@ void Duke1Mode::activatePauseSelection()
             showPages(mpScreens->endingPages());
           break;
         }
+        const auto hallwayHint =
+          mText->levels()[mLevelIndex].intermissionMessage;
         startLevel(mLevelIndex + 1, &mStatsCarry);
+        queueOriginalHint(hallwayHint, true);
         mFadeInPending = true;
         break;
       }
@@ -240,8 +242,7 @@ void Duke1Mode::activatePauseSelection()
         case 2:
           mpWorld->grantAll();
           mDebugUsed = true;
-          mToast = "ALL ITEMS";
-          mToastSeconds = 1.5;
+          queueHint("ALL ITEMS", true);
           mPause = PauseScreen::None;
           break;
         case 3:

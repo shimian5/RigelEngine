@@ -151,6 +151,30 @@ Duke1Screens::Duke1Screens(
 }
 
 
+std::vector<std::uint8_t>
+  Duke1Screens::hintPixels(const std::string& text) const
+{
+  const auto width = text.size() * 8;
+  std::vector<std::uint8_t> pixels(width * 8 * 4, 0);
+  for (std::size_t column = 0; column < text.size(); ++column)
+  {
+    const int glyph = glyphIndex(static_cast<unsigned char>(text[column]));
+    if (glyph < 0 || std::size_t(glyph) >= mGlyphs.size())
+      continue;
+    const auto& source = mGlyphs[std::size_t(glyph)];
+    if (source.size() < 8 * 8 * 4)
+      continue;
+    for (std::size_t y = 0; y < 8; ++y)
+      for (std::size_t x = 0; x < 8; ++x)
+      {
+        const auto from = (y * 8 + x) * 4;
+        const auto to = (y * width + column * 8 + x) * 4;
+        std::copy_n(source.begin() + from, 4, pixels.begin() + to);
+      }
+  }
+  return pixels;
+}
+
 void Duke1Screens::drawText(
   std::vector<std::uint8_t>& rgba,
   const int x,

@@ -97,6 +97,13 @@ void PlayWorld::initPorted(ActorInstance& a)
   } prevInit{a};
   switch (a.id)
   {
+    case 0x301B:
+    case 0x301C: // stationary devices that push Duke left or right
+      a.ported = true;
+      a.state = a.id == 0x301B ? 1 : 2;
+      a.x8 = a.col * 2 + 2;
+      a.yw = a.row * 128;
+      break;
     case 0x3010: // walking cylinder robot
       a.ported = true;
       a.state = 1;
@@ -384,6 +391,45 @@ void PlayWorld::updatePortedPart1(ActorInstance& a)
   auto& p = mSandbox.player;
   switch (a.id)
   {
+    case 0x301B:
+    case 0x301C:
+      {
+        if (
+          a.state < 4 || a.state == 5 || a.state == 9 || a.state == 15 ||
+          a.state == 25)
+          a.v0 = (a.v0 + 1) % 4;
+        if (offscreen(a.yw, a.x8) && offscreen(a.yw - 0x80, a.x8))
+          break;
+        if (bulletHit(a.yw, a.x8) || bulletHit(a.yw - 0x80, a.x8))
+        {
+          if (a.state == 1 || a.state == 2)
+            addScore(1000, (a.x8 - 2) * 8, a.yw / 8);
+          a.state = 3;
+          sound(18);
+          spawnDebris(a.yw - 0xc0, a.x8);
+        }
+        if (a.state > 2 && ++a.state == 26)
+        {
+          a.state = 0;
+          a.alive = false;
+          break;
+        }
+        if (a.state == 1 || a.state == 2)
+        {
+          const int direction = a.state == 1 ? -1 : 1;
+          if (
+            touchesPlayer(a.x8 + direction * 2, a.yw - 0x40) ||
+            touchesPlayer(a.x8 + direction * 4, a.yw - 0x40) ||
+            touchesPlayer(a.x8 + direction * 6, a.yw - 0x40))
+          {
+            std::vector<Event> scratch;
+            if (mSandbox.world.clear(
+                  direction < 0 ? Sensor::Left : Sensor::Right, p, scratch))
+              p.x8 += direction;
+          }
+        }
+        break;
+      }
     case 0x302A:
       {
         if (offscreen(a.yw, a.x8))
@@ -608,6 +654,8 @@ void PlayWorld::updatePortedPart1(ActorInstance& a)
       {
         if (a.state != 1 || offscreen(a.yw, a.x8))
           break;
+        if (touchesPlayer(a.x8, a.yw) && !mHasCard)
+          mHintEvents |= CardNeededHint;
         if (touchesPlayer(a.x8, a.yw) && mHasCard && mSandbox.input.up)
         {
           for (auto& f : mActors)
@@ -629,6 +677,8 @@ void PlayWorld::updatePortedPart1(ActorInstance& a)
           a.v1 = 0;
           break;
         }
+        if (touchesPlayer(a.x8, a.yw) && !mHasItem && a.v0 == 0)
+          mHintEvents |= MachineNeededHint;
         if (touchesPlayer(a.x8, a.yw) && mSandbox.input.up && a.v0 == 0)
         {
           if (!mHasItem)
@@ -677,6 +727,8 @@ void PlayWorld::updatePortedPart1(ActorInstance& a)
         const int dy = ((p.y >> 4) * 0x80 + p.cameraYWords) - (a.yw - 0x20) + 2;
         const bool on = px > 2 * a.col && px < 2 * a.col + 2 + 2 * a.v0 &&
           dy > 0 && dy < 0x180;
+        if (on)
+          mHintEvents |= FragileHint;
         if (!on)
         {
           if (a.v1 == 1)
@@ -722,6 +774,9 @@ void PlayWorld::updatePortedPart2(ActorInstance& a)
           break;
         if (a.v0 == 0)
         {
+          if (touchesPlayer(a.x8, a.yw - 0x40))
+            mHintEvents |= BeamHint;
+          sound(36);
           bool hit = false;
           for (int dy : {0, -0x80, -0x100})
           {
@@ -743,8 +798,18 @@ void PlayWorld::updatePortedPart2(ActorInstance& a)
         {
           ++a.v0;
           if (mPhase % 4 == 0 || mPhase % 4 == 2)
-            spawnDebris(a.yw, a.x8);
-          if (a.v0 > 24)
+            spawnDebris(a.yw, a.x8 + (mPhase % 4 == 0 ? -1 : 1));
+          // Enhanced presentation: smoke and harmless bursts travel up and
+          // down the column as it burns out. The DOS effects above and the
+          // original destruction timer remain unchanged.
+          if (a.v0 % 4 == 0 && a.v0 < 32)
+          {
+            const int height = (a.v0 / 4) % 3;
+            const int y = a.yw - height * 0x80;
+            spawnDebris(y, a.x8);
+            mExplosions.push_back({1, a.x8, y, 1});
+          }
+          if (a.v0 >= 32)
           {
             a.state = 0;
             a.alive = false;
@@ -768,6 +833,8 @@ void PlayWorld::updatePortedPart2(ActorInstance& a)
           }
         if (!partner)
           break;
+        if (touchesPlayer(a.x8 + 2, a.yw))
+          mHintEvents |= TeleporterHint;
         // Countdown as in the original: 8 on activation, the jump happens on
         // the update that finds it at 1
         if (a.v0 == 1)
@@ -848,6 +915,7 @@ void PlayWorld::updatePortedPart2(ActorInstance& a)
           if (a.state == 1)
           {
             spawnSparks(a.yw, a.x8);
+            mHintEvents |= CrateHint;
             a.state = 2;
             if (!floorAt(a.x8, a.yw + 0x80))
               addScore(500, (a.x8 - 2) * 8, a.yw / 8);
@@ -865,18 +933,21 @@ void PlayWorld::updatePortedPart2(ActorInstance& a)
         {
           if (soda)
           {
+            mHintEvents |= DrinkHint;
             addScore(200, (a.x8 - 2) * 8, a.yw / 8);
             if (p.health < 9)
               ++p.health;
           }
           else if (a.state == 2)
           {
+            mHintEvents |= FoodHint;
             addScore(100, (a.x8 - 2) * 8, a.yw / 8);
             if (p.health < 9)
               ++p.health;
           }
           else
           {
+            mHintEvents |= FoodHint;
             addScore(200, (a.x8 - 2) * 8, a.yw / 8);
             p.health = std::min(9, p.health + 2);
           }
@@ -896,6 +967,9 @@ void PlayWorld::updatePortedPart2(ActorInstance& a)
           a.v0 = floorAt(a.x8 + 3, a.yw + 0x80) ? 0x18 : 1;
         if (a.v0 == 0)
           break;
+        // The original requests the short rotor cue while the craft is visible.
+        if (!offscreen(a.yw, a.x8))
+          sound(22);
         if (a.v0 > 2)
         {
           --a.v0;
@@ -1057,9 +1131,11 @@ void PlayWorld::updatePortedPart2(ActorInstance& a)
           spawnDebris(a.yw - 0xc0, a.x8 + 1);
           spawnDebris(a.yw, a.x8 - 1);
           addScore(200, (a.x8 - 2) * 8, a.yw / 8);
+          sound(18);
         }
         else if (touchesPlayer(a.x8, a.yw))
         {
+          sound(35);
           p.pendingHit = true;
           a.state = 3;
           a.v0 = 0;
@@ -1089,6 +1165,7 @@ void PlayWorld::updatePortedPart3(ActorInstance& a)
             if (!floorAt(a.x8, a.yw + 0x80))
               addScore(500, (a.x8 - 2) * 8, a.yw / 8);
             a.state = 2;
+            mHintEvents |= BalloonHint;
           }
         }
         else
@@ -1126,6 +1203,7 @@ void PlayWorld::updatePortedPart3(ActorInstance& a)
           break;
         if (bulletHit(a.yw, a.x8))
         {
+          mHintEvents |= CameraHint;
           addScore(100, (a.x8 - 2) * 8, a.yw / 8);
           spawnExplosion(a.yw, a.x8, 1);
           a.state = 0;
@@ -1197,7 +1275,10 @@ void PlayWorld::updatePortedPart3(ActorInstance& a)
           128, 96, 64, 32, 8, 4, 1, -1, -4, -8, -32, -64, -96, -128};
         a.yw -= kBob[a.v0 + 6];
         if (++a.v0 == 8)
+        {
           a.v0 = -6;
+          sound(34);
+        }
         if (touchesPlayer(a.x8, a.yw))
           p.pendingHit = true;
         bulletHit(a.yw, a.x8);
@@ -1213,6 +1294,7 @@ void PlayWorld::updatePortedPart3(ActorInstance& a)
         {
           p.pendingHit = true;
           spawnExplosion(a.yw, a.x8, 2);
+          sound(33);
           a.state = 0;
           a.alive = false;
           mSandbox.world.cells[a.cellIndex] = a.under;
@@ -1288,6 +1370,8 @@ void PlayWorld::updatePortedPart3(ActorInstance& a)
         const int playerX = p.x8 + p.cameraX8;
         const int dy = ((p.y >> 4) * 0x80 + p.cameraYWords) - (a.yw - 0x20) + 2;
         const bool standing = playerX == a.x8 && dy > 0 && dy < 0x180;
+        if (standing)
+          mHintEvents |= ElevatorHint;
         if (!standing)
         {
           if (a.v0 > 0)
@@ -1319,6 +1403,10 @@ void PlayWorld::updatePortedPart3(ActorInstance& a)
         const auto& in = mSandbox.input;
         if (a.v0 == 0)
         {
+          if (
+            touchesPlayer(a.x8 + 1, a.yw) ||
+            touchesPlayer(a.x8 + 1, a.yw - 0x80))
+            mHintEvents |= ExitHint;
           if (
             in.up && !in.left && !in.right && !in.jump &&
             (touchesPlayer(a.x8 + 1, a.yw) ||
@@ -1375,6 +1463,8 @@ void PlayWorld::updatePortedPart4(ActorInstance& a)
         if (offscreen(a.yw, a.x8) || a.v0)
           break;
         const int color = a.id - 0x3048;
+        if (touchesPlayer(a.x8, a.yw) && !mKeys[color])
+          mHintEvents |= KeyNeededHint;
         if (touchesPlayer(a.x8, a.yw) && mSandbox.input.up && mKeys[color])
         {
           for (auto& d : mActors)
@@ -1692,6 +1782,8 @@ void PlayWorld::updatePortedPart4(ActorInstance& a)
       {
         if (mPhase % 4 == 0)
           sound(21);
+        if (touchesPlayer(a.x8 + 1, a.yw) || touchesPlayer(a.x8 - 1, a.yw))
+          mHintEvents |= FieldHint;
         if (touchesPlayer(a.x8 + 1, a.yw) && p.x8 < 28)
           ++p.x8;
         if (touchesPlayer(a.x8 - 1, a.yw) && p.x8 > 0)
@@ -1717,6 +1809,8 @@ void PlayWorld::updatePortedPart5(ActorInstance& a)
         ++a.state;
         if (a.state > 0x41)
           a.state = 1;
+        if (a.state == 0x0f && !offscreen(a.yw, a.x8))
+          sound(43);
         if (a.state >= 0x19 && a.state < 0x2d && !offscreen(a.yw, a.x8))
         {
           const int dir = a.id == 0x3009 ? 1 : -1;
@@ -1751,6 +1845,7 @@ void PlayWorld::updatePortedPart5(ActorInstance& a)
         if (a.v0 == 0 && bulletHit(a.yw, a.x8))
         {
           spawnSparks(a.yw, a.x8);
+          mHintEvents |= TntHint;
           a.v0 = 1;
           if (!floorAt(a.x8, a.yw + 0x80))
             addScore(500, (a.x8 - 2) * 8, a.yw / 8);
@@ -2118,6 +2213,11 @@ void PlayWorld::drawPortedPart1(
   const auto& p0 = mSandbox.player;
   switch (a.id)
   {
+    case 0x301B:
+    case 0x301C:
+      drawPiece(out, w, h, left, top, 156 + 2 * a.v0, a.x8, a.yw - 0x80);
+      drawPiece(out, w, h, left, top, 157 + 2 * a.v0, a.x8, a.yw);
+      break;
     case 0x3010:
       if (a.state == 0)
         break;

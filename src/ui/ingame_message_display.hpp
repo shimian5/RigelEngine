@@ -53,6 +53,12 @@ public:
 
   void update();
   void render();
+  void clear();
+  const std::string& printedMessage() const { return mPrintedMessage; }
+  void setTextRenderer(MenuElementRenderer* renderer)
+  {
+    mpTextRenderer = renderer;
+  }
 
   /** True from the moment a message starts printing until it has disappeared,
    * including the pauses between its lines */

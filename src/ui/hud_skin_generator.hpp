@@ -60,6 +60,9 @@ struct HudArt
   /** The 32x16 projectile icons of the four weapons */
   std::array<std::optional<data::Image>, 4> mProjectiles;
 
+  // Duke I has four letter slots, unlike Duke II.
+  bool mDuke1 = false;
+
   /** Art taken from the Duke Nukem II data */
   static HudArt fromDuke2(const assets::ResourceLoader& resources);
 };

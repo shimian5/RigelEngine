@@ -1059,6 +1059,12 @@ PlayWorld::BonusReport PlayWorld::bonusReport() const
         return false;
     return true;
   };
+  r.cameraTotal = mBonusTotals[0];
+  const auto camerasRemaining =
+    std::count_if(mActors.begin(), mActors.end(), [](const auto& actor) {
+      return actor.id == 0x3024 && actor.alive;
+    });
+  r.cameraDestroyed = std::max(0, r.cameraTotal - int(camerasRemaining));
   r.present[Cameras] = mBonusTotals[0] > 0;
   r.earned[Cameras] = mBonusTotals[0] > 0 && allGone(0x3024);
   r.present[AcmeSigns] = mBonusTotals[1] > 0;

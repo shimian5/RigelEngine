@@ -61,6 +61,9 @@ public:
     int boxY) const;
 
   bool valid() const { return mValid; }
+  bool hasFont() const { return mGlyphs.size() >= 100; }
+  // Eight-pixel-high RGBA message using the episode's own FONT banks.
+  std::vector<std::uint8_t> hintPixels(const std::string& text) const;
 
 private:
   struct Glyphs

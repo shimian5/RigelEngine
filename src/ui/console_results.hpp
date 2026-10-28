@@ -23,6 +23,7 @@ public:
   {
     std::string mLabel;
     bool mEarned = false;
+    std::string mProgress = {};
   };
 
   struct Sounds

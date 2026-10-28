@@ -1,5 +1,7 @@
 #include "duke1_frontend_fixture.hpp"
 
+#include <algorithm>
+
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators.hpp>
 
@@ -77,6 +79,132 @@ struct PlayWorldTestAccess
     actor.v0 = 1;
     actor.v1 = 3;
     world.mActors.push_back(actor);
+  }
+  static std::vector<int> hazardSounds(PlayWorld& world, int id, int state)
+  {
+    PlayWorld::ActorInstance actor{};
+    actor.id = static_cast<std::uint16_t>(id);
+    actor.alive = actor.ported = true;
+    actor.state = id == 0x3009 || id == 0x300A ? state : 1;
+    actor.v0 = id == 0x3031 ? state : 0;
+    actor.x8 = 16;
+    actor.yw = 5 * 128;
+    actor.hits = 10;
+    if (id == 0x302B || id == 0x3022)
+      world.updatePortedPart2(actor);
+    else if (id == 0x3031)
+      world.updatePortedPart3(actor);
+    else
+      world.updatePortedPart5(actor);
+    return world.takeSounds();
+  }
+  static std::vector<int> bunnySound(PlayWorld& world, bool shot)
+  {
+    PlayWorld::ActorInstance actor{};
+    actor.id = 0x303B;
+    actor.alive = actor.ported = true;
+    actor.state = 1;
+    actor.x8 = 16;
+    actor.yw = 5 * 128;
+    actor.cellIndex = 5 * 128 + 7;
+    if (shot)
+    {
+      world.mSandbox.bullets[0] = {1, actor.x8, actor.yw};
+    }
+    world.updatePortedPart2(actor);
+    return world.takeSounds();
+  }
+  static std::pair<bool, int>
+    reactorBurnout(PlayWorld& world, int phase, int age)
+  {
+    world.mPhase = phase;
+    world.mDebris.clear();
+    PlayWorld::ActorInstance actor{};
+    actor.id = 0x302B;
+    actor.alive = actor.ported = true;
+    actor.state = 1;
+    actor.v0 = age;
+    actor.x8 = 16;
+    actor.yw = 5 * 128;
+    actor.cellIndex = 5 * 128 + 7;
+    world.updatePortedPart2(actor);
+    return {actor.alive, world.mDebris.empty() ? -1 : world.mDebris.back().x8};
+  }
+  static std::pair<int, int> reactorBurst(PlayWorld& world, int age)
+  {
+    world.mExplosions.clear();
+    world.mDebris.clear();
+    PlayWorld::ActorInstance actor{};
+    actor.id = 0x302B;
+    actor.alive = actor.ported = true;
+    actor.state = 1;
+    actor.v0 = age;
+    actor.x8 = 16;
+    actor.yw = 5 * 128;
+    actor.cellIndex = 5 * 128 + 7;
+    world.updatePortedPart2(actor);
+    return {
+      int(world.mExplosions.size()),
+      world.mExplosions.empty() ? -1 : world.mExplosions.back().yw};
+  }
+  static unsigned interactionHint(PlayWorld& world, bool elevator)
+  {
+    PlayWorld::ActorInstance actor{};
+    actor.id = elevator ? 0x3001 : 0x3052;
+    actor.alive = actor.ported = true;
+    actor.state = elevator ? 1 : 2;
+    actor.x8 = 16;
+    actor.yw = 5 * 128;
+    actor.cellIndex = 5 * 128 + 7;
+    if (elevator)
+      world.updatePortedPart3(actor);
+    else
+      world.updatePortedPart2(actor);
+    return world.takeHintEvents();
+  }
+  static void cameraFixture(PlayWorld& world)
+  {
+    world.mActors.clear();
+    world.mBonusTotals[0] = 3;
+    for (int i = 0; i < 3; ++i)
+    {
+      PlayWorld::ActorInstance camera{};
+      camera.id = 0x3024;
+      camera.alive = i != 0;
+      world.mActors.push_back(camera);
+    }
+  }
+  static std::array<int, 5>
+    blower(PlayWorld& world, int id, bool shot, bool blocked)
+  {
+    PlayWorld::ActorInstance actor{};
+    actor.id = static_cast<std::uint16_t>(id);
+    actor.ported = actor.alive = true;
+    actor.state = id == 0x301B ? 1 : 2;
+    actor.x8 = 16;
+    actor.yw = 5 * 128;
+    auto& player = world.mSandbox.player;
+    player.x8 = actor.x8 + (actor.state == 1 ? -4 : 4);
+    player.y = 96;
+    if (blocked)
+    {
+      for (int row = 0; row < 6; ++row)
+        for (int col = 0; col < 20; ++col)
+          world.mSandbox.world.cells[row * 128 + col] = 0x1820;
+    }
+    if (shot)
+      world.mSandbox.bullets[0] = {1, actor.x8, actor.yw};
+    const int before = player.x8;
+    const int oldScore = world.mScore;
+    world.updatePortedPart1(actor);
+    const int delta = player.x8 - before;
+    const int state = actor.state;
+    const int score = world.mScore - oldScore;
+    const int cues = int(world.takeSounds().size());
+    for (int i = 0; i < 22; ++i)
+      if (actor.alive)
+        world.updatePortedPart1(actor);
+    return {delta, state, score, cues, actor.alive ? 1 : 0};
   }
   static void prepare(PlayWorld& world)
   {
@@ -340,4 +468,133 @@ TEST_CASE(
             WorldAccess::columnContact(
               world, dx, feetOffset, immunity, disabled) == (lethal ? 0 : 9));
         }
+}
+
+TEST_CASE(
+  "DN1 hazard sounds follow their original transitions",
+  "[duke1][sound]")
+{
+  rigel::test::Duke1Fixture fixture;
+  duke1::PlayWorld world(fixture.mData, "WORLDAL1");
+  WorldAccess::prepare(world);
+  CHECK(WorldAccess::hazardSounds(world, 0x3009, 14) == std::vector<int>{43});
+  CHECK(WorldAccess::hazardSounds(world, 0x300A, 14) == std::vector<int>{43});
+  CHECK(WorldAccess::hazardSounds(world, 0x3031, 6).empty());
+  CHECK(WorldAccess::hazardSounds(world, 0x3031, 7) == std::vector<int>{34});
+  CHECK(WorldAccess::hazardSounds(world, 0x302B, 0) == std::vector<int>{36});
+  CHECK(WorldAccess::hazardSounds(world, 0x3022, 0) == std::vector<int>{22});
+}
+
+TEST_CASE("DN1 camera progress counts destroyed cameras", "[duke1][results]")
+{
+  rigel::test::Duke1Fixture fixture;
+  duke1::PlayWorld world(fixture.mData, "WORLDAL1");
+  WorldAccess::prepare(world);
+  WorldAccess::cameraFixture(world);
+  const auto report = world.bonusReport();
+  CHECK(report.present[duke1::PlayWorld::Cameras]);
+  CHECK_FALSE(report.earned[duke1::PlayWorld::Cameras]);
+  CHECK(report.cameraDestroyed == 1);
+  CHECK(report.cameraTotal == 3);
+}
+
+TEST_CASE(
+  "DN1 walking queues the speaker effect while moving on the floor",
+  "[duke1][sound]")
+{
+  rigel::test::Duke1Fixture fixture;
+  duke1::PlayWorld world(fixture.mData, "WORLDAL1");
+  WorldAccess::prepare(world);
+  duke1::Input input;
+  input.right = true;
+  bool heard = false;
+  for (int i = 0; i < 8; ++i)
+  {
+    world.update(input);
+    const auto sounds = world.takeSounds();
+    heard =
+      heard || std::find(sounds.begin(), sounds.end(), 22) != sounds.end();
+  }
+  CHECK(heard);
+}
+
+TEST_CASE(
+  "DN1 reactor burnout follows original timing and effect positions",
+  "[duke1][effects]")
+{
+  rigel::test::Duke1Fixture fixture;
+  duke1::PlayWorld world(fixture.mData, "WORLDAL1");
+  WorldAccess::prepare(world);
+  CHECK(
+    WorldAccess::reactorBurnout(world, 0, 1) == std::pair<bool, int>{true, 15});
+  CHECK(
+    WorldAccess::reactorBurnout(world, 1, 1) == std::pair<bool, int>{true, -1});
+  CHECK(
+    WorldAccess::reactorBurnout(world, 2, 1) == std::pair<bool, int>{true, 17});
+  CHECK_FALSE(WorldAccess::reactorBurnout(world, 0, 31).first);
+}
+
+TEST_CASE(
+  "DN1 pink enemy contact and defeat sounds match DOS",
+  "[duke1][sound]")
+{
+  rigel::test::Duke1Fixture fixture;
+  duke1::PlayWorld world(fixture.mData, "WORLDAL1");
+  WorldAccess::prepare(world);
+  CHECK(WorldAccess::bunnySound(world, false) == std::vector<int>{35});
+  WorldAccess::prepare(world);
+  CHECK(WorldAccess::bunnySound(world, true) == std::vector<int>{18});
+}
+
+TEST_CASE(
+  "DN1 beam burnout shows harmless bursts along its height",
+  "[duke1][effects]")
+{
+  rigel::test::Duke1Fixture fixture;
+  duke1::PlayWorld world(fixture.mData, "WORLDAL1");
+  WorldAccess::prepare(world);
+  CHECK(WorldAccess::reactorBurst(world, 2) == std::pair<int, int>{0, -1});
+  CHECK(WorldAccess::reactorBurst(world, 3) == std::pair<int, int>{1, 4 * 128});
+  CHECK(WorldAccess::reactorBurst(world, 7) == std::pair<int, int>{1, 3 * 128});
+  CHECK(
+    WorldAccess::reactorBurst(world, 11) == std::pair<int, int>{1, 5 * 128});
+}
+
+TEST_CASE(
+  "DN1 drink and elevator interactions request their hints",
+  "[duke1][hints]")
+{
+  rigel::test::Duke1Fixture fixture;
+  duke1::PlayWorld world(fixture.mData, "WORLDAL1");
+  WorldAccess::prepare(world);
+  REQUIRE(WorldAccess::sandbox(world).player.health == 9);
+  CHECK(
+    WorldAccess::interactionHint(world, false) == duke1::PlayWorld::DrinkHint);
+  CHECK(world.takeHintEvents() == 0);
+  WorldAccess::prepare(world);
+  CHECK(
+    WorldAccess::interactionHint(world, true) ==
+    duke1::PlayWorld::ElevatorHint);
+  CHECK(world.takeHintEvents() == 0);
+}
+
+TEST_CASE("DN1 air devices push and wind down after a shot", "[duke1][actors]")
+{
+  rigel::test::Duke1Fixture fixture;
+  duke1::PlayWorld world(fixture.mData, "WORLDAL1");
+  for (const int id : {0x301B, 0x301C})
+  {
+    WorldAccess::prepare(world);
+    const auto live = WorldAccess::blower(world, id, false, false);
+    CHECK(live[0] == (id == 0x301B ? -1 : 1));
+    WorldAccess::prepare(world);
+    CHECK(WorldAccess::blower(world, id, false, true)[0] == 0);
+    WorldAccess::prepare(world);
+    const auto shot = WorldAccess::blower(world, id, true, false);
+    CHECK(shot[0] == 0);
+    CHECK(shot[1] == 4);
+    CHECK(shot[2] == 1000);
+    CHECK(shot[3] == 1);
+    CHECK(shot[4] == 0);
+  }
 }

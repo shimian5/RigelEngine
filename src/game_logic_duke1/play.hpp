@@ -53,6 +53,8 @@ public:
   {
     bool present[NUM_BONUSES] = {}; // does this level have any of them at all
     bool earned[NUM_BONUSES] = {};
+    int cameraDestroyed = 0;
+    int cameraTotal = 0;
     int count() const
     {
       int n = 0;
@@ -62,6 +64,7 @@ public:
     }
   };
   BonusReport bonusReport() const;
+  const std::vector<int>& collectedLetters() const { return mLetters; }
   bool levelComplete() const { return mLevelComplete; }
   void debugFinishLevel() { mLevelComplete = true; }
   const std::array<std::string, 2>& backdropPair() const { return mPair; }
@@ -127,6 +130,26 @@ public:
   // True once after something moved Duke instantly (transporter): the
   // presentation must not blend across it
   bool takeDiscontinuity() { return std::exchange(mDiscontinuity, false); }
+  // Presentation-only interaction notifications, kept out of game physics.
+  enum HintEvent : unsigned
+  {
+    DrinkHint = 1,
+    ElevatorHint = 2,
+    CrateHint = 1 << 2,
+    ExitHint = 1 << 3,
+    TeleporterHint = 1 << 4,
+    KeyNeededHint = 1 << 5,
+    CardNeededHint = 1 << 6,
+    MachineNeededHint = 1 << 7,
+    FoodHint = 1 << 8,
+    TntHint = 1 << 9,
+    FragileHint = 1 << 10,
+    BalloonHint = 1 << 11,
+    CameraHint = 1 << 12,
+    FieldHint = 1 << 13,
+    BeamHint = 1 << 14
+  };
+  unsigned takeHintEvents() { return std::exchange(mHintEvents, 0u); }
   // Sound requests (original sound indices 0-47) raised since the last call
   std::vector<int> takeSounds() { return std::exchange(mSounds, {}); }
   // Debug: everything Duke can pick up
@@ -158,6 +181,11 @@ public:
       return mSprites[6 + kPiece[i - 4] / 50]
                      [static_cast<std::size_t>(kPiece[i - 4] % 50)];
     return mSprites[8][static_cast<std::size_t>(24 + i)];
+  }
+  // The four collectible letter sprites from the player-supplied OBJECT bank.
+  const std::vector<std::uint8_t>& letterIcon(int i) const
+  {
+    return mSprites[8][static_cast<std::size_t>(18 + i)];
   }
   // 16x16 RGBA picture of the green wave that Duke's shots are drawn as
   const std::vector<std::uint8_t>& shotIcon() const { return mSprites[6][6]; }
@@ -327,6 +355,7 @@ private:
   int mHitFlash = 0;
   bool mPullUpDrawn = false;
   std::vector<int> mSounds;
+  unsigned mHintEvents = 0;
   void sound(int index) { mSounds.push_back(index); }
   void updateOrbs();
   std::vector<Explosion> mExplosions;

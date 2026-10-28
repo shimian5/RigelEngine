@@ -73,7 +73,7 @@ void IngameMessageDisplay::update()
       if (!foundNextLineMarker)
       {
         mPrintedMessage.push_back(static_cast<char>(std::toupper(nextChar)));
-        if (nextChar != ' ')
+        if (nextChar != ' ' && mpServiceProvider)
         {
           mpServiceProvider->playSound(data::SoundId::IngameMessageTyping);
         }
@@ -114,9 +114,18 @@ void IngameMessageDisplay::update()
 }
 
 
+void IngameMessageDisplay::clear()
+{
+  mMessage.clear();
+  mPrintedMessage.clear();
+  mCurrentPriority = MessagePriority::Normal;
+  mState = Idle{};
+}
+
+
 void IngameMessageDisplay::render()
 {
-  if (!mPrintedMessage.empty())
+  if (mpTextRenderer && !mPrintedMessage.empty())
   {
     mpTextRenderer->drawSmallWhiteText(0, 0, mPrintedMessage);
   }

@@ -51,6 +51,10 @@ struct OverlayHudState
   // the regular inventory
   std::vector<std::shared_ptr<renderer::Texture>> customIcons;
   std::vector<data::CollectableLetterType> letters;
+  // DN1 uses D-U-K-E rather than DN2's N-U-K-E-M artwork.
+  std::string duke1Letters;
+  std::array<std::shared_ptr<renderer::Texture>, 4> duke1LetterIcons{};
+  const HudSkin* duke1ScoreSkin = nullptr;
 
   // Positions relative to the player in tiles, each within [-16, 16)
   std::vector<base::Vec2> radarDots;

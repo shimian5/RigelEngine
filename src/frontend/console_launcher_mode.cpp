@@ -243,22 +243,6 @@ void ConsoleLauncherMode::enter(const Screen screen)
         break;
       }
 
-    case Screen::Dn1Levels:
-      {
-        const auto dir = Duke1Mode::findDataDir();
-        const auto episode =
-          dir ? duke1::ExeText::load(*dir, mDn1Episode) : std::nullopt;
-        mDn1LevelCount = episode ? episode->levels().size() : 0;
-        std::vector<ui::ConsoleMenuItem> items;
-        for (std::size_t i = 0; i < mDn1LevelCount; ++i)
-        {
-          items.push_back({"LEVEL " + std::to_string(i + 1), true});
-        }
-        items.push_back({"BACK", true});
-        mList.setItems(std::move(items));
-        break;
-      }
-
     case Screen::LoadAll:
       {
         // Every save of both games, newest-first is not needed: grouped by
@@ -350,23 +334,11 @@ std::unique_ptr<GameMode> ConsoleLauncherMode::activateSelected()
       enter(Screen::Dn1Menu);
       return nullptr;
     }
-    mDn1Episode = mDn1Episodes[std::size_t(selected)];
-    enter(Screen::Dn1Levels);
-    return nullptr;
-  }
-
-  if (mScreen == Screen::Dn1Levels)
-  {
-    if (std::size_t(selected) >= mDn1LevelCount)
-    {
-      enter(mDn1Episodes.size() > 1 ? Screen::Dn1Episodes : Screen::Dn1Menu);
-      return nullptr;
-    }
     if (const auto dataDir = Duke1Mode::findDataDir())
     {
       mContext.mpServiceProvider->fadeOutScreen();
       return std::make_unique<Duke1Mode>(
-        mContext, *dataDir, std::nullopt, mDn1Episode, std::size_t(selected));
+        mContext, *dataDir, std::nullopt, mDn1Episodes[std::size_t(selected)]);
     }
     return nullptr;
   }
@@ -385,16 +357,7 @@ std::unique_ptr<GameMode> ConsoleLauncherMode::activateSelected()
       case 1:
         if (dataDir)
         {
-          mDn1Episodes = Duke1Mode::availableEpisodes(*dataDir);
-          if (mDn1Episodes.size() == 1)
-          {
-            mDn1Episode = mDn1Episodes.front();
-            enter(Screen::Dn1Levels);
-          }
-          else
-          {
-            enter(Screen::Dn1Episodes);
-          }
+          enter(Screen::Dn1Episodes);
         }
         break;
       case 2:
@@ -507,16 +470,8 @@ std::unique_ptr<GameMode> ConsoleLauncherMode::updateAndRender(
       case ui::NavigationEvent::Cancel:
         if (mScreen != Screen::Games)
         {
-          if (mScreen == Screen::Dn1Levels)
-          {
-            enter(
-              mDn1Episodes.size() > 1 ? Screen::Dn1Episodes : Screen::Dn1Menu);
-          }
-          else
-          {
-            enter(
-              mScreen == Screen::Dn1Episodes ? Screen::Dn1Menu : Screen::Games);
-          }
+          enter(
+            mScreen == Screen::Dn1Episodes ? Screen::Dn1Menu : Screen::Games);
         }
         break;
       default:
@@ -555,13 +510,6 @@ void ConsoleLauncherMode::render()
   {
     view.mTitle = "EPISODE SELECT";
     view.mBackLabel = "BACK";
-  }
-  else if (mScreen == Screen::Dn1Levels)
-  {
-    view.mTitle = "LEVEL SELECT";
-    view.mSubtitle = "EPISODE " + std::to_string(mDn1Episode + 1);
-    view.mBackLabel = "BACK";
-    view.mConfirmLabel = "START";
   }
   else if (mScreen == Screen::LoadAll)
   {

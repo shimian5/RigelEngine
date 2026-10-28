@@ -22,6 +22,7 @@
 #include "assets/resource_loader.hpp"
 #include "base/image.hpp"
 #include "base/string_utils.hpp"
+#include "data/game_traits.hpp"
 #include "frontend/game_service_provider.hpp"
 #include "frontend/replay_save.hpp"
 #include "frontend/user_profile.hpp"
@@ -35,6 +36,7 @@
 #include <loguru.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <string_view>
 
@@ -203,7 +205,183 @@ bool Duke1Mode::selectEpisode(const int episode)
   mEpisode = episode;
   mpSpeaker = std::make_unique<Duke1Speaker>(mDataDir, episode);
   mpScreens = std::make_unique<Duke1Screens>(mDataDir, *mText);
+  mHintTexture.reset();
+  mHintTextureText.clear();
   return true;
+}
+
+std::string Duke1Mode::formatHint(const std::string& hint)
+{
+  constexpr std::size_t width = 36;
+  std::string formatted;
+  std::string line;
+  std::string word;
+  const auto flushLine = [&] {
+    if (!line.empty())
+    {
+      if (!formatted.empty())
+        formatted += '*';
+      formatted += line;
+      line.clear();
+    }
+  };
+  const auto flushWord = [&] {
+    while (!word.empty())
+    {
+      if (!line.empty() && line.size() + 1 + word.size() > width)
+        flushLine();
+      if (!line.empty())
+        line += ' ';
+      const auto count = std::min(width - line.size(), word.size());
+      line.append(word, 0, count);
+      word.erase(0, count);
+      if (!word.empty())
+        flushLine();
+    }
+  };
+  for (const auto c : hint)
+  {
+    if (c == '\n' || c == '*')
+    {
+      flushWord();
+      flushLine();
+    }
+    else if (std::isspace(static_cast<unsigned char>(c)))
+      flushWord();
+    else
+      word += c;
+  }
+  flushWord();
+  flushLine();
+  return formatted;
+}
+
+void Duke1Mode::nextHint()
+{
+  if (mCurrentActorHint >= 0)
+  {
+    mActorHintsShown[std::size_t(mCurrentActorHint)] = true;
+    mActorHintsQueued[std::size_t(mCurrentActorHint)] = false;
+    mCurrentActorHint = -1;
+  }
+  mLevelHint.clear();
+  mHintDisplay.clear();
+  if (mPendingHints.empty())
+    return;
+  auto hint = std::move(mPendingHints.front());
+  mPendingHints.pop_front();
+  mCurrentActorHint = hint.actorIndex;
+  mLevelHint = std::move(hint.text);
+  mHintDisplay.setMessage(formatHint(mLevelHint));
+}
+
+void Duke1Mode::queueHint(std::string hint, bool first, int actorIndex)
+{
+  if (hint.empty())
+    return;
+  if (first && mHintDisplay.isActive())
+  {
+    mPendingHints.push_front({std::move(mLevelHint), mCurrentActorHint});
+    mCurrentActorHint = -1;
+    mHintDisplay.clear();
+  }
+  if (first)
+    mPendingHints.push_front({std::move(hint), actorIndex});
+  else
+    mPendingHints.push_back({std::move(hint), actorIndex});
+  if (!mHintDisplay.isActive())
+    nextHint();
+}
+
+void Duke1Mode::queueOriginalHint(int sequenceIndex, bool first)
+{
+  const auto lines = mText->tipMessage(sequenceIndex);
+  const auto isSaveReminder = [](const std::string& line) {
+    auto upper = line;
+    std::transform(
+      upper.begin(), upper.end(), upper.begin(), [](unsigned char c) {
+        return static_cast<char>(std::toupper(c));
+      });
+    return upper.find("SAVE") != std::string::npos;
+  };
+  // The first intermission is entirely a save reminder. Later intermissions
+  // can contain useful advice followed by a separate save reminder line.
+  if (
+    sequenceIndex == 1 &&
+    std::any_of(lines.begin(), lines.end(), isSaveReminder))
+    return;
+  std::string hint;
+  for (const auto& line : lines)
+  {
+    if (line.empty() || (sequenceIndex % 2 != 0 && isSaveReminder(line)))
+      continue;
+    if (!hint.empty())
+      hint += '\n';
+    hint += line;
+  }
+  queueHint(std::move(hint), first);
+}
+
+void Duke1Mode::detectActorHints(
+  const std::array<bool, 8>& oldInventory,
+  const int oldCapacity,
+  const std::size_t oldLetters)
+{
+  const auto hintOnce = [this](int index, const char* message) {
+    if (
+      !mActorHintsShown[std::size_t(index)] &&
+      !mActorHintsQueued[std::size_t(index)])
+    {
+      mActorHintsQueued[std::size_t(index)] = true;
+      queueHint(message, false, index);
+    }
+  };
+  for (int i = 0; i < 4; ++i)
+    if (!oldInventory[std::size_t(i)] && mpWorld->hasKey(i))
+      hintOnce(0, "USE A KEY AT THE MATCHING DOOR CONTROL.");
+  if (!oldInventory[4] && mpWorld->hasKey(4))
+    hintOnce(1, "THE BOOTS LET DUKE JUMP HIGHER.");
+  if (!oldInventory[5] && mpWorld->hasKey(5))
+    hintOnce(2, "THE CLAWS LET DUKE HOLD ON TO SUITABLE CEILINGS.");
+  if (oldCapacity < mpWorld->player().capacity)
+    hintOnce(3, "THE WEAPON UPGRADE ALLOWS MORE SHOTS AT ONCE.");
+  if (oldLetters < mpWorld->collectedLetters().size())
+    hintOnce(4, "COLLECT D, U, K, E IN ORDER FOR A BONUS.");
+  if (!oldInventory[6] && mpWorld->hasKey(6))
+    hintOnce(5, "THIS ITEM CAN POWER SOME WALL MACHINES.");
+  if (!oldInventory[7] && mpWorld->hasKey(7))
+    hintOnce(6, "USE THE ACCESS CARD AT A MATCHING READER.");
+  const auto interactions = mpWorld->takeHintEvents();
+  if (interactions & duke1::PlayWorld::DrinkHint)
+    hintOnce(7, "DRINKS RESTORE ONE UNIT OF HEALTH.");
+  if (interactions & duke1::PlayWorld::ElevatorHint)
+    hintOnce(8, "STAND ON THE ELEVATOR AND PRESS UP.");
+  if (interactions & duke1::PlayWorld::CrateHint)
+    hintOnce(9, "SOME CRATES HOLD ITEMS. SHOOT THEM OPEN.");
+  if (interactions & duke1::PlayWorld::ExitHint)
+    hintOnce(10, "PRESS UP AT THE EXIT TO LEAVE THE LEVEL.");
+  if (interactions & duke1::PlayWorld::TeleporterHint)
+    hintOnce(11, "STAND ON A TRANSPORTER AND PRESS UP.");
+  if (interactions & duke1::PlayWorld::KeyNeededHint)
+    hintOnce(12, "THIS CONTROL NEEDS A MATCHING KEY.");
+  if (interactions & duke1::PlayWorld::CardNeededHint)
+    hintOnce(13, "FIND AN ACCESS CARD TO USE THIS READER.");
+  if (interactions & duke1::PlayWorld::MachineNeededHint)
+    hintOnce(14, "THIS MACHINE NEEDS A SPECIAL ITEM.");
+  if (interactions & duke1::PlayWorld::FoodHint)
+    hintOnce(15, "FOOD RESTORES HEALTH.");
+  if (interactions & duke1::PlayWorld::TntHint)
+    hintOnce(16, "TNT SPREADS FIRE ALONG THE FLOOR.");
+  if (interactions & duke1::PlayWorld::FragileHint)
+    hintOnce(17, "A CRACKED FLOOR CAN COLLAPSE.");
+  if (interactions & duke1::PlayWorld::BalloonHint)
+    hintOnce(18, "COLLECT THE BALLOON FOR BONUS POINTS.");
+  if (interactions & duke1::PlayWorld::CameraHint)
+    hintOnce(19, "DESTROY ALL CAMERAS FOR A BONUS.");
+  if (interactions & duke1::PlayWorld::FieldHint)
+    hintOnce(20, "A CARD READER CAN DISABLE FORCE FIELDS.");
+  if (interactions & duke1::PlayWorld::BeamHint)
+    hintOnce(21, "THE ELECTRIC COLUMN IS DEADLY. SHOOT IT.");
 }
 
 void Duke1Mode::startLevel(
@@ -213,6 +391,21 @@ void Duke1Mode::startLevel(
   mInputLog.clear();
   mLevelStartCarry = pCarry ? *pCarry : duke1::PlayWorld::Carry{};
   const auto& level = mText->levels().at(index);
+  if (mCurrentActorHint >= 0)
+    mPendingHints.push_front({std::move(mLevelHint), mCurrentActorHint});
+  mCurrentActorHint = -1;
+  mPendingHints.erase(
+    std::remove_if(
+      mPendingHints.begin(),
+      mPendingHints.end(),
+      [](const auto& hint) { return hint.actorIndex < 0; }),
+    mPendingHints.end());
+  mLevelHint.clear();
+  mHintDisplay.clear();
+  mHintClock = 0.0;
+  queueOriginalHint(level.sequenceIndex, true);
+  if (!mHintDisplay.isActive() && !mPendingHints.empty())
+    nextHint();
   auto next = std::make_unique<duke1::PlayWorld>(
     mDataDir, level.filename, &level.backdrops, mEpisode);
   if (pCarry)
@@ -238,6 +431,7 @@ void Duke1Mode::startLevel(
   mCamInitialized = false;
   mSinceUpdate = 0.0;
   mKeyIcons = {};
+  mLetterIcons = {};
 }
 
 
@@ -250,6 +444,7 @@ Duke1Mode::Duke1Mode(
   : mContext(context)
   , mDataDir(dataDir)
   , mPauseMenu(context, saveSlotSource(), true)
+  , mHintDisplay(nullptr, nullptr)
 {
   mContext.mpServiceProvider->stopMusic();
   mWide = mContext.mpUserProfile->mOptions.widescreenModeActive() &&
@@ -484,6 +679,7 @@ bool Duke1Mode::loadFrom(const std::string& slot)
     mpWorld->update(unpackDuke1Input(packed));
   }
   mpWorld->takeSounds(); // nothing of the replay should be heard
+  mpWorld->takeHintEvents(); // replayed interactions should not show hints
   mInputLog = oSave->mInputs;
   mTimerRemainder = 0.0;
   mSinceUpdate = 0.0;
@@ -573,7 +769,8 @@ void Duke1Mode::renderFrame(const double dt, const bool paused)
     // One game pixel per buffer pixel: the engine's upscaler then scales
     // everything uniformly, so squares stay square. This shows 12.5 tile
     // rows; a taller view would need a non-integer resample first.
-    frameHeight = WIDE_VIEW_HEIGHT;
+    // Reserve an eight-pixel message row at the same pixel scale as the world.
+    frameHeight = WIDE_VIEW_HEIGHT - 8;
     frameWidth = static_cast<int>(
       std::ceil(double(bufferWidth) * WIDE_VIEW_HEIGHT / bufferHeight));
 
@@ -630,9 +827,12 @@ void Duke1Mode::renderFrame(const double dt, const bool paused)
   {
     const auto saved = renderer::saveState(mContext.mpRenderer);
     mContext.mpRenderer->setClipRect({});
+    mContext.mpRenderer->clear({0, 0, 0, 255});
+    const int topRow =
+      std::max(1, int(std::lround(bufferHeight * 8.0 / WIDE_VIEW_HEIGHT)));
     frame.render(
       base::Rect<int>{{0, 0}, {frameWidth, frameHeight}},
-      base::Rect<int>{{0, 0}, {bufferWidth, bufferHeight}});
+      base::Rect<int>{{0, topRow}, {bufferWidth, bufferHeight - topRow}});
   }
   else
   {
@@ -651,21 +851,68 @@ void Duke1Mode::renderFrame(const double dt, const bool paused)
   {
     drawPauseMenu();
   }
+  if (!paused && !mHideToastOnce)
+  {
+    // DN2's message state advances at its 15 Hz game tick rate.
+    mHintClock += std::clamp(dt, 0.0, 0.25);
+    while (mHintClock >= 1.0 / 15.0)
+    {
+      mHintClock -= 1.0 / 15.0;
+      if (mHintDisplay.isActive())
+      {
+        const auto before = mHintDisplay.printedMessage().size();
+        mHintDisplay.update();
+        const auto& printed = mHintDisplay.printedMessage();
+        if (printed.size() > before && printed.back() != ' ' && mpSpeaker)
+          mpSpeaker->playHintTick();
+        if (!mHintDisplay.isActive())
+          nextHint();
+      }
+    }
+    const auto& text = mHintDisplay.printedMessage();
+    if (!text.empty())
+    {
+      if (mpScreens && mpScreens->hasFont() && mContext.mpRenderer)
+      {
+        if (!mHintTexture || mHintTextureText != text)
+        {
+          const auto rgba = mpScreens->hintPixels(text);
+          data::PixelBuffer pixels;
+          pixels.reserve(rgba.size() / 4);
+          for (std::size_t i = 0; i + 3 < rgba.size(); i += 4)
+            pixels.emplace_back(rgba[i], rgba[i + 1], rgba[i + 2], rgba[i + 3]);
+          mHintTexture = std::make_unique<renderer::Texture>(
+            mContext.mpRenderer,
+            data::Image{std::move(pixels), text.size() * 8, 8});
+          mHintTextureText = text;
+        }
+        mHintTexture->render(0, 0);
+      }
+      else
+      {
+        // Malformed or missing FONT files must not prevent playing.
+        const auto display = ImGui::GetIO().DisplaySize;
+        ImGui::GetForegroundDrawList()->AddText(
+          ImGui::GetFont(),
+          std::max(12.0f, display.y / 36.0f),
+          {display.x * 0.02f, display.y * 0.01f},
+          IM_COL32(255, 255, 255, 255),
+          text.c_str());
+      }
+    }
+  }
+  const float target = mHintDisplay.isActive() && !mHideToastOnce ? 1.0f : 0.0f;
+  const float speed = target > mHudMessageSlide ? 8.0f : 3.0f;
+  const float step =
+    std::min(0.1f, static_cast<float>(std::max(0.0, dt))) * speed;
+  mHudMessageSlide = target > mHudMessageSlide
+    ? std::min(target, mHudMessageSlide + step)
+    : std::max(target, mHudMessageSlide - step);
   if (mHideToastOnce)
   {
     mHideToastOnce = false;
   }
-  else if (mToastSeconds > 0.0)
-  {
-    mToastSeconds -= dt;
-    const auto display = ImGui::GetIO().DisplaySize;
-    ImGui::GetForegroundDrawList()->AddText(
-      nullptr,
-      display.y / 24.0f,
-      {display.x / 2.0f - mToast.size() * display.y / 96.0f, display.y * 0.1f},
-      IM_COL32(255, 153, 0, 255),
-      mToast.c_str());
-  }
+
 
   if (mFadeInPending)
   {
@@ -797,14 +1044,13 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
   if (mQuickSaveRequested)
   {
     mQuickSaveRequested = false;
-    mToast = saveTo("dn1_quicksave") ? "QUICK SAVED" : "SAVE FAILED";
-    mToastSeconds = 1.5;
+    queueHint(saveTo("dn1_quicksave") ? "QUICK SAVED" : "SAVE FAILED", true);
   }
   if (mQuickLoadRequested)
   {
     mQuickLoadRequested = false;
-    mToast = loadFrom("dn1_quicksave") ? "QUICK LOADED" : "NO QUICK SAVE";
-    mToastSeconds = 1.5;
+    queueHint(
+      loadFrom("dn1_quicksave") ? "QUICK LOADED" : "NO QUICK SAVE", true);
   }
   if (mPauseRequested)
   {
@@ -852,7 +1098,13 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
   }
   if (callbacks > 0 && mGate.callbacks(callbacks))
   {
+    std::array<bool, 8> oldInventory{};
+    for (int i = 0; i < 8; ++i)
+      oldInventory[std::size_t(i)] = mpWorld->hasKey(i);
+    const auto oldCapacity = mpWorld->player().capacity;
+    const auto oldLetters = mpWorld->collectedLetters().size();
     mpWorld->update(input);
+    detectActorHints(oldInventory, oldCapacity, oldLetters);
     for (const auto index : mpWorld->takeSounds())
     {
       mpSpeaker->play(index);
@@ -894,7 +1146,11 @@ std::unique_ptr<GameMode> Duke1Mode::updateAndRender(
         {
           if (report.present[i])
           {
-            rows.push_back({NAMES[i], report.earned[i]});
+            const auto progress = i == duke1::PlayWorld::Cameras
+              ? std::to_string(report.cameraDestroyed) + "/" +
+                std::to_string(report.cameraTotal)
+              : std::string{};
+            rows.push_back({NAMES[i], report.earned[i], progress});
           }
         }
         const auto seconds = mpWorld->updateCount() / 16;
