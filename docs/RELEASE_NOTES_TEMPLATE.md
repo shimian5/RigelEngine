@@ -1,6 +1,14 @@
 RigelEngine: Proton brings Duke Nukem I and II together with a shared launcher,
 modern HUD and menus, controller support, widescreen rendering and persistent saves.
 
+Changes in 0.10.0-beta.2:
+- Duke Nukem I: contextual hints and save/load notifications use the original
+  episode font and speaker effects, with a dedicated message row.
+- Duke Nukem I: improved actor sounds, D-U-K-E HUD, camera totals, level-end
+  beam effects, and directional air-device behavior.
+- New Game offers the installed Duke Nukem I episodes and begins at level one.
+- Android returns directly to the game launcher when imported files are present.
+
 Downloads:
 - Android ARM64 APK (Android 8.0+, permanent project signature).
 - Windows x64 ZIP (extract it; install the Microsoft VC++ 2015–2022 x64 runtime if needed).
