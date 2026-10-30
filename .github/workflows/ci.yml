@@ -159,7 +159,7 @@ jobs:
     - name: Configure with tests
       shell: pwsh
       run: |
-        cmake -S . -B build-arm64 -A ARM64 "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" "-DVCPKG_TARGET_TRIPLET=arm64-windows" "-DSDL2_PATH=$env:VCPKG_ROOT/installed/arm64-windows" "-DSDL2_MIXER_PATH=$env:VCPKG_ROOT/installed/arm64-windows" -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBUILD_TESTS=ON
+        cmake -S . -B build-arm64 -A ARM64 "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" "-DVCPKG_TARGET_TRIPLET=arm64-windows" "-DSDL2_PATH=$env:VCPKG_ROOT/installed/arm64-windows" "-DSDL2_MIXER_PATH=$env:VCPKG_ROOT/installed/arm64-windows" "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" -DBUILD_TESTS=ON
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     - name: Build
       run: cmake --build build-arm64 --config Release --parallel 2
