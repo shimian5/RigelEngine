@@ -139,6 +139,65 @@ jobs:
         path: build/rigelengine-proton-*-windows-x64.zip*
         if-no-files-found: error
 
+  build_windows_arm64:
+    name: Windows ARM64
+    runs-on: windows-11-arm
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - name: Install ARM64 SDL dependencies
+      shell: pwsh
+      run: |
+        $root = $env:VCPKG_INSTALLATION_ROOT
+        if (-not (Test-Path -LiteralPath "$root/vcpkg.exe")) { throw "vcpkg not found at $root" }
+        & "$root/vcpkg.exe" install sdl2:arm64-windows sdl2-mixer:arm64-windows
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        "VCPKG_ROOT=$root" >> $env:GITHUB_ENV
+        "$root/installed/arm64-windows/bin" >> $env:GITHUB_PATH
+        "VCPKG_DEFAULT_TRIPLET=arm64-windows" >> $env:GITHUB_ENV
+    - name: Configure with tests
+      shell: pwsh
+      run: |
+        cmake -S . -B build-arm64 -A ARM64 "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" "-DVCPKG_TARGET_TRIPLET=arm64-windows" "-DSDL2_PATH=$env:VCPKG_ROOT/installed/arm64-windows" "-DSDL2_MIXER_PATH=$env:VCPKG_ROOT/installed/arm64-windows" -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBUILD_TESTS=ON
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Build
+      run: cmake --build build-arm64 --config Release --parallel 2
+    - name: Test
+      run: ctest --test-dir build-arm64 --build-config Release --output-on-failure
+    - name: Package and verify ARM64 executable and DLLs
+      shell: pwsh
+      run: |
+        $package = "build-arm64/windows-package"
+        New-Item -ItemType Directory -Force -Path $package | Out-Null
+        Copy-Item build-arm64/src/Release/rigelengine-proton.exe $package
+        Copy-Item build-arm64/src/Release/*.dll $package
+        Copy-Item LICENSE.md,README.md "$package/"
+        Copy-Item "$env:VCPKG_ROOT/installed/arm64-windows/share" "$package/dependency-licenses" -Recurse
+        foreach ($file in Get-ChildItem $package -File | Where-Object { $_.Extension -in '.exe', '.dll' }) {
+          $bytes = [System.IO.File]::ReadAllBytes($file.FullName)
+          if ($bytes.Length -lt 64 -or $bytes[0] -ne 0x4d -or $bytes[1] -ne 0x5a) { throw "Not a PE binary: $($file.Name)" }
+          $offset = [BitConverter]::ToInt32($bytes, 0x3c)
+          if ($offset -lt 0 -or $offset + 6 -gt $bytes.Length -or [BitConverter]::ToUInt32($bytes, $offset) -ne 0x4550 -or [BitConverter]::ToUInt16($bytes, $offset + 4) -ne 0xaa64) { throw "Not a native ARM64 binary: $($file.Name)" }
+        }
+        @"
+        RigelEngine: Proton for Windows ARM64 (experimental CI build).
+        Install Microsoft Visual C++ 2015-2022 Redistributable (ARM64) if needed:
+        https://aka.ms/vs/17/release/vc_redist.arm64.exe
+        Run rigelengine-proton.exe and select your own DOS game files.
+        No game data is included. See README.md for setup.
+        "@ | Set-Content "$package/START-HERE.txt"
+        $version = (Get-Content version.json | ConvertFrom-Json).version
+        $zip = "build-arm64/rigelengine-proton-$version-windows-arm64.zip"
+        Compress-Archive -Path "$package/*" -DestinationPath $zip
+        $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+        "$hash  $(Split-Path -Leaf $zip)" | Set-Content "$zip.sha256"
+    - uses: actions/upload-artifact@v4
+      with:
+        name: rigelengine-proton-windows-arm64
+        path: build-arm64/rigelengine-proton-*-windows-arm64.zip*
+        if-no-files-found: error
+
   build_android:
     name: Android ARM64 APK
     runs-on: ubuntu-24.04
